@@ -85,22 +85,6 @@ def main(argv):
            stagger_bp, chromo_lengths, base_name, chr_col, pos_col, p_col)
 
 ###############################################################################
-#############################  Testing Locations ##############################
-###############################################################################
-
-gwas_file = "/grand/projects/GeomicVar/proj-mvp-ukb-meta/output_gia/metaanalysis_for_export/ALL/Phe_697.ALL.mrmega.sumstats.txt.gz"
-output_loc = "/grand/projects/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/mapping_loci"
-prime_p_thresh = 5e-8
-sec_p_thresh = 1e-6
-stagger_bp=250000
-chromo_lengths = "/grand/projects/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/Meta_Fine-Mapping/1_Locus_Defining/grch38_chr_bounds_mhc_only.bed"
-base_name = "Phe_697"
-chr_col = "CHR"
-pos_col = "POS"
-p_col = "P"
-
-
-###############################################################################
 #############################  DRIVER  ########################################
 ###############################################################################
 
