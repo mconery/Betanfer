@@ -11,6 +11,8 @@ import os
 import glob
 import subprocess
 from multiprocessing import Pool, cpu_count
+import pandas as pd
+from intervaltree import Interval, IntervalTree
 
 # Set key directories and files
 INPUT_DIR = "/grand/projects/GeomicVar/proj-mvp-ukb-meta/output_gia/metaanalysis_for_export/ALL"
@@ -20,6 +22,7 @@ MAP_SCRIPT = "/grand/projects/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/Meta_
 #Get number of threads
 N_PROCESSES = min(8, cpu_count() // 2) # Adjusting down because we seem not to be able to use all cores without hitting memory issues
 
+#Create function to find loci for each trait
 def process_trait(file_path):
     """Process a single trait file"""
     base_name = os.path.basename(file_path)
@@ -48,6 +51,16 @@ def process_trait(file_path):
         print(f"SUCCESS: Completed {trait}")
     except subprocess.CalledProcessError as e:
         print(f"ERROR: Error processing {trait}: {str(e)}")
+        
+#Create a function to read in each output file
+def read_output(file_path):
+    try: 
+        loci_list = pd.read_csv(file_path, sep=",")
+        trait = os.path.basename(file_path).split('.')[0]
+        loci_list['TRAIT'] = [trait for x in range(len(loci_list))]
+    except pd.errors.EmptyDataError:
+        loci_list = None
+    return loci_list
 
 if __name__ == "__main__":
     # Get list of input files
@@ -59,6 +72,38 @@ if __name__ == "__main__":
     # Create output directory if needed
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     
-# Process files in parallel
-with Pool(processes=N_PROCESSES) as pool:
-    temp = pool.map(process_trait, input_files)
+    # Process files in parallel through locus finding script
+    with Pool(processes=N_PROCESSES) as pool:
+        temp = pool.map(process_trait, input_files)
+    
+    #Get output file names
+    output_files = [os.path.join(OUTPUT_DIR,os.path.basename(x).replace('.ALL.mrmega.sumstats.txt.gz', '.sig_loci.csv')) for x in input_files]
+     
+    #Read in all the output files in order to combine them together
+    with Pool(processes=N_PROCESSES) as pool:
+        temp = pool.map(read_output, output_files)
+        
+    #Remove empty entries
+    temp = [x for x in temp if type(x) == pd.core.frame.DataFrame]
+    #Combine lists and write to file
+    combined_df = pd.concat(temp, ignore_index=True)
+    
+    #Add a column to the dataframe indicating the number of other loci overlapped by the locus
+    # Initialize new column
+    combined_df['OVERLAP_COUNT'] = 0
+    
+    # Process each chromosome separately
+    for chr_name, chr_group in combined_df.groupby('CHR'):
+        # Create interval tree for this chromosome
+        tree = IntervalTree()
+        for idx, row in chr_group.iterrows():
+            tree.add(Interval(row['START'], row['END'], idx))
+        
+        # Calculate overlaps within chromosome
+        for idx, row in chr_group.iterrows():
+            overlaps = tree.overlap(row['START'], row['END'])
+            combined_df.loc[idx, 'OVERLAP_COUNT'] = len(overlaps) - 1  # Exclude self
+    
+    #Write to file
+    combined_df.to_csv(os.path.join(OUTPUT_DIR, 'sig_loci.master.csv'), index=False)
+
