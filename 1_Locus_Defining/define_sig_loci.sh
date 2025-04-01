@@ -3,7 +3,8 @@
 #PBS -N define_sig_loci
 #PBS -l walltime=1:00:00
 #PBS -l filesystems=home:grand
-#PBS -l select=1
+#PBS -l select=1:ncpus=1
+#PBS -q debug
 
 #Set mapping script location
 map_script=/grand/projects/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/Meta_Fine-Mapping/1_Locus_Defining/define_sig_loci_for_trait.py
