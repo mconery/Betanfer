@@ -36,6 +36,6 @@ ls $INPUT_DIR/*.ALL.mrmega.sumstats.txt.gz | while read file; do
 		python '$map_script' -g '$file' -o '$OUTPUT_DIR' -p 5e-8 -s 1e-6 -t 250000 -b '$trait' --chr-col CHR --pos-col POS --p-col P' > $TEMP_SCRIPT_DIR/$trait.define_sig_loci.sh
         sed -i '1i#!/bin/bash'  $TEMP_SCRIPT_DIR/$trait.define_sig_loci.sh
 	#Submit the shell script
-        qsub -l filesystems=home:grand -N define_$trait -q preemptable -l select=1:ncpus=1 -A GeomicVar -l walltime=1:00:00 $TEMP_SCRIPT_DIR/$trait.define_sig_loci.sh
+        qsub -l filesystems=home:grand -N define_$trait -q debug -l select=1:ncpus=1 -A GeomicVar -l walltime=1:00:00 $TEMP_SCRIPT_DIR/$trait.define_sig_loci.sh
 done
 
