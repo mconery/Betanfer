@@ -113,10 +113,10 @@ def driver(gwas_file, output_loc, prime_p_thresh, sec_p_thresh, stagger_bp,
 
     if not sig_tiles_no_dups.size:
         print("NOTE: No significant loci identified for " + base_name)
-        sys.exit(0)
         # Creates an empty file
         with open(output_loci_file, 'w') as out_path:
             pass
+        sys.exit(0)
 
     #Make a list to hold the output data
     out_ranges = []
