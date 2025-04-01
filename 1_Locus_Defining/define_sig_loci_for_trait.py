@@ -112,7 +112,7 @@ def driver(gwas_file, output_loc, prime_p_thresh, sec_p_thresh, stagger_bp,
     sig_tiles_no_dups = np.sort(list(set(sig_tiles)))
 
     if not sig_tiles_no_dups.size:
-        print("NOTE: No significant loci identified")
+        print("NOTE: No significant loci identified for " + base_name)
         sys.exit(0)
         # Creates an empty file
         with open(output_loci_file, 'w') as out_path:
@@ -150,7 +150,7 @@ def driver(gwas_file, output_loc, prime_p_thresh, sec_p_thresh, stagger_bp,
         # Creates an empty file
         with open(output_loci_file, 'w') as out_path:
             pass
-        print("NOTE: No significant loci identified")
+        print("NOTE: No significant loci identified for " + base_name)
         sys.exit(0)
 
     #Read in chromosome lengths file
@@ -185,6 +185,13 @@ def driver(gwas_file, output_loc, prime_p_thresh, sec_p_thresh, stagger_bp,
                     range_temp.extend([range_len])
                     semi_final_ranges.append(range_temp)
     del semi_final_ranges[0]
+    #Check that there are at least some significant variants after filtering out forbidden regions
+    if len(semi_final_ranges) == 0:
+        # Creates an empty file
+        with open(output_loci_file, 'w') as out_path:
+            pass
+        print("NOTE: No significant loci identified for " + base_name)
+        sys.exit(0)
     
     #Collapse loci if overlapping!
     semi_final_ranges = sorted(semi_final_ranges, key = lambda x: (x[0], x[1], x[2]))
@@ -203,7 +210,7 @@ def driver(gwas_file, output_loc, prime_p_thresh, sec_p_thresh, stagger_bp,
         # Creates an empty file
         with open(output_loci_file, 'w') as out_path:
             pass
-        print("NOTE: No significant loci identified.")
+        print("NOTE: No significant loci identified for " + base_name)
         sys.exit(0)
     
     #Write to file
