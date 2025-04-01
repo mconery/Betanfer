@@ -92,8 +92,11 @@ def main(argv):
 def driver(gwas_file, output_loc, prime_p_thresh, sec_p_thresh, stagger_bp,
           chromo_lengths, base_name, chr_col, pos_col, p_col):
     
+    #Add slash to output dir and make it if necessary
     output_loc = output_loc.rstrip('/') + '/'
     os.makedirs(output_loc, exist_ok=True)
+    # Final output with configurable base name
+    output_loci_file = f"{output_loc}{base_name}.sig_loci.csv"
 
     # Read GWAS data with column flexibility
     cur_file = pd.read_csv(gwas_file, index_col=0, sep="\t")
@@ -109,8 +112,11 @@ def driver(gwas_file, output_loc, prime_p_thresh, sec_p_thresh, stagger_bp,
     sig_tiles_no_dups = np.sort(list(set(sig_tiles)))
 
     if not sig_tiles_no_dups.size:
-        print("No significant loci identified")
+        print("NOTE: No significant loci identified")
         sys.exit(0)
+        # Creates an empty file
+        with open(output_loci_file, 'w') as out_path:
+            pass
 
     #Make a list to hold the output data
     out_ranges = []
@@ -139,6 +145,13 @@ def driver(gwas_file, output_loc, prime_p_thresh, sec_p_thresh, stagger_bp,
     #Filter down the filt_file again for the variants significant at the primary threshold
     temp = filt_file[filt_file['P'] <= prime_p_thresh].index.str.split(":")
     prime_sig_vars = [int(x[0]) + float(x[1])/1e9 for x in temp]
+    #Check that there are at least some significant variants at primary threshold
+    if len(prime_sig_vars) == 0:
+        # Creates an empty file
+        with open(output_loci_file, 'w') as out_path:
+            pass
+        print("NOTE: No significant loci identified")
+        sys.exit(0)
 
     #Read in chromosome lengths file
     chr_lens = [] #This file should already be ordered by chromosome 
@@ -187,12 +200,13 @@ def driver(gwas_file, output_loc, prime_p_thresh, sec_p_thresh, stagger_bp,
     
     #Output message if no rows are left in final_ranges
     if len(final_ranges) == 0:
+        # Creates an empty file
+        with open(output_loci_file, 'w') as out_path:
+            pass
         print("NOTE: No significant loci identified.")
         sys.exit(0)
-
-    # Final output with configurable base name
-    output_loci_file = f"{output_loc}{base_name}.sig_loci.csv"
     
+    #Write to file
     with open(output_loci_file, "w") as out_path:
         writer = csv.writer(out_path)
         writer.writerow(['CHR', 'START', 'END', 'LENGTH'])  # Header
