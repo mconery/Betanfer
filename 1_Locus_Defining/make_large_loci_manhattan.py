@@ -81,9 +81,9 @@ def generate_manhattan(summary_stats_path, genomic_region,
         
     return fig
 
-summary_stats_path="/grand/projects/GeomicVar/proj-mvp-ukb-meta/output_gia/metaanalysis_for_export/ALL/QTL_WBC.ALL.mrmega.sumstats.txt.gz"
-genomic_region="chr1:19000001-89250000"
-save_file="/grand/projects/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/testing/" + 'QTL_WBC.' + geno_region.replace(":", "_") + '.jpg'
-generate_manhattan(gwas_path, geno_region, save_path=save_file)
+#gwas_path="/grand/projects/GeomicVar/proj-mvp-ukb-meta/output_gia/metaanalysis_for_export/ALL/QTL_WBC.ALL.mrmega.sumstats.txt.gz"
+#geno_region="chr1:19000001-89250000"
+#save_file="/grand/projects/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/testing/" + 'QTL_WBC.' + geno_region.replace(":", "_") + '.jpg'
+#generate_manhattan(gwas_path, geno_region, save_path=save_file)
 
 
