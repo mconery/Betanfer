@@ -121,7 +121,7 @@ def generate_manhattan(summary_stats_path, genomic_region, chr_col="CHR", pos_co
     ].copy()
     
     # Calculate transformed p-values
-    region_df["P"] = np.maximum("5e-324", region_df["P"])
+    region_df["P"] = np.maximum(5e-324, region_df["P"])
     region_df["-log10P"] = -np.log10(region_df["P"])
     
     # Create plot
