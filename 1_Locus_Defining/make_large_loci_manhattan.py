@@ -1,5 +1,5 @@
 '''
-make_loci_manhattan.py
+make_large_loci_manhattan.py
 
 The purpose of this script is to make Manhattan plots for a given list of input
 loci. The input file should be in the same format as all of my loci files. 
