@@ -62,7 +62,7 @@ def main(argv):
     
     # Numeric parameter
     try:
-       min_len = int(options_dict.get('-m', 5).lstrip('Mb').lstrip('mb').lstrip('MB'))
+       min_len = int(str(options_dict.get('-m', 5)).lstrip('Mb').lstrip('mb').lstrip('MB'))
     except ValueError:
         print("ERROR: Invalid minimum length given")
         sys.exit(1)
