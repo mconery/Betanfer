@@ -4,7 +4,7 @@ define_sig_loci_for_bmd.py
 The purpose of this script is to read GWAS results and define significant loci bounds
 using a tile-based approach. Modified to support configurable column names and output base name.
 
-***Run on default Respulbica Python/3.9 due to version incompatibilities***
+***Run in Conda finemap environment***
 '''
 
 import os
