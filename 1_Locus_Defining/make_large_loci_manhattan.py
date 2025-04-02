@@ -14,6 +14,7 @@ import getopt
 import sys
 import os
 from multiprocessing import Pool, cpu_count
+from functools import partial
 
 #Get number of threads
 N_PROCESSES = min(8, cpu_count() // 2) # Adjusting down because we seem not to be able to use all cores without hitting memory issues
@@ -82,9 +83,8 @@ def main(argv):
     driver(loci_file, output_dir, gwas_dir, min_len, name_conv, chr_col, pos_col, p_col)
 
 ###############################################################################
-#############################  PLOT MAKING FUNCTION ###########################
+#############################  PLOT MAKING FUNCTIONS ##########################
 ###############################################################################
-
 
 def generate_manhattan(summary_stats_path, genomic_region, chr_col="CHR", pos_col="POS", p_col="P",
                       sig_threshold=5e-8, point_size=8, figsize=(14, 6), save_path=None):
@@ -156,6 +156,25 @@ def generate_manhattan(summary_stats_path, genomic_region, chr_col="CHR", pos_co
         
     return fig
 
+#This function processes a single locus
+def process_locus(row, gwas_folder, naming_conv, out_dir, chr_col, pos_col, p_col):
+    """Process a single locus (modified from nested function)"""
+    geno_region = f"{row['CHR']}:{row['START']}-{row['END']}"
+    trait = str(row['TRAIT'])
+    
+    # Fix GWAS file path construction
+    gwas_file = os.path.join(gwas_folder, f"{trait}{naming_conv}")
+    out_file = os.path.join(out_dir, f"{trait}.{geno_region.replace(':', '_')}.jpg")
+
+    if os.path.exists(out_file):
+        print(f"WARNING: Skipping already finished {trait}.{geno_region}")
+        return
+
+    generate_manhattan(gwas_file, geno_region, 
+                       chr_col=chr_col, pos_col=pos_col, p_col=p_col, 
+                       save_path=out_file)
+    print(f"NOTE: Finished {trait}.{geno_region}")
+
 ###############################################################################
 #################################  DRIVER  ####################################
 ###############################################################################
@@ -176,28 +195,18 @@ def driver(loci_file, output_dir, gwas_dir, min_len, name_conv, chr_col, pos_col
         print("WARNING: No loci of minimum length detected. Exiting.")
         sys.exit(0)
     
-    #Loop over loci and make plots
-    def identify_and_make_manhattan(i, long_locus_df=long_df, gwas_folder=gwas_dir, naming_conv=name_conv, out_dir = output_dir, chr_colu=chr_col, pos_colu=pos_col, p_colu=p_col):
-        #Create genomic region
-        locus_row = long_locus_df.iloc[i,]
-        geno_region = str(locus_row['CHR']) + ":" + str(locus_row['START']) + '-' + str(locus_row['END'])
-        #Get the trait name and use it to get the input file name
-        trait = str(locus_row['TRAIT'])
-        gwas_file = gwas_folder + naming_conv.replace('<TRAIT>', trait)
-        #Make the output file name too
-        out_file = out_dir + trait + '.' + geno_region.replace(":", "_") + '.jpg'
-        #Check if outfile already exists
-        if os.path.exists(out_file):
-            print("WARNING: Skipping already finished " + trait + '.' + geno_region + '.')
-        #Call the plot making function
-        hold = generate_manhattan(gwas_file, geno_region, chr_col=chr_colu, pos_col=pos_colu, p_col=p_colu, save_path=out_file)
-        #Print update
-        print("NOTE: Finished " + trait + '.' + geno_region + '.')
-    
-    
-    #Parallelize File making
+   # Create partial function with fixed parameters
+    worker = partial(process_locus,
+                     gwas_folder=gwas_dir,
+                     naming_conv=name_conv,
+                     out_dir=output_dir,
+                     chr_col=chr_col,
+                     pos_col=pos_col,
+                     p_col=p_col)
+
+    # Use starmap with iterrows
     with Pool(processes=N_PROCESSES) as pool:
-        temp = pool.map(identify_and_make_manhattan, range(len(long_df)))
+        pool.map(worker, [row for _, row in long_df.iterrows()])
 
 ###############################################################################
 #############################  MAIN CALL ######################################
