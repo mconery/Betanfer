@@ -32,7 +32,7 @@ def generate_manhattan(summary_stats_path, genomic_region,
     matplotlib.figure.Figure: Generated figure object
     """
     # Read and prepare data
-    df = pd.read_csv(summary_stats_path)
+    df = pd.read_csv(summary_stats_path, sep="\t")
     df = df.rename(columns={chr_col: "CHR", pos_col: "POS", p_col: "P"})
     
     # Parse genomic region
@@ -80,3 +80,10 @@ def generate_manhattan(summary_stats_path, genomic_region,
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
         
     return fig
+
+summary_stats_path="/grand/projects/GeomicVar/proj-mvp-ukb-meta/output_gia/metaanalysis_for_export/ALL/QTL_WBC.ALL.mrmega.sumstats.txt.gz"
+genomic_region="chr1:19000001-89250000"
+save_file="/grand/projects/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/testing/" + 'QTL_WBC.' + geno_region.replace(":", "_") + '.jpg'
+generate_manhattan(gwas_path, geno_region, save_path=save_file)
+
+
