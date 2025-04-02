@@ -76,7 +76,8 @@ def main(argv):
     if not all(os.path.exists(f) for f in [gwas_dir, output_dir, loci_file]):
         print("ERROR: Input directories/files not found")
         sys.exit(1)
-        
+    
+    #Check name convention for <TRAIT>
     if '<TRAIT>' not in name_conv:
         print("ERROR: Invalid naming convention given. Convention must include <TRAIT>.")
 
@@ -163,7 +164,7 @@ def process_locus(row, gwas_folder, naming_conv, out_dir, chr_col, pos_col, p_co
     trait = str(row['TRAIT'])
     
     # Fix GWAS file path construction
-    gwas_file = os.path.join(gwas_folder, f"{trait}{naming_conv}").replace('<TRAIT>', trait)
+    gwas_file = os.path.join(gwas_folder, f"{naming_conv}").replace('<TRAIT>', trait)
     out_file = os.path.join(out_dir, f"{trait}.{geno_region.replace(':', '_')}.jpg")
 
     if os.path.exists(out_file):
