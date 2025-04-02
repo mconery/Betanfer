@@ -177,7 +177,7 @@ def driver(loci_file, output_dir, gwas_dir, min_len, name_conv, chr_col, pos_col
         sys.exit(0)
     
     #Loop over loci and make plots
-    def identify_and_make_manhattan(i, long_locus_df=long_df, gwas_folder=gwas_dir, naming_conv=name_conv, out_dir = output_dir, chr_col=chr_col, pos_col=pos_col, p_col=p_col):
+    def identify_and_make_manhattan(i, long_locus_df=long_df, gwas_folder=gwas_dir, naming_conv=name_conv, out_dir = output_dir, chr_colu=chr_col, pos_colu=pos_col, p_colu=p_col):
         #Create genomic region
         locus_row = long_locus_df.iloc[i,]
         geno_region = str(locus_row['CHR']) + ":" + str(locus_row['START']) + '-' + str(locus_row['END'])
@@ -190,7 +190,7 @@ def driver(loci_file, output_dir, gwas_dir, min_len, name_conv, chr_col, pos_col
         if os.path.exists(out_file):
             print("WARNING: Skipping already finished " + trait + '.' + geno_region + '.')
         #Call the plot making function
-        hold = generate_manhattan(gwas_file, geno_region, chr_col=chr_col, pos_col=pos_col, p_col=p_col, save_path=out_file)
+        hold = generate_manhattan(gwas_file, geno_region, chr_col=chr_colu, pos_col=pos_colu, p_col=p_colu, save_path=out_file)
         #Print update
         print("NOTE: Finished " + trait + '.' + geno_region + '.')
     
