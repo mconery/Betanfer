@@ -163,7 +163,7 @@ def process_locus(row, gwas_folder, naming_conv, out_dir, chr_col, pos_col, p_co
     trait = str(row['TRAIT'])
     
     # Fix GWAS file path construction
-    gwas_file = os.path.join(gwas_folder, f"{trait}{naming_conv}")
+    gwas_file = os.path.join(gwas_folder, f"{trait}{naming_conv}").replace('<TRAIT>', trait)
     out_file = os.path.join(out_dir, f"{trait}.{geno_region.replace(':', '_')}.jpg")
 
     if os.path.exists(out_file):
