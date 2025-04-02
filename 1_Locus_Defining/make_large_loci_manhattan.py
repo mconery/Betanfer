@@ -183,6 +183,8 @@ def driver(loci_file, output_dir, gwas_dir, min_len, name_conv, chr_col, pos_col
         out_file = output_dir + trait + '.' + geno_region.replace(":", "_") + '.jpg'
         #Call the plot making function
         hold = generate_manhattan(gwas_file, geno_region, chr_col=chr_col, pos_col=pos_col, p_col=p_col, save_path=out_file)
+        #Print update
+        print("NOTE: Finished " + trait + '.' + geno_region + '.')
 
 
 ###############################################################################
