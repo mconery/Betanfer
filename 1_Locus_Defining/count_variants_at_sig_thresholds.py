@@ -43,7 +43,7 @@ def process_locus(row, gwas_folder, naming_conv, thresholds, chr_col, pos_col, p
     try:
         # Construct file paths
         geno_region = f"{row['CHR']}:{row['START']}-{row['END']}"
-        gwas_file = os.path.join(gwas_folder, f"{row['TRAIT']}{naming_conv}")
+        gwas_file = os.path.join(gwas_folder, f"{naming_conv}").replace("<TRAIT>", str(row['TRAIT']))
         
         # Read and filter data
         df = pd.read_csv(gwas_file, sep='\t')
