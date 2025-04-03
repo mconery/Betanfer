@@ -108,7 +108,7 @@ def main(argv):
         sys.exit(1)
     
     # Validation checks
-    if not all(os.path.exists(f) for f in [gwas_dir, output_file, loci_file]):
+    if not all(os.path.exists(f) for f in [gwas_dir, os.path.dirname(output_file), loci_file]):
         print("ERROR: Input directories/files not found")
         sys.exit(1)
     
