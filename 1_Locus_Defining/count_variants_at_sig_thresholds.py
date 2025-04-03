@@ -3,7 +3,9 @@ count_variants_at_sig_thresholds.py
 
 The purpose of this script is to count how many significant variants would 
 remain in long loci after pruning out variants below different significance 
-thresholds. 
+thresholds. This script can also be used to count the number of variants in
+loci in general by setting the significance threshold to 1 and the minimum 
+length to 0. 
 
 ***Run in Conda finemap environment***
 '''
@@ -28,6 +30,7 @@ ARGUMENTS
 -g => GWAS directory (default: /grand/projects/GeomicVar/proj-mvp-ukb-meta/output_gia/metaanalysis_for_export/ALL) OPTIONAL
 -m => Minimum locus length in Mb (default: 5) OPTIONAL
 -n => GWAS file naming convention (default: <TRAIT>.ALL.mrmega.sumstats.txt.gz) OPTIONAL
+-p => P-value thresholds (comma-separated, default: 5e-8,1e-10,1e-20,1e-30,1e-40,1e-50) OPTIONAL
 --chr-col => Chromosome column name (default: CHR) OPTIONAL
 --pos-col => Position column name (default: POS) OPTIONAL
 --p-col => P-value column name (default: P) OPTIONAL
@@ -61,11 +64,13 @@ def process_locus(row, gwas_folder, naming_conv, thresholds, chr_col, pos_col, p
         counts = {}
         for threshold in thresholds:
             counts[f"PV_{threshold:.0e}"] = np.sum(region_df["P"] < threshold)
-            
+        
+        #Print update message and return table row
+        print(f"NOTE: Completed processing {row['TRAIT']}.{geno_region}.")
         return {**row.to_dict(), **counts}
         
     except Exception as e:
-        print(f"ERROR processing {geno_region}: {str(e)}")
+        print(f"ERROR processing {row['TRAIT']}.{geno_region}: {str(e)}")
         return None
 
 ###############################################################################
@@ -74,7 +79,7 @@ def process_locus(row, gwas_folder, naming_conv, thresholds, chr_col, pos_col, p
 
 def main(argv):
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "l:o:g:m:n:nhb:", 
+        opts, args = getopt.getopt(sys.argv[1:], "l:o:g:m:n:p:nhb:", 
                                  ["help", "chr-col=", "pos-col=", "p-col="])
     except getopt.GetoptError:
         print("ERROR: Incorrect usage of getopts flags!")
@@ -100,6 +105,17 @@ def main(argv):
     pos_col = options_dict.get('--pos-col', 'POS')
     p_col = options_dict.get('--p-col', 'P')
     
+    # P-value threshold handling
+    try:
+        pvals = list(map(float, options_dict.get('-p', '').split(','))) if '-p' in options_dict else None
+        if pvals is None or not pvals:
+            PVAL_THRESHOLDS = [5e-8, 1e-10, 1e-20, 1e-30, 1e-40, 1e-50]
+        else:
+            PVAL_THRESHOLDS = sorted(pvals, reverse=True)
+    except ValueError:
+        print("ERROR: Invalid p-value thresholds provided. Must be comma-separated numbers")
+        sys.exit(1)
+    
     # Numeric parameter
     try:
        min_len = int(str(options_dict.get('-m', 5)).lstrip('Mb').lstrip('mb').lstrip('MB'))
@@ -115,10 +131,6 @@ def main(argv):
     #Check name convention for <TRAIT>
     if '<TRAIT>' not in name_conv:
         print("ERROR: Invalid naming convention given. Convention must include <TRAIT>.")
-    
-    ########################### Hard coding P-Val Thresholds #################################### 
-    PVAL_THRESHOLDS = [5e-2, 5e-4, 5e-6, 5e-8, 1e-10, 1e-20, 1e-30, 1e-40, 1e-50]
-    #############################################################################################
     
     # Modified driver section
     loci_df = pd.read_csv(loci_file)
