@@ -4,6 +4,7 @@
 #PBS -l walltime=24:00:00
 #PBS -q preemptable
 #PBS -A GeomicVar
+#PBS -l filesystems=home:grand
 
 source ~/.bashrc
 conda activate finemap
