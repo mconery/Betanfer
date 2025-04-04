@@ -46,7 +46,7 @@ def process_trait(trait_group, gwas_folder, naming_conv, thresholds, chr_col, po
     trait, group = trait_group
     try:
         # Load GWAS data once per trait
-        gwas_file = os.path.join(gwas_folder, f"{naming_conv}{naming_conv}".replace("<TRAIT>", trait))
+        gwas_file = os.path.join(gwas_folder, f"{naming_conv}".replace("<TRAIT>", trait))
         df = pd.read_csv(gwas_file, sep='\t')
         df = df.rename(columns={chr_col: "CHR", pos_col: "POS", p_col: "P"})
         
