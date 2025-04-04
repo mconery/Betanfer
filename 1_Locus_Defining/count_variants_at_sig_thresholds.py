@@ -65,6 +65,9 @@ def process_trait(trait_group, gwas_folder, naming_conv, thresholds, chr_col, po
             # Count variants at thresholds
             counts = {f"PV_{thresh:.0e}": (region_df["P"] < thresh).sum() for thresh in thresholds}
             results.append({**row.to_dict(), **counts})
+            
+            #Print Update
+            print(f"NOTE: Completed processing {trait}.{geno_region}.")
         
         print(f"Processed {len(group)} loci for trait: {trait}")
         return results
