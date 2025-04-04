@@ -41,37 +41,37 @@ ARGUMENTS
 ###########################  PROCESS INDIVIDUAL LOCUS  ########################
 ###############################################################################
 
-def process_locus(row, gwas_folder, naming_conv, thresholds, chr_col, pos_col, p_col):
-    """Count significant variants for a single locus"""
+def process_trait(trait_group, gwas_folder, naming_conv, thresholds, chr_col, pos_col, p_col):
+    """Process all loci for a single trait"""
+    trait, group = trait_group
     try:
-        # Construct file paths
-        geno_region = f"{row['CHR']}:{row['START']}-{row['END']}"
-        gwas_file = os.path.join(gwas_folder, f"{naming_conv}").replace("<TRAIT>", str(row['TRAIT']))
-        
-        # Read and filter data
+        # Load GWAS data once per trait
+        gwas_file = os.path.join(gwas_folder, f"{trait}{naming_conv}")
         df = pd.read_csv(gwas_file, sep='\t')
         df = df.rename(columns={chr_col: "CHR", pos_col: "POS", p_col: "P"})
         
-        chrom, region = geno_region.split(":")
-        start, end = map(int, region.split("-"))
+        results = []
+        for _, row in group.iterrows():
+            geno_region = f"{row['CHR']}:{row['START']}-{row['END']}"
+            chrom, region = geno_region.split(":")
+            start, end = map(int, region.split("-"))
+            
+            # Filter using existing loaded DataFrame
+            region_df = df[
+                (df["CHR"].astype(str) == chrom.lstrip("chr")) &
+                (df["POS"].between(start, end))
+            ].copy()
+            
+            # Count variants at thresholds
+            counts = {f"PV_{thresh:.0e}": (region_df["P"] < thresh).sum() for thresh in thresholds}
+            results.append({**row.to_dict(), **counts})
         
-        region_df = df[
-            (df["CHR"].astype(str) == chrom.lstrip("chr")) &
-            (df["POS"].between(start, end))
-        ].copy()
-
-        # Count significant variants
-        counts = {}
-        for threshold in thresholds:
-            counts[f"PV_{threshold:.0e}"] = np.sum(region_df["P"] < threshold)
-        
-        #Print update message and return table row
-        print(f"NOTE: Completed processing {row['TRAIT']}.{geno_region}.")
-        return {**row.to_dict(), **counts}
+        print(f"Processed {len(group)} loci for trait: {trait}")
+        return results
         
     except Exception as e:
-        print(f"ERROR processing {row['TRAIT']}.{geno_region}: {str(e)}")
-        return None
+        print(f"ERROR processing {trait}: {str(e)}")
+        return []
 
 ###############################################################################
 ###############  COLLECT / CHECK ARGUMENTS AND MULTI-PROCESS LOCI #############
@@ -135,9 +135,11 @@ def main(argv):
     # Modified driver section
     loci_df = pd.read_csv(loci_file)
     long_df = loci_df[loci_df["LENGTH"].astype(int) >= min_len * 1e6].copy()
+    trait_groups = long_df.groupby('TRAIT')
+    
     
     # Create worker partial
-    worker = partial(process_locus,
+    worker = partial(process_trait,
                     gwas_folder=gwas_dir,
                     naming_conv=name_conv,
                     thresholds=PVAL_THRESHOLDS,
@@ -147,10 +149,10 @@ def main(argv):
     
     # Process loci in parallel
     with Pool(processes=N_PROCESSES) as pool:
-        results = pool.map(worker, [row for _, row in long_df.iterrows()])
+        results = pool.map(worker, trait_groups)
     
     # Combine results and save
-    result_df = pd.DataFrame([r for r in results if r is not None])
+    result_df = pd.DataFrame([item for sublist in results for item in sublist])
     result_df.to_csv(output_file, index=False)
     print(f"SUCCESS: Successfully processed {len(result_df)} loci")
 
