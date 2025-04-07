@@ -112,6 +112,10 @@ def main():
     if keep_file: #Checks for whether keep file given
         keep_ids = pd.read_csv(keep_file, sep='\t')['#IID'].values
         geno = geno.sel(sample=keep_ids)
+        #Collect population name if filtering
+        pop_name = os.path.basename(keep_file).lstrip('1000G.').rstrip('.txt')
+    else:
+        pop_name='ALL'
         
     # Precompute genotype matrix for faster access
     print("Precomputing genotypes...")
@@ -287,11 +291,10 @@ def main():
         pd.DataFrame(beta_results, columns=['var1', 'var2', 'beta_corr']),
         on=['var1', 'var2']
     )
-
     
     # Write output
     print("Writing results...")
-    out_file_name = f"1000G_Simulation_results.{n_traits}_traits.{n_pairs}_pairs.csv"
+    out_file_name = f"{pop_name}.{n_traits}_traits.{n_pairs}_pairs.csv"
     output_path = os.path.join(outdir, out_file_name)
     results_df.to_csv(output_path, sep='\t', index=False)
     
