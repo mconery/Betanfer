@@ -61,11 +61,11 @@ def process_trait(trait_group, gwas_folder, naming_conv, chr_col, pos_col):
             
             trait_variants.update(region_df['VARIANT_ID'].tolist())
             
-        print(f"Processed {trait} with {len(trait_variants)} variants")
+        print(f"NOTE: Processed {trait} with {len(trait_variants)} variants")
         return {trait: trait_variants}
         
     except Exception as e:
-        print(f"ERROR processing {trait}: {str(e)}")
+        print(f"ERROR: ERROR processing {trait}: {str(e)}")
         return {}
 
 ###############################################################################
