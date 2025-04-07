@@ -42,7 +42,7 @@ def process_trait(trait_group, gwas_folder, naming_conv, chr_col, pos_col):
     """Collect all variants in significant loci for a trait"""
     trait, group = trait_group
     try:
-        gwas_file = os.path.join(gwas_folder, f"{naming_conv}".replace("", trait))
+        gwas_file = os.path.join(gwas_folder, f"{naming_conv}".replace("<TRAIT>", trait))
         df = pd.read_csv(gwas_file, sep='\t')
         df = df.rename(columns={chr_col: "CHR", pos_col: "POS"})
         df['VARIANT_ID'] = df['CHR'].astype(str) + ':' + df['POS'].astype(str)
