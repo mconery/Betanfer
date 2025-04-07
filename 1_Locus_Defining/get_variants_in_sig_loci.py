@@ -50,7 +50,7 @@ def process_trait(trait_group, gwas_folder, naming_conv, chr_col, pos_col):
         trait_variants = set()
         
         for _, row in group.iterrows():
-            chrom = row['CHR']
+            chrom = str(row['CHR'])
             start = row['START']
             end = row['END']
             
