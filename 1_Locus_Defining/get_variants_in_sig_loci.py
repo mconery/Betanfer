@@ -51,8 +51,8 @@ def process_trait(trait_group, gwas_folder, naming_conv, chr_col, pos_col):
         
         for _, row in group.iterrows():
             chrom = row['CHR']
-            start = row['START'].astype(int)
-            end = row['END'].astype(int)
+            start = row['START']
+            end = row['END']
             
             region_df = df[
                 (df["CHR"].astype(str) == chrom.lstrip("chr")) &
