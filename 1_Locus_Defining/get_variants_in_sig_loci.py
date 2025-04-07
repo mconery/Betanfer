@@ -43,15 +43,16 @@ def process_trait(trait_group, gwas_folder, naming_conv, chr_col, pos_col):
     trait, group = trait_group
     try:
         gwas_file = os.path.join(gwas_folder, f"{naming_conv}".replace("<TRAIT>", trait))
-        df = pd.read_csv(gwas_file, sep='\t', header=0)
+        df = pd.read_csv(gwas_file, sep='\t')
         df = df.rename(columns={chr_col: "CHR", pos_col: "POS"})
         df['VARIANT_ID'] = df['CHR'].astype(str) + ':' + df['POS'].astype(str)
         
         trait_variants = set()
         
         for _, row in group.iterrows():
-            chrom, region = row['GENO_REGION'].split(":")
-            start, end = map(int, region.split("-"))
+            chrom = row['CHR']
+            start = row['START'].astype(int)
+            end = row['END'].astype(int)
             
             region_df = df[
                 (df["CHR"].astype(str) == chrom.lstrip("chr")) &
