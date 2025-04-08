@@ -16,7 +16,6 @@ from pandas_plink import read_plink1_bin
 import random
 from concurrent.futures import ThreadPoolExecutor
 from bisect import bisect_right
-from sklearn.linear_model import LogisticRegression
 
 ################################## TEST LOCATIONS #############################
 '''
