@@ -306,20 +306,20 @@ def main():
         for idx in indices_chunk:
             # Genotype processing
             X = geno_data[:, idx]
-            X_mean = np.nanmean(X)
-            X_centered = X - X_mean
-            mask = ~np.isnan(X_centered)
-            X_valid = X_centered[mask]
+            mask = ~np.isnan(X)
+            X_valid = X[mask]  # Keep original values
             # Skip invalid variants
             if len(X_valid) < 10 or np.sum(X_valid**2) < 1e-6:
                 chunk_betas[variant_ids[idx]] = [np.nan] * n_traits
                 continue
             # TRAIT TYPE BRANCHING
             if trait_type == 'continuous':
-                # Original linear regression code
+                # CENTER FOR LINEAR REGRESSION ONLY
+                X_mean = np.nanmean(X_valid)
+                X_centered = X_valid - X_mean
                 Y_centered = Y[mask] - Y[mask].mean(axis=0, keepdims=True)
-                cov_xy = X_valid.T @ Y_centered
-                var_x = np.sum(X_valid**2)
+                cov_xy = X_centered.T @ Y_centered
+                var_x = np.sum(X_centered**2)
                 betas = cov_xy / var_x
             elif trait_type == 'binary':
                 # LOGISTIC REGRESSION IMPLEMENTATION
