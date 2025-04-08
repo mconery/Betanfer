@@ -16,6 +16,7 @@ from pandas_plink import read_plink1_bin
 import random
 from concurrent.futures import ThreadPoolExecutor
 from bisect import bisect_right
+from sklearn.linear_model import LogisticRegression
 
 ################################## TEST LOCATIONS #############################
 '''
@@ -25,6 +26,8 @@ n_traits = 1000
 outdir = "/grand/projects/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/testing"
 keep_file="/grand/projects/GeomicVar/mconery/resources/1000G/1000G.AFR.txt"
 max_distance = 1e6
+trait_type="binary"
+case_prob = 0.5
 '''
 
 def help(exit_num=0):
@@ -119,7 +122,7 @@ def main():
     check_int(max_distance, "number of traits")
     check_int(max_distance, "number of variant pairs")
     
-    # Validate required arguments
+    # Validate trait type
     if trait_type not in ['continuous', 'binary']:
         print("ERROR: Invalid trait type give. Select continuous/binary.")
         sys.exit(2)
@@ -232,34 +235,72 @@ def main():
     n_workers = os.cpu_count()
     variant_indices = np.arange(len(variant_ids))
     chunk_size = max(100, len(variant_ids) // (n_workers * 4))
+    #Create function that runs logistic regression quickly
+    def calculate_logistic_betas_fast(X_valid, Y_valid, max_iter=100, tol=1e-6):
+        """
+        Vectorized Newton-Raphson implementation for logistic regression coefficients.
+        Returns only the beta coefficients (slope parameters).
+        """
+        X = X_valid.ravel()  # Convert to 1D array
+        Y = Y_valid.T        # Transpose for column-wise operations
+        n_samples, n_targets = Y.shape
+        # Initialize parameters (intercept and slope)
+        theta = np.zeros((2, n_targets))
+        X_sq = X ** 2  # Precompute squared terms
+        for _ in range(max_iter):
+            # Compute linear predictor and probabilities
+            logits = theta[0] + theta[1] * X[:, None]
+            p = 1 / (1 + np.exp(-logits))
+            # Compute weights and residuals
+            W = p * (1 - p)
+            residuals = Y - p
+            # Compute gradient components
+            grad0 = residuals.sum(axis=0)
+            grad1 = (residuals * X[:, None]).sum(axis=0)
+            # Compute Hessian components
+            H0 = W.sum(axis=0)
+            H1 = (W * X[:, None]).sum(axis=0)
+            H2 = (W * X_sq[:, None]).sum(axis=0)
+            # Compute determinants and inverse Hessian components
+            det = H0 * H2 - H1 ** 2
+            np.divide(1, det, out=det, where=det!=0)  # Safe division
+            # Parameter updates
+            delta0 = (H2 * grad0 - H1 * grad1) * det
+            delta1 = (-H1 * grad0 + H0 * grad1) * det
+            # Update parameters and check convergence
+            theta += [delta0, delta1]
+            if np.max(np.abs([delta0, delta1])) < tol:
+                break
+        return theta[1]  # Return only slope coefficients
     #Function that runs regressions
-    def process_regression_chunk(indices_chunk):
+    def process_regression_chunk(indices_chunk, n_traits=Y.shape[1]):
+        """Process regression for both linear and logistic models"""
         chunk_betas = {}
         for idx in indices_chunk:
-            #Extract Genotypes and center X/Y matrices
+            # Genotype processing
             X = geno_data[:, idx]
-            X_centered = X - X.mean(axis=0, keepdims=True, )
-            Y_centered = Y - Y.mean(axis=0, keepdims=True)
+            X_mean = np.nanmean(X)
+            X_centered = X - X_mean
             mask = ~np.isnan(X_centered)
             X_valid = X_centered[mask]
-            
-            if len(X_valid) < 10:
+            # Skip invalid variants
+            if len(X_valid) < 10 or np.sum(X_valid**2) < 1e-6:
                 chunk_betas[variant_ids[idx]] = [np.nan] * n_traits
                 continue
-                
-            Y_valid = Y_centered[mask]
-            cov_xy = X_valid.T @ Y_valid
-            var_x = np.sum(X_valid**2, axis=0)
-            
-            if var_x < 1e-6:  # Handle near-zero variance
-                chunk_betas[variant_ids[idx]] = [np.nan] * n_traits
-                continue
-                
-            betas = cov_xy / var_x
+            # TRAIT TYPE BRANCHING
+            if trait_type == 'continuous':
+                # Original linear regression code
+                Y_centered = Y[mask] - Y[mask].mean(axis=0, keepdims=True)
+                cov_xy = X_valid.T @ Y_centered
+                var_x = np.sum(X_valid**2)
+                betas = cov_xy / var_x
+            elif trait_type == 'binary':
+                # LOGISTIC REGRESSION IMPLEMENTATION
+                Y_valid = Y[mask]
+                betas = calculate_logistic_betas_fast(X_valid, Y_valid.T)
             chunk_betas[variant_ids[idx]] = betas
-            
         return chunk_betas
-
+    
     print("Calculating betas in parallel...")
     all_betas = {}
     with ThreadPoolExecutor(max_workers=n_workers) as executor:
