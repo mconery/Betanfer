@@ -17,23 +17,6 @@ import random
 from concurrent.futures import ThreadPoolExecutor
 from bisect import bisect_right
 
-################################## TEST LOCATIONS #############################
-'''
-plink_path = "/grand/projects/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/1000G_Simulations/plink_files/chr21_10k_sample.bed"
-n_pairs = 10000
-n_traits = 1000
-outdir = "/grand/projects/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/testing"
-keep_file="/grand/projects/GeomicVar/mconery/resources/1000G/1000G.AFR.txt"
-max_distance = 1e6
-trait_type="continuous"
-case_prob = 0.5
-n_causal = 3
-min_distance = 10000000
-effect_size = 0.1
-keep_conv = "1000G.<POP>.txt"
-plink_conv = "<CHROMOSOME>_10k_sample.bed"
-'''
-
 #Define help function
 def help(exit_num=0):
     print("""Usage: python script.py [OPTIONS]
