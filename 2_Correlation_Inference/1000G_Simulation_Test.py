@@ -322,7 +322,7 @@ def main():
         # Binary: logistic effects
         intercept = np.log(case_prob / (1 - case_prob))
         log_odds = intercept + genetic_effects[:, None]
-        probs = np.exp(log_odds) / (1 + np.exp(log_odds))
+        probs = 1 / (1 + np.exp(-log_odds))
         
         traits = pd.DataFrame(
             np.random.binomial(1, probs, (n_samples, n_traits)),
