@@ -25,24 +25,33 @@ n_traits = 1000
 outdir = "/grand/projects/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/testing"
 keep_file="/grand/projects/GeomicVar/mconery/resources/1000G/1000G.AFR.txt"
 max_distance = 1e6
-trait_type="binary"
+trait_type="continuous"
 case_prob = 0.5
+n_causal = 3
+min_distance = 10000000
+effect_size = 0.1
+keep_conv = "1000G.<POP>.txt"
+plink_conv = "<CHROMOSOME>_10k_sample.bed"
 '''
 
+#Define help function
 def help(exit_num=0):
     print("""Usage: python script.py [OPTIONS]
 Options:
-  --plink        Path to PLINK bed file (required)
-  --pairs        Number of variant pairs to test (required)
-  --traits       Number of traits to simulate (required)
-  --outdir       Output directory (required)
-  --keep         File with individuals to keep (optional)
-  --trait_type   Trait type: continuous/binary (default: continuous; optional)
-  --case_prob    Case probability for binary traits (default: 0.5; optional)
-  --max_dist     Maximum distance of variant pairs (default: 1Mb; optional)
-  --keep_conv    Keep file naming convention (default: 1000G.<POP>.txt; optional)
-  --plink_conv   Plink file naming convention (default: <CHROMOSOME>_10k_sample.bed; optional)
-  -h, --help     Show this help message""")
+  --plink         Path to PLINK bed file (required)
+  --pairs         Number of variant pairs to test (required)
+  --traits        Number of traits to simulate (required)
+  --outdir        Output directory (required)
+  --keep          File with individuals to keep (optional)
+  --trait_type    Trait type: continuous/binary (default: continuous; optional)
+  --case_prob     Case probability for binary traits (default: 0.5; optional)
+  --max_dist      Maximum distance of variant pairs (default: 1Mb; optional)
+  --n_causal      Number of causal variants (0-5, default: 0; optional)
+  --min_distance  Causal variant minimum distance from tested pairs (default: 10Mb; optional)
+  --effect_size   Per-allele effect size (default: 0.1; optional)
+  --keep_conv     Keep file naming convention (default: 1000G.<POP>.txt; optional)
+  --plink_conv    Plink file naming convention (default: <CHROMOSOME>_10k_sample.bed; optional)
+  -h, --help      Show this help message""")
     sys.exit(exit_num)
 
 
@@ -61,7 +70,8 @@ def main():
             sys.argv[1:],
             "h",
             ["help", "plink=", "pairs=", "traits=", "keep=", "outdir=", 
-             "max_dist=", "trait_type=", "case_prob=", "keep_conv=", "plink_conv="]
+             "max_dist=", "trait_type=", "case_prob=", "keep_conv=", "plink_conv=",
+             "n_causal=", "min_distance=", "effect_size="]
         )
     except getopt.GetoptError as err:
         print(str(err))
@@ -75,6 +85,9 @@ def main():
     max_distance = 1e6
     case_prob = 0.5
     trait_type = 'continuous'
+    n_causal = 0
+    min_distance = 10000000  # 10Mb
+    effect_size = 0.1
     keep_conv = "1000G.<POP>.txt"
     plink_conv = "<CHROMOSOME>_10k_sample.bed"
 
@@ -101,6 +114,15 @@ def main():
             if not (0 < case_prob < 1):
                 print("ERROR: --case_prob must be between 0 and 1")
                 sys.exit(1)
+        elif o == "--n_causal":
+            n_causal = int(a)
+        elif o == "--min_distance":
+            min_distance = int(a)
+        elif o == "--effect_size":
+            effect_size = float(a)
+            if not (effect_size > 0):
+                print("ERROR: Specified effect size must be >0.")
+                sys.exit(1)
         elif o == "--keep_conv":
             keep_conv = a
         elif o == "--plink_conv":
@@ -122,12 +144,15 @@ def main():
     def check_int(check_num, description):
         try:
            check_num = int(check_num)
+           return check_num
         except ValueError:
             print(f"ERROR: Invalid {description} given.")
             sys.exit(1)
-    check_int(max_distance, "maximum distance of variant pairs")
-    check_int(max_distance, "number of traits")
-    check_int(max_distance, "number of variant pairs")
+    max_distance = check_int(max_distance, "maximum distance of variant pairs")
+    n_traits = check_int(n_traits, "number of traits")
+    n_pairs = check_int(n_pairs, "number of variant pairs")
+    n_causal = check_int(n_causal, "number of causal variants")
+    min_distance = check_int(min_distance, "minimum distance of causal variants")
     
     # Validate trait type
     if trait_type not in ['continuous', 'binary']:
@@ -141,6 +166,11 @@ def main():
     if '<CHROMOSOME>' not in plink_conv and keep_file:
         print("ERROR: Invalid plink file naming convention given. Convention must include <CHROMOSOME>.")
         sys.exit(2)
+    
+    #Set validation on number of causal variants
+    if n_causal < 0 or n_causal > 5:
+        print("ERROR: --n_causal must be 0-5")
+        sys.exit(1)
     
     # Read and filter genotype data
     geno = read_plink1_bin(plink_path, verbose=False)
@@ -156,6 +186,8 @@ def main():
     else:
         pop_name='ALL'
     
+    #Get number of samples
+    n_samples = len(geno)
     #Extract chromosome
     plink_name_remnant = plink_conv.split("<CHROMOSOME>")
     chromo = os.path.basename(plink_path)
@@ -174,12 +206,50 @@ def main():
     variant_ids = variant_ids[sort_idx]
     geno_data = geno_data[:, sort_idx]
     
-    # Sort variants by position
-    sort_idx = np.argsort(positions)
-    positions = positions[sort_idx]
-    variant_ids = variant_ids[sort_idx]
-    geno_data = geno_data[:, sort_idx][:,:10000]  # Select first 10k
-    
+    #Create a function to select the causal region
+    def select_causal_region(positions, variant_ids, n_causal, region_size, min_buffer):
+        """Select causal variants from a random region with buffer space"""
+        if n_causal == 0:
+            return np.array([]), (0, 0)
+        # Find viable regions considering buffer space
+        chrom_length = positions[-1]
+        viable_regions = []
+        # Scan chromosome in 100kbp steps
+        for start in range(0, chrom_length - region_size, 100_000):
+            end = start + region_size
+            if end + min_buffer > chrom_length:
+                break  # Can't have buffer after region
+            # Check for enough variants in region
+            in_region = (positions >= start) & (positions <= end)
+            if np.sum(in_region) >= n_causal:
+                viable_regions.append((start, end))
+        if not viable_regions:
+            raise ValueError(f"No regions of {region_size/1e6}Mb with {min_buffer/1e6}Mb buffer fit on chromosome")
+        # Randomly select a viable region
+        region_start, region_end = random.choice(viable_regions)
+        # Select causal variants within region
+        region_indices = np.where((positions >= region_start) & (positions <= region_end))[0]
+        causal_indices = np.random.choice(region_indices, n_causal, replace=False)
+        return causal_indices, (region_start, region_end)
+
+    #Create a function to filter out variant pairs too close to causal variants
+    def filter_pairs(all_pairs, positions, variant_ids, region_coords, min_distance):
+        """Filter pairs to stay outside causal region buffer"""
+        region_start, region_end = region_coords
+        buffer_start = region_start - min_distance
+        buffer_end = region_end + min_distance
+        # Precompute variant positions
+        var_pos_map = {var: pos for var, pos in zip(variant_ids, positions)}
+        valid_pairs = []
+        for v1, v2 in all_pairs:
+            pos1 = var_pos_map[v1]
+            pos2 = var_pos_map[v2]
+            # Check if both variants are outside buffer zone
+            if (pos1 < buffer_start or pos1 > buffer_end) and \
+               (pos2 < buffer_start or pos2 > buffer_end):
+                valid_pairs.append((v1, v2))
+        return valid_pairs    
+
     # Multithreaded pair finding
     print(f"Finding pairs within {int(max_distance)}bp...")
     def find_pairs_chunk(start, end):
@@ -201,10 +271,28 @@ def main():
             futures.append(executor.submit(find_pairs_chunk, start, end))
         for future in futures:
             all_pairs.extend(future.result())
-    print(f"Found {len(all_pairs)} valid pairs")
+    print(f"NOTE: Found {len(all_pairs)} pairs in total")
+    
+    # After pair generation but before sampling:
+    if n_causal > 0:
+        # Select causal region with buffer space
+        causal_indices, region_coords = select_causal_region(
+            positions, variant_ids, n_causal, max_distance, min_distance
+        )
+        # Filter pairs outside causal buffer
+        all_pairs = filter_pairs(all_pairs, positions, variant_ids, region_coords, min_distance)
+        # Ensure sufficient pairs remain
+        if len(all_pairs) < n_pairs:
+            msg = (f"Only {len(all_pairs)} valid pairs remain after causal region filtering. "
+                   f"Try reducing --min_distance (current: {min_distance/1e6}Mb)")
+            raise ValueError(msg)
+        print(f"NOTE: Found {len(all_pairs)} valid pairs after filtering for causal variants. ")
     
     #Sampling down to requested number of pairs
-    all_pairs = random.sample(all_pairs, n_pairs)
+    if len(all_pairs) > n_pairs: #Make sure that enough pairs are left
+        all_pairs = random.sample(all_pairs, n_pairs)
+    else: 
+        print("WARNING: Less than specified number of pairs remaining after filtering for causal region.")
     
     # Multithreaded genotype correlation calculation
     print("Calculating genotype correlations...")
@@ -234,26 +322,30 @@ def main():
         for future in futures:
             geno_corrs.extend(future.result())
     
-    ################# ADDRESS TRAIT SIMULATIONS #####################
-    # Simulate traits using filtered samples
-    print("Simulating traits...")
-    n_samples = len(geno.sample)
+    ################# TRAIT SIMULATIONS #####################
+    if n_causal > 0:
+        causal_geno = geno_data[:, causal_indices]  # (samples × n_causal)
+        genetic_effects = causal_geno @ np.full(n_causal, effect_size)
+    else:
+        genetic_effects = 0
     if trait_type == 'continuous':
+        # Continuous: additive effects + noise
         traits = pd.DataFrame(
-            np.random.normal(size=(n_samples, n_traits)),
+            genetic_effects[:, None] + np.random.normal(size=(n_samples, n_traits)),
             index=geno.sample.values,
             columns=[f"trait_{i}" for i in range(n_traits)]
         )
     elif trait_type == 'binary':
+        # Binary: logistic effects
+        intercept = np.log(case_prob / (1 - case_prob))
+        log_odds = intercept + genetic_effects[:, None]
+        probs = 1 / (1 + np.exp(-log_odds))
+        
         traits = pd.DataFrame(
-            np.random.choice([0, 1], 
-                            size=(n_samples, n_traits), 
-                            p=[1 - case_prob, case_prob]),  # Use case_prob
+            np.random.binomial(1, probs, (n_samples, n_traits)),
             index=geno.sample.values,
             columns=[f"trait_{i}" for i in range(n_traits)]
         )
-    else:
-        raise ValueError(f"Invalid trait_type: {trait_type}. Use 'continuous' or 'binary'")
     
     print("Running associations...")
     Y = traits.values  # Convert to numpy array once
@@ -389,7 +481,7 @@ def main():
     
     # Write output
     print("Writing results...")
-    out_file_name = f"{chromo}.{pop_name}.{n_traits}_traits.{n_pairs}_pairs.{trait_type}{f'.{case_prob}' if trait_type == 'binary' else ''}.csv"
+    out_file_name = f"{chromo}.{pop_name}.{n_traits}_traits.{n_pairs}_pairs.{trait_type}{f'.{case_prob}' if trait_type == 'binary' else ''}{f'.{n_causal}_causal' if n_causal > 0 else ''}.csv"
     output_path = os.path.join(outdir, out_file_name)
     results_df.to_csv(output_path, sep='\t', index=False)
     
