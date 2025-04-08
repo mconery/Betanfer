@@ -481,7 +481,7 @@ def main():
     
     # Write output
     print("Writing results...")
-    out_file_name = f"{chromo}.{pop_name}.{n_traits}_traits.{n_pairs}_pairs.{trait_type}{f'.{case_prob}' if trait_type == 'binary' else ''}{f'.{n_causal}_causal' if n_causal > 0 else ''}.csv"
+    out_file_name = f"{chromo}.{pop_name}.{n_traits}_traits.{n_pairs}_pairs.{trait_type}{f'.{case_prob}' if trait_type == 'binary' else ''}{f'.{n_causal}_causal_{effect_size}' if n_causal > 0 else ''}.csv"
     output_path = os.path.join(outdir, out_file_name)
     results_df.to_csv(output_path, sep='\t', index=False)
     
