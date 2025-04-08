@@ -39,8 +39,10 @@ Options:
   --outdir       Output directory (required)
   --keep         File with individuals to keep (optional)
   --trait_type   Trait type: continuous/binary (default: continuous; optional)
-  --case_prob     Case probability for binary traits (default: 0.5; optional)
+  --case_prob    Case probability for binary traits (default: 0.5; optional)
   --max_dist     Maximum distance of variant pairs (default: 1Mb; optional)
+  --keep_conv    Keep file naming convention (default: 1000G.<POP>.txt; optional)
+  --plink_conv   Plink file naming convention (default: <CHROMOSOME>_10k_sample.bed; optional)
   -h, --help     Show this help message""")
     sys.exit(exit_num)
 
@@ -60,7 +62,7 @@ def main():
             sys.argv[1:],
             "h",
             ["help", "plink=", "pairs=", "traits=", "keep=", "outdir=", 
-             "max_dist=", "trait_type=", "case_prob="]
+             "max_dist=", "trait_type=", "case_prob=", "keep_conv=", "plink_conv="]
         )
     except getopt.GetoptError as err:
         print(str(err))
@@ -74,6 +76,8 @@ def main():
     max_distance = 1e6
     case_prob = 0.5
     trait_type = 'continuous'
+    keep_conv = "1000G.<POP>.txt"
+    plink_conv = "<CHROMOSOME>_10k_sample.bed"
 
     for o, a in opts:
         if o in ("-h", "--help"):
@@ -98,6 +102,10 @@ def main():
             if not (0 < case_prob < 1):
                 print("ERROR: --case_prob must be between 0 and 1")
                 sys.exit(1)
+        elif o == "--keep_conv":
+            keep_conv = a
+        elif o == "--plink_conv":
+            plink_conv = a
         else:
             assert False, "WARNING: Unhandled input option"
     
@@ -127,15 +135,33 @@ def main():
         print("ERROR: Invalid trait type give. Select continuous/binary.")
         sys.exit(2)
     
+    #Check naming conventions for needed parameters
+    if '<POP>' not in keep_conv and keep_file:
+        print("ERROR: Invalid keep file naming convention given. Convention must include <POP>.")
+        sys.exit(2)
+    if '<CHROMOSOME>' not in plink_conv and keep_file:
+        print("ERROR: Invalid plink file naming convention given. Convention must include <CHROMOSOME>.")
+        sys.exit(2)
+    
     # Read and filter genotype data
     geno = read_plink1_bin(plink_path, verbose=False)
     if keep_file: #Checks for whether keep file given
+        #Collect population name if filtering
+        keep_name_remnant = keep_conv.split("<POP>")
+        pop_name = os.path.basename(keep_file)
+        for remnant in keep_name_remnant:
+            pop_name = pop_name.replace(remnant, "")
+        #Filter genotype file
         keep_ids = pd.read_csv(keep_file, sep='\t')['#IID'].values
         geno = geno.sel(sample=keep_ids)
-        #Collect population name if filtering
-        pop_name = os.path.basename(keep_file).lstrip('1000G.').rstrip('.txt')
     else:
         pop_name='ALL'
+    
+    #Extract chromosome
+    plink_name_remnant = plink_conv.split("<CHROMOSOME>")
+    chromo = os.path.basename(plink_path)
+    for remnant in plink_name_remnant:
+        chromo = chromo.replace(remnant, "")
         
     # Precompute genotype matrix for faster access
     print("Precomputing genotypes...")
@@ -156,7 +182,7 @@ def main():
     geno_data = geno_data[:, sort_idx][:,:10000]  # Select first 10k
     
     # Multithreaded pair finding
-    print(f"Finding pairs within {max_distance}bp...")
+    print(f"Finding pairs within {int(max_distance)}bp...")
     def find_pairs_chunk(start, end):
         chunk_pairs = []
         pos_array = positions
@@ -363,7 +389,7 @@ def main():
     
     # Write output
     print("Writing results...")
-    out_file_name = f"{pop_name}.{n_traits}_traits.{n_pairs}_pairs.{trait_type}.csv"
+    out_file_name = f"{chromo}.{pop_name}.{n_traits}_traits.{n_pairs}_pairs.{trait_type}{f'.{case_prob}' if trait_type == 'binary' else ''}.csv"
     output_path = os.path.join(outdir, out_file_name)
     results_df.to_csv(output_path, sep='\t', index=False)
     
