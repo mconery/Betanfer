@@ -30,13 +30,15 @@ max_distance = 1e6
 def help(exit_num=0):
     print("""Usage: python script.py [OPTIONS]
 Options:
-  --plink      Path to PLINK bed file (required)
-  --pairs      Number of variant pairs to test (required)
-  --traits     Number of traits to simulate (required)
-  --outdir     Output directory (required)
-  --keep       File with individuals to keep (optional)
-  --max_dist   Maximum distance of variant pairs (default: 1Mb; optional)
-  -h, --help   Show this help message""")
+  --plink        Path to PLINK bed file (required)
+  --pairs        Number of variant pairs to test (required)
+  --traits       Number of traits to simulate (required)
+  --outdir       Output directory (required)
+  --keep         File with individuals to keep (optional)
+  --trait_type   Trait type: continuous/binary (default: continuous; optional)
+  --case_prob     Case probability for binary traits (default: 0.5; optional)
+  --max_dist     Maximum distance of variant pairs (default: 1Mb; optional)
+  -h, --help     Show this help message""")
     sys.exit(exit_num)
 
 
@@ -54,7 +56,8 @@ def main():
         opts, args = getopt.getopt(
             sys.argv[1:],
             "h",
-            ["help", "plink=", "pairs=", "traits=", "keep=", "outdir=", "max_dist="]
+            ["help", "plink=", "pairs=", "traits=", "keep=", "outdir=", 
+             "max_dist=", "trait_type=", "case_prob="]
         )
     except getopt.GetoptError as err:
         print(str(err))
@@ -66,6 +69,8 @@ def main():
     keep_file = None
     outdir = None
     max_distance = 1e6
+    case_prob = 0.5
+    trait_type = 'continuous'
 
     for o, a in opts:
         if o in ("-h", "--help"):
@@ -83,6 +88,13 @@ def main():
             outdir = a
         elif  o == "--max_dist":
             max_distance = a
+        elif o == "--trait_type":
+            trait_type = a.lower()
+        elif o == "--case_prob":
+            case_prob = float(a)
+            if not (0 < case_prob < 1):
+                print("ERROR: --case_prob must be between 0 and 1")
+                sys.exit(1)
         else:
             assert False, "WARNING: Unhandled input option"
     
@@ -106,6 +118,11 @@ def main():
     check_int(max_distance, "maximum distance of variant pairs")
     check_int(max_distance, "number of traits")
     check_int(max_distance, "number of variant pairs")
+    
+    # Validate required arguments
+    if trait_type not in ['continuous', 'binary']:
+        print("ERROR: Invalid trait type give. Select continuous/binary.")
+        sys.exit(2)
     
     # Read and filter genotype data
     geno = read_plink1_bin(plink_path, verbose=False)
@@ -193,11 +210,22 @@ def main():
     # Simulate traits using filtered samples
     print("Simulating traits...")
     n_samples = len(geno.sample)
-    traits = pd.DataFrame(
-        np.random.normal(size=(n_samples, n_traits)),
-        index=geno.sample.values,
-        columns=[f"trait_{i}" for i in range(n_traits)]
-    )
+    if trait_type == 'continuous':
+        traits = pd.DataFrame(
+            np.random.normal(size=(n_samples, n_traits)),
+            index=geno.sample.values,
+            columns=[f"trait_{i}" for i in range(n_traits)]
+        )
+    elif trait_type == 'binary':
+        traits = pd.DataFrame(
+            np.random.choice([0, 1], 
+                            size=(n_samples, n_traits), 
+                            p=[1 - case_prob, case_prob]),  # Use case_prob
+            index=geno.sample.values,
+            columns=[f"trait_{i}" for i in range(n_traits)]
+        )
+    else:
+        raise ValueError(f"Invalid trait_type: {trait_type}. Use 'continuous' or 'binary'")
     
     print("Running associations...")
     Y = traits.values  # Convert to numpy array once
@@ -294,7 +322,7 @@ def main():
     
     # Write output
     print("Writing results...")
-    out_file_name = f"{pop_name}.{n_traits}_traits.{n_pairs}_pairs.csv"
+    out_file_name = f"{pop_name}.{n_traits}_traits.{n_pairs}_pairs.{trait_type}.csv"
     output_path = os.path.join(outdir, out_file_name)
     results_df.to_csv(output_path, sep='\t', index=False)
     
