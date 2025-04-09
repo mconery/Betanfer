@@ -155,7 +155,7 @@ def main():
         print("ERROR: --n_causal must be 0-5")
         sys.exit(1)
     
-    # Read and filter genotype data
+    # Read and filter genotype data for samples
     geno = read_plink1_bin(plink_path, verbose=False)
     if keep_file: #Checks for whether keep file given
         #Collect population name if filtering
@@ -166,8 +166,16 @@ def main():
         #Filter genotype file
         keep_ids = pd.read_csv(keep_file, sep='\t')['#IID'].values
         geno = geno.sel(sample=keep_ids)
+        print(f"Retained {len(geno.sample)} samples after filtering")
     else:
         pop_name='ALL'
+    
+    #Filter genotype data to remove monomorphic SNPs
+    print("Removing monomorphic SNPs in filtered samples...")
+    variances = np.var(geno.values, axis=0)
+    monomorphic_mask = variances < 1e-6
+    geno = geno.sel(variant=geno.variant.values[~monomorphic_mask])
+    print(f"Retained {len(geno.variant)} polymorphic SNPs after filtering")
     
     #Get number of samples
     n_samples = len(geno)
@@ -304,7 +312,7 @@ def main():
         futures = [executor.submit(process_correlation_chunk, chunk) for chunk in pair_chunks]
         for future in futures:
             geno_corrs.extend(future.result())
-    
+
     ################# TRAIT SIMULATIONS #####################
     if n_causal > 0:
         causal_geno = geno_data[:, causal_indices]  # (samples × n_causal)
@@ -464,7 +472,7 @@ def main():
     
     # Write output
     print("Writing results...")
-    out_file_name = f"{chromo}.{pop_name}.{n_traits}_traits.{n_pairs}_pairs.{f'{trait_type}.{case_prob}' if trait_type == 'binary' else '{trait_type}'}{f'.{n_causal}_causal_{effect_size}' if n_causal > 0 else ''}.csv"
+    out_file_name = f"{chromo}.{pop_name}.{n_traits}_traits.{n_pairs}_pairs.{f'{trait_type}.{case_prob}' if trait_type == 'binary' else f'{trait_type}'}{f'.{n_causal}_causal_{effect_size}' if n_causal > 0 else ''}.csv"
     output_path = os.path.join(outdir, out_file_name)
     results_df.to_csv(output_path, sep='\t', index=False)
     
