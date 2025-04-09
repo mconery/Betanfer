@@ -318,7 +318,7 @@ def main():
         causal_geno = geno_data[:, causal_indices]  # (samples × n_causal)
         genetic_effects = causal_geno @ np.full(n_causal, effect_size)
     else:
-        genetic_effects = np.zeros((n_causal, effect_size))
+        genetic_effects = np.zeros(n_samples)
     if trait_type == 'continuous':
         # Continuous: additive effects + noise
         traits = pd.DataFrame(
