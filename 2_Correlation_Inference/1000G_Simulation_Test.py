@@ -318,7 +318,7 @@ def main():
         causal_geno = geno_data[:, causal_indices]  # (samples × n_causal)
         genetic_effects = causal_geno @ np.full(n_causal, effect_size)
     else:
-        genetic_effects = 0
+        genetic_effects = np.zeros((n_causal, effect_size))
     if trait_type == 'continuous':
         # Continuous: additive effects + noise
         traits = pd.DataFrame(
@@ -344,7 +344,7 @@ def main():
     variant_indices = np.arange(len(variant_ids))
     chunk_size = max(100, len(variant_ids) // (n_workers * 4))
     #Create function that runs logistic regression quickly
-    def calculate_logistic_betas_fast(X_valid, Y_valid, max_iter=100, tol=1e-6, intercept_init = np.log(case_prob / (1 - case_prob))):
+    def calculate_logistic_betas_fast(X_valid, Y_valid, max_iter=1000, tol=1e-6, intercept_init = np.log(case_prob / (1 - case_prob))):
         """
         Vectorized Newton-Raphson implementation for logistic regression coefficients.
         Returns only the beta coefficients (slope parameters).
