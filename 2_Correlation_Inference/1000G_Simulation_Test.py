@@ -155,20 +155,37 @@ def main():
         print("ERROR: --n_causal must be 0-5")
         sys.exit(1)
     
-    # Read and filter genotype data for samples
-    geno = read_plink1_bin(plink_path, verbose=False)
+    #Extract chromosome
+    plink_name_remnant = plink_conv.split("<CHROMOSOME>")
+    chromo = os.path.basename(plink_path)
+    for remnant in plink_name_remnant:
+        chromo = chromo.replace(remnant, "")
+    
+    #Extract population name
     if keep_file: #Checks for whether keep file given
         #Collect population name if filtering
         keep_name_remnant = keep_conv.split("<POP>")
         pop_name = os.path.basename(keep_file)
         for remnant in keep_name_remnant:
             pop_name = pop_name.replace(remnant, "")
+    else:
+        pop_name='ALL'
+       
+    #Create output file name
+    out_file_name = f"{chromo}.{pop_name}.{n_traits}_traits.{n_pairs}_pairs.{f'{trait_type}.{case_prob}' if trait_type == 'binary' else f'{trait_type}'}{f'.{n_causal}_causal_{effect_size}' if n_causal > 0 else ''}.csv"
+    output_path = os.path.join(outdir, out_file_name)
+    #Check if output file exists and exit if it does
+    if os.path.exists(output_path):
+        print(f"NOTE: Output file already exists for {out_file_name}")
+        sys.exit(0)
+    
+    # Read and filter genotype data for samples
+    geno = read_plink1_bin(plink_path, verbose=False)
+    if keep_file: #Checks for whether keep file given
         #Filter genotype file
         keep_ids = pd.read_csv(keep_file, sep='\t')['#IID'].values
         geno = geno.sel(sample=keep_ids)
         print(f"Retained {len(geno.sample)} samples after filtering")
-    else:
-        pop_name='ALL'
     
     #Filter genotype data to remove monomorphic SNPs
     print("Removing monomorphic SNPs in filtered samples...")
@@ -178,13 +195,7 @@ def main():
     print(f"Retained {len(geno.variant)} polymorphic SNPs after filtering")
         
     #Get number of samples
-    n_samples = len(geno)
-    #Extract chromosome
-    plink_name_remnant = plink_conv.split("<CHROMOSOME>")
-    chromo = os.path.basename(plink_path)
-    for remnant in plink_name_remnant:
-        chromo = chromo.replace(remnant, "")
-        
+    n_samples = len(geno)        
     # Precompute genotype matrix for faster access
     print("Precomputing genotypes...")
     geno_data = geno.values.astype(np.float32)
@@ -553,8 +564,6 @@ def main():
     
     # Write output
     print("Writing results...")
-    out_file_name = f"{chromo}.{pop_name}.{n_traits}_traits.{n_pairs}_pairs.{f'{trait_type}.{case_prob}' if trait_type == 'binary' else f'{trait_type}'}{f'.{n_causal}_causal_{effect_size}' if n_causal > 0 else ''}.csv"
-    output_path = os.path.join(outdir, out_file_name)
     results_df.to_csv(output_path, sep='\t', index=False)
     
     print("SUCCESS: Simulation complete!")
