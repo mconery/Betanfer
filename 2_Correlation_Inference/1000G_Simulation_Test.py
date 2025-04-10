@@ -359,7 +359,7 @@ def main():
     variant_indices = np.arange(len(variant_ids))
     chunk_size = max(100, len(variant_ids) // (n_workers * 4))
     #Create function that runs logistic regression quickly
-    def calculate_logistic_betas_fast(X_valid, Y_valid, max_iter=100, tol=1e-6):
+    def calculate_logistic_betas_fast(X_valid, Y_valid, max_iter=500, tol=1e-6):
         """
         Vectorized Newton-Raphson implementation for logistic regression coefficients.
         Returns only the beta coefficients (slope parameters).
