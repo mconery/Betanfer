@@ -19,7 +19,7 @@ from bisect import bisect_right
 
 #Define help function
 def help(exit_num=0):
-    print("""Usage: python script.py [OPTIONS]
+    print("""Usage: python 1000G_Simulation_Test.py [OPTIONS]
 Options:
   --plink         Path to PLINK bed file (required)
   --pairs         Number of variant pairs to test (required)
