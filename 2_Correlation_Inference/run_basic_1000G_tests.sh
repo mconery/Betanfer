@@ -60,7 +60,7 @@ for chromosome in 2 3 4; do
 done
 
 Get the number of nodes
-num_nodes=$(cat ${PBS_NODEFILE} | wc -l)
+NUM_NODES=$(cat ${PBS_NODEFILE} | wc -l)
 
 # Split commands into equal parts per node
 split -d -n l/${NUM_NODES} --additional-suffix=".cmds" multinode_1000G_test.commands.txt cmds_part_
