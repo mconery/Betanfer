@@ -59,7 +59,7 @@ for chromosome in 2 3 4; do
 	done
 done
 
-Get the number of nodes
+#Get the number of nodes
 NUM_NODES=$(cat ${PBS_NODEFILE} | wc -l)
 
 # Split commands into equal parts per node
