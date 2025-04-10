@@ -176,7 +176,7 @@ def main():
     monomorphic_mask = variances < 1e-6
     geno = geno.sel(variant=geno.variant.values[~monomorphic_mask])
     print(f"Retained {len(geno.variant)} polymorphic SNPs after filtering")
-    
+        
     #Get number of samples
     n_samples = len(geno)
     #Extract chromosome
@@ -196,6 +196,20 @@ def main():
     positions = positions[sort_idx]
     variant_ids = variant_ids[sort_idx]
     geno_data = geno_data[:, sort_idx]
+    
+    #Define function to calculate maf of all remaining snps
+    def calculate_maf(geno_data):
+        """Calculate minor allele frequencies for all variants"""
+        allele_counts = np.nansum(geno_data, axis=0)
+        total_alleles = 2 * np.sum(~np.isnan(geno_data), axis=0)
+        maf = np.minimum(allele_counts / total_alleles, 
+                        1 - (allele_counts / total_alleles))
+        return maf
+    
+    #Calculate MAF for all remaining variants
+    print("Calculating MAF values...")
+    maf_values = calculate_maf(geno_data)
+    maf_mapping = dict(zip(variant_ids, maf_values))
     
     #Create a function to select the causal region
     def select_causal_region(positions, variant_ids, n_causal, region_size, min_buffer):
@@ -358,6 +372,25 @@ def main():
     n_workers = os.cpu_count()
     variant_indices = np.arange(len(variant_ids))
     chunk_size = max(100, len(variant_ids) // (n_workers * 4))
+    #Create a function to run linear regression
+    def calculate_linear_regression(X, Y):
+        """Calculate beta, SE, and z-scores for linear regression"""
+        X_mean = np.nanmean(X)
+        X_centered = X - X_mean
+        Y_centered = Y - np.nanmean(Y, axis=0, keepdims=True)
+        
+        cov_xy = X_centered.T @ Y_centered
+        var_x = np.sum(X_centered**2)
+        betas = cov_xy / var_x
+        
+        # Calculate standard errors
+        residuals = Y_centered - X_centered[:, None] * betas
+        residual_var = np.nanvar(residuals, axis=0, ddof=1)
+        se = np.sqrt(residual_var / var_x)
+        z_scores = betas / se
+        
+        return betas, se, z_scores
+
     #Create function that runs logistic regression quickly
     def calculate_logistic_betas_fast(X_valid, Y_valid, max_iter=500, tol=1e-6):
         """
@@ -396,11 +429,16 @@ def main():
             theta += [delta0, delta1]
             if np.max(np.abs([delta0, delta1])) < tol:
                 break
-        return theta[1]  # Return only slope coefficients
+            # Calculate standard errors from Hessian
+            se = np.sqrt(np.abs(det))  # From Hessian determinant
+            z_scores = theta[1] / se
+        return theta[1], se, z_scores  # Return only slope coefficients
     #Function that runs regressions
     def process_regression_chunk(indices_chunk, n_traits=Y.shape[1]):
         """Process regression for both linear and logistic models"""
         chunk_betas = {}
+        chunk_se = {}
+        chunk_z = {}
         for idx in indices_chunk:
             # Genotype processing
             X = geno_data[:, idx]
@@ -412,22 +450,18 @@ def main():
                 continue
             # TRAIT TYPE BRANCHING
             if trait_type == 'continuous':
-                # CENTER FOR LINEAR REGRESSION ONLY
-                X_mean = np.nanmean(X_valid)
-                X_centered = X_valid - X_mean
-                Y_centered = Y[mask] - Y[mask].mean(axis=0, keepdims=True)
-                cov_xy = X_centered.T @ Y_centered
-                var_x = np.sum(X_centered**2)
-                betas = cov_xy / var_x
+                betas, se, z = calculate_linear_regression(X_valid, Y[mask])
             elif trait_type == 'binary':
-                # LOGISTIC REGRESSION IMPLEMENTATION
-                Y_valid = Y[mask]
-                betas = calculate_logistic_betas_fast(X_valid, Y_valid.T)
+                betas, se, z = calculate_logistic_betas_fast(X_valid, Y[mask].T)
+            #Fill the chunk-wide dicts
             chunk_betas[variant_ids[idx]] = betas
-        return chunk_betas
+            chunk_se[variant_ids[idx]] = se
+            chunk_z[variant_ids[idx]] = z
+        return {'betas': chunk_betas, 'se': chunk_se, 'z': chunk_z}
     
-    print("Calculating betas in parallel...")
+    print("Calculating betas/z-scores in parallel...")
     all_betas = {}
+    all_zscores = {}
     with ThreadPoolExecutor(max_workers=n_workers) as executor:
         # Split into index-based chunks for zero lookups
         futures = []
@@ -435,15 +469,18 @@ def main():
             chunk = variant_indices[i:i+chunk_size]
             futures.append(executor.submit(process_regression_chunk, chunk))
         for future in futures:
-            all_betas.update(future.result())
-    
+            all_betas.update(future.result()['betas'])
+            all_zscores.update(future.result()['z'])
+
     betas = pd.DataFrame.from_dict(all_betas, orient='index', columns=traits.columns)
-    
-    # Beta Correlation Section with Parallel Processing
-    print("Calculating beta correlations...")
+    zscores = pd.DataFrame.from_dict(all_zscores, orient='index', columns=traits.columns)
+
+    # Beta/Z-score Correlation Section with Parallel Processing
+    print("Calculating beta/z-score correlations...")
     # Precompute mapping and convert to numpy array
     var_to_idx = {var: idx for idx, var in enumerate(variant_ids)}
     beta_matrix = betas.values.astype(np.float32)  # traits × variants
+    z_matrix = zscores.values.astype(np.float32)  # traits × variants
     
     def calculate_beta_correlations(pair_chunk):
         """Process chunk of variant pairs for beta correlations"""
@@ -466,8 +503,22 @@ def main():
                 corr = np.corrcoef(b1[valid], b2[valid])[0, 1]
             chunk_results.append((var1, var2, corr))
         return chunk_results
-
-    # Parallel processing setup
+    
+    def calculate_zscore_correlations(pair_chunk):
+        """Calculate correlations between z-scores across traits"""
+        chunk_results = []
+        for var1, var2 in pair_chunk:
+            try:
+                z1 = z_matrix[var_to_idx[var1]]
+                z2 = z_matrix[var_to_idx[var2]]
+                valid = ~(np.isnan(z1) | np.isnan(z2))
+                corr = np.corrcoef(z1[valid], z2[valid])[0,1]
+            except (KeyError, ValueError):
+                corr = np.nan
+            chunk_results.append((var1, var2, corr))
+        return chunk_results
+    
+    # Parallel processing beta setup
     pair_chunks = np.array_split(all_pairs, max(1, len(all_pairs)//chunk_size))
     beta_results = []
     with ThreadPoolExecutor(max_workers=n_workers) as executor:
@@ -475,14 +526,28 @@ def main():
                   for chunk in pair_chunks}
         for future in futures:
             beta_results.extend(future.result())
-    
+    # Parallel processing beta setup
+    zscore_results = []
+    with ThreadPoolExecutor(max_workers=n_workers) as executor:
+        futures = {executor.submit(calculate_zscore_correlations, chunk): chunk 
+                  for chunk in pair_chunks}
+        for future in futures:
+            zscore_results.extend(future.result())
+
     # Merge results with genotype correlations
     results_df = pd.DataFrame(all_pairs, columns=['var1', 'var2'])
+    # Add MAF values
+    results_df['maf1'] = results_df['var1'].map(maf_mapping)
+    results_df['maf2'] = results_df['var2'].map(maf_mapping)
+    # Merge correlations
     results_df = results_df.merge(
         pd.DataFrame(geno_corrs, columns=['var1', 'var2', 'geno_corr']),
         on=['var1', 'var2']
     ).merge(
         pd.DataFrame(beta_results, columns=['var1', 'var2', 'beta_corr']),
+        on=['var1', 'var2']
+    ).merge(
+        pd.DataFrame(zscore_results, columns=['var1', 'var2', 'zscore_corr']),
         on=['var1', 'var2']
     )
     
