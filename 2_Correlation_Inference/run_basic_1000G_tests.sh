@@ -67,9 +67,10 @@ split -d -n l/${NUM_NODES} --additional-suffix=".cmds" multinode_1000G_test.comm
 
 # Execute commands using MPI
 mpirun -np ${NUM_NODES} bash -c '
-    RANK=${OMPI_COMM_WORLD_RANK}
+    RANK=${OMPI_COMM_WORLD_RANK:-${PMI_RANK}}  # Handle different MPI implementations
     FILE_NAME=$(printf "cmds_part_%02d.cmds" ${RANK})
     while IFS= read -r cmd; do
+        echo "Rank ${RANK} executing: ${cmd}"  # For debugging
         eval "${cmd}"
     done < "${FILE_NAME}"
 '
