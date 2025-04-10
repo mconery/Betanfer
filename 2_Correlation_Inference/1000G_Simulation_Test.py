@@ -327,11 +327,26 @@ def main():
             columns=[f"trait_{i}" for i in range(n_traits)]
         )
     elif trait_type == 'binary':
-        # Binary: logistic effects
-        intercept = np.log(case_prob / (1 - case_prob))
-        log_odds = intercept + genetic_effects[:, None]
+        #Convter genetic effects into a matrix
+        genetic_effects = np.tile(genetic_effects.reshape(-1, 1), (1, n_traits))
+        # Find intercept for each trait to achieve target case probability
+        intercepts = []
+        for trait_idx in range(n_traits):
+            def f(intercept):
+                probs = 1 / (1 + np.exp(-(intercept + genetic_effects[:, trait_idx])))
+                return np.mean(probs) - case_prob
+            # Newton-Raphson optimization
+            intercept = 0.0  # Initial guess
+            for _ in range(100):
+                probs = 1 / (1 + np.exp(-(intercept + genetic_effects[:, trait_idx])))
+                grad = np.mean(probs * (1 - probs))
+                if abs(grad) < 1e-6: break
+                intercept -= f(intercept)/grad
+                if abs(f(intercept)) < 1e-4: break
+            intercepts.append(intercept)
+        # Generate traits with per-trait intercepts
+        log_odds = genetic_effects + intercepts
         probs = 1 / (1 + np.exp(-log_odds))
-        
         traits = pd.DataFrame(
             np.random.binomial(1, probs, (n_samples, n_traits)),
             index=geno.sample.values,
@@ -344,7 +359,7 @@ def main():
     variant_indices = np.arange(len(variant_ids))
     chunk_size = max(100, len(variant_ids) // (n_workers * 4))
     #Create function that runs logistic regression quickly
-    def calculate_logistic_betas_fast(X_valid, Y_valid, max_iter=1000, tol=1e-6, intercept_init = np.log(case_prob / (1 - case_prob))):
+    def calculate_logistic_betas_fast(X_valid, Y_valid, max_iter=100, tol=1e-6):
         """
         Vectorized Newton-Raphson implementation for logistic regression coefficients.
         Returns only the beta coefficients (slope parameters).
@@ -353,6 +368,7 @@ def main():
         Y = Y_valid.T        # Transpose for column-wise operations
         n_samples, n_targets = Y.shape
         # Initialize parameters (intercept and slope)
+        intercept_init = np.log(Y.mean(axis=0)/(1 - Y.mean(axis=0)))
         theta = np.zeros((2, n_targets))
         theta[0] = intercept_init
         X_sq = X ** 2  # Precompute squared terms
