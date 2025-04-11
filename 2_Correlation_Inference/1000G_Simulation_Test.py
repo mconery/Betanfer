@@ -7,6 +7,10 @@ data using simulated traits.
 ***Run in Conda finemap environment***
 '''
 
+#For timing
+import time
+tic = time.perf_counter()
+
 import sys
 import getopt
 import os
@@ -566,7 +570,8 @@ def main():
     print("Writing results...")
     results_df.to_csv(output_path, sep='\t', index=False)
     
-    print("SUCCESS: Simulation complete!")
+    toc = time.perf_counter()
+    print(f"SUCCESS: Simulation complete in {toc - tic:0.4f} seconds")
 
 if __name__ == "__main__":
     main()
