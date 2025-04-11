@@ -1,9 +1,9 @@
 #!/bin/bash -l
 #PBS -A GeomicVar
-#PBS -l walltime=1:00:00
+#PBS -l walltime=24:00:00
 #PBS -l filesystems=grand
-#PBS -l select=2:ncpus=64
-#PBS -q debug
+#PBS -l select=10:ncpus=640
+#PBS -q prod
 #PBS -M mconery@anl.gov
 #PBS -N 1kg_test 
 #PBS -o ../../script_logs/multinode_1000G_test.log
@@ -16,7 +16,7 @@ conda activate finemap
 #Set key directories and locations
 onekg_script=/grand/projects/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/Meta_Fine-Mapping/2_Correlation_Inference/1000G_Simulation_Test.py
 plink_dir=/grand/projects/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/1000G_Simulations/plink_files
-out_dir=/grand/projects/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/testing
+out_dir=/grand/projects/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/1000G_Simulations/simulation_results
 keep_dir=/grand/projects/GeomicVar/mconery/resources/1000G
 
 #Change directory into directory where script logs are stored
