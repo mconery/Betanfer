@@ -11,7 +11,7 @@
 
 #Set up conda environment
 source ~/.bashrc
-conda activate finemap
+conda activate finemap_old
 
 #Set key directories and locations
 onekg_script=/flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/Meta_Fine-Mapping/2_Correlation_Inference/1000G_Simulation_Test.py
