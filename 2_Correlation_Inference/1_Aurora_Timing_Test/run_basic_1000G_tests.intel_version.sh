@@ -6,8 +6,8 @@
 #PBS -q debug
 #PBS -M mconery@anl.gov
 #PBS -N intel_test 
-#PBS -o ../../script_logs/multinode_1000G_test.intel_version.log
-#PBS -e ../../script_logs/multinode_1000G_test.intel_version.err
+#PBS -o ../../../script_logs/multinode_1000G_test.intel_version.log
+#PBS -e ../../../script_logs/multinode_1000G_test.intel_version.err
 
 #Set up conda environment
 source ~/.bashrc
