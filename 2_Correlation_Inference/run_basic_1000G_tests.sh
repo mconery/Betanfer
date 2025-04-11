@@ -1,8 +1,8 @@
 #!/bin/bash -l
 #PBS -A GeomicVar
-#PBS -l walltime=24:00:00
+#PBS -l walltime=6:00:00
 #PBS -l filesystems=grand
-#PBS -l select=10:ncpus=640
+#PBS -l select=25:ncpus=1600
 #PBS -q prod
 #PBS -M mconery@anl.gov
 #PBS -N 1kg_test 
