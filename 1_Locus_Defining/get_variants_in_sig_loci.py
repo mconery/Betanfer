@@ -1,11 +1,10 @@
 '''
 get_variants_in_sig_loci.py
 
-The purpose of this script is to count how many significant variants would 
-remain in long loci after pruning out variants below different significance 
-thresholds. This script can also be used to count the number of variants in
-loci in general by setting the significance threshold to 1 and the minimum 
-length to 0. 
+The purpose of this script is to identify the variants residing in the 
+significant loci that will be targeted for fine-mapping. It returns a matrix of 
+variants by traits with binary encoding representing whether a particular 
+variant falls in a significant locus for a given trait. 
 
 ***Run in Conda finemap environment***
 '''
