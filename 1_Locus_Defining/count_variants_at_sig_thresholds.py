@@ -145,9 +145,9 @@ def main(argv):
     #Replace relevant info in the naming convention
     name_conv = name_conv.replace("<POPULATION>", population)
     if population == "ALL":
-        name_conv = name_conv.replace("META_TYPE", "mrmega")
+        name_conv = name_conv.replace("<META_TYPE>", "mrmega")
     else:
-        name_conv = name_conv.replace("META_TYPE", "gwama")
+        name_conv = name_conv.replace("<META_TYPE>", "gwama")
     
     # Calculate trait groups
     loci_df = pd.read_csv(loci_file)
