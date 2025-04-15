@@ -117,7 +117,7 @@ if __name__ == "__main__":
     input_dir, output_dir, population = parse_arguments(sys.argv[1:])
     
     # Get list of input files using population tag
-    input_files = glob.glob(os.path.join(input_dir, f"*.{population}.mrmega.sumstats.txt.gz"))
+    input_files = glob.glob(os.path.join(input_dir, f"*.{population}.*.sumstats.txt.gz"))
     print(f"NOTE: Found {len(input_files)} trait files for population {population}")
     
     # Get number of threads
@@ -129,8 +129,8 @@ if __name__ == "__main__":
         pool.starmap(process_trait, [(f, output_dir, population) for f in input_files])
 
     # Get output file names with population tag
-    output_files = [os.path.join(output_dir, os.path.basename(f).replace(
-        f'.{population}.mrmega.sumstats.txt.gz', 
+    output_files = [os.path.join(output_dir, os.path.basename(f).replace("mrmega.","").replace("gwama.","").replace(
+        f'.{population}.sumstats.txt.gz', 
         f'.{population}.sig_loci.csv'
     )) for f in input_files]
 
