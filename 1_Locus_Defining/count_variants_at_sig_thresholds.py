@@ -20,7 +20,7 @@ from multiprocessing import Pool, cpu_count
 from functools import partial
 
 # Configure number of processes
-N_PROCESSES = min(8, cpu_count() // 2)
+N_PROCESSES = min(64, cpu_count() // 2)
 
 def help(exit_num=1):
     print("""-----------------------------------------------------------------
