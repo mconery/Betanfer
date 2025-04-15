@@ -103,8 +103,8 @@ def main(argv):
         help()
 
     # Configurable parameters with defaults
-    gwas_dir = options_dict.get('-g', '/grand/projects/GeomicVar/proj-mvp-ukb-meta/output_gia/metaanalysis_for_export/ALL')
-    name_conv = options_dict.get('-n', '<TRAIT>.EAS.gwama.sumstats.txt.gz')
+    gwas_dir = options_dict.get('-g', '/flare/GeomicVar/multi-biobank-meta/metaanalysis_for_export/ALL')
+    name_conv = options_dict.get('-n', '<TRAIT>.<POPULATION>.<META_TYPE>.sumstats.txt.gz')
     chr_col = options_dict.get('--chr-col', 'CHR')
     pos_col = options_dict.get('--pos-col', 'POS')
     p_col = options_dict.get('--p-col', 'P')
@@ -135,6 +135,22 @@ def main(argv):
     #Check name convention for <TRAIT>
     if '<TRAIT>' not in name_conv:
         print("ERROR: Invalid naming convention given. Convention must include <TRAIT>.")
+        sys.exit(1)
+    elif '<POPULATION>' not in name_conv:
+        print("ERROR: Invalid naming convention given. Convention must include <POPULATION>.")
+        sys.exit(1)
+    elif '<META_TYPE>' not in name_conv:
+        print("ERROR: Invalid naming convention given. Convention must include <META_TYPE>.")
+        sys.exit(1)
+    
+    #Extract population from GWAS directory
+    population = os.path.basename(gwas_dir)
+    #Replace relevant info in the naming convention
+    name_conv = name_conv.replace("<POPULATION>", population)
+    if population == "ALL":
+        name_conv = name_conv.replace("META_TYPE", "mrmega")
+    else:
+        name_conv = name_conv.replace("META_TYPE", "gwama")
     
     # Calculate trait groups
     loci_df = pd.read_csv(loci_file)
