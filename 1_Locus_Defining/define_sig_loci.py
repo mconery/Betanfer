@@ -20,9 +20,6 @@ from intervaltree import Interval, IntervalTree
 script_path = os.path.realpath(__file__)
 MAP_SCRIPT = os.path.join(os.path.dirname(script_path), 'define_sig_loci_for_trait.py')
 
-#Get number of threads
-N_PROCESSES = min(32, cpu_count() // 2) # Adjusting down because we seem not to be able to use all cores without hitting memory issues
-
 ###############################################################################
 #########################  ARGUMENT PARSING FUNCTION ##########################
 ###############################################################################
@@ -124,7 +121,7 @@ if __name__ == "__main__":
     print(f"NOTE: Found {len(input_files)} trait files for population {population}")
     
     # Get number of threads
-    N_PROCESSES = min(8, cpu_count() // 2)
+    N_PROCESSES = min(32, cpu_count() // 2)
     print(f"NOTE: Using {N_PROCESSES} parallel processes")
 
     # Process files in parallel through locus finding script
