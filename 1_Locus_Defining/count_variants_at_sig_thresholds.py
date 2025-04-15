@@ -18,6 +18,7 @@ import sys
 import os
 from multiprocessing import Pool, cpu_count
 from functools import partial
+from mpi4py.futures import MPIPoolExecutor 
 
 # Configure number of processes
 N_PROCESSES = min(64, cpu_count() // 2)
@@ -135,12 +136,11 @@ def main(argv):
     if '<TRAIT>' not in name_conv:
         print("ERROR: Invalid naming convention given. Convention must include <TRAIT>.")
     
-    # Modified driver section
+    # Calculate trait groups
     loci_df = pd.read_csv(loci_file)
     long_df = loci_df[loci_df["LENGTH"].astype(int) >= min_len * 1e6].copy()
     trait_groups = long_df.groupby('TRAIT')
-    
-    
+
     # Create worker partial
     worker = partial(process_trait,
                     gwas_folder=gwas_dir,
@@ -151,8 +151,8 @@ def main(argv):
                     p_col=p_col)
     
     # Process loci in parallel
-    with Pool(processes=N_PROCESSES) as pool:
-        results = pool.map(worker, trait_groups)
+    with MPIPoolExecutor() as executor:
+        results = list(executor.map(worker, trait_groups))
     
     # Combine results and save
     result_df = pd.DataFrame([item for sublist in results for item in sublist])
