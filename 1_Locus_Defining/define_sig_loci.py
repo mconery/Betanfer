@@ -88,7 +88,7 @@ def process_trait(file_path, output_dir, population):
         "-o", output_dir,
         "-p", "5e-8",
         "-s", "1e-6",
-        "-t", "250000",
+        "-t", "100000",
         "-b", f"{trait}.{population}",
         "--chr-col", "CHR",
         "--pos-col", "POS",
