@@ -104,7 +104,7 @@ def main(argv):
 
     # Configurable parameters with defaults
     gwas_dir = options_dict.get('-g', '/grand/projects/GeomicVar/proj-mvp-ukb-meta/output_gia/metaanalysis_for_export/ALL')
-    name_conv = options_dict.get('-n', '<TRAIT>.EAS.mrmega.sumstats.txt.gz')
+    name_conv = options_dict.get('-n', '<TRAIT>.EAS.gwama.sumstats.txt.gz')
     chr_col = options_dict.get('--chr-col', 'CHR')
     pos_col = options_dict.get('--pos-col', 'POS')
     p_col = options_dict.get('--p-col', 'P')
