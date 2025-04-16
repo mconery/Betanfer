@@ -11,7 +11,6 @@ length to 0.
 '''
 
 import time
-start_time = time.time()
 
 import pandas as pd
 import numpy as np
@@ -81,6 +80,7 @@ def process_trait(trait_group, gwas_folder, naming_conv, thresholds, chr_col, po
 ###############################################################################
 
 def main(argv):
+    start_time = time.time()
     try:
         opts, args = getopt.getopt(sys.argv[1:], "l:o:g:m:n:p:nhb:", 
                                  ["help", "chr-col=", "pos-col=", "p-col="])
@@ -173,8 +173,8 @@ def main(argv):
     result_df = pd.DataFrame([item for sublist in results for item in sublist])
     result_df.to_csv(output_file, index=False)
     print(f"SUCCESS: Successfully processed {len(result_df)} loci")
-
+    print("--- %s seconds ---" % (time.time() - start_time))
+    
 if __name__ == "__main__":
     main(sys.argv[1:])
 
-print("--- %s seconds ---" % (time.time() - start_time))
