@@ -26,7 +26,7 @@ ARGUMENTS
 -o => Output CSV file REQUIRED
 -g => GWAS directory (default: /grand/projects/GeomicVar/proj-mvp-ukb-meta/output_gia/metaanalysis_for_export/ALL) OPTIONAL
 -m => Minimum locus length in Mb (default: 5) OPTIONAL
--n => GWAS file naming convention (default: <TRAIT>.ALL.mrmega.sumstats.txt.gz) OPTIONAL
+-n => GWAS file naming convention (default: <TRAIT>.<POPULATION>.<META_TYPE>.sumstats.txt.gz) OPTIONAL
 -p => P-value thresholds (comma-separated, default: 5e-8,1e-10,1e-20,1e-30,1e-40,1e-50) OPTIONAL
 --chr-col => Chromosome column name (default: CHR) OPTIONAL
 --pos-col => Position column name (default: POS) OPTIONAL
