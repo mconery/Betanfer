@@ -2,12 +2,12 @@
 #PBS -A GeomicVar
 #PBS -l walltime=3:00:00
 #PBS -l filesystems=flare
-#PBS -l select=32:ncpus=6656
+#PBS -l select=32
 #PBS -q prod
 #PBS -M mconery@anl.gov
 #PBS -N onekg_test 
-#PBS -o ../../script_logs/multinode_1000G_simulations.log
-#PBS -e ../../script_logs/multinode_1000G_simulations.err
+#PBS -o /flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/Meta_Fine-Mapping/script_logs/multinode_1000G_simulations.log
+#PBS -e /flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/Meta_Fine-Mapping/script_logs/multinode_1000G_simulations.err
 
 #Set up conda environment
 source ~/.bashrc
