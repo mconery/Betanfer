@@ -8,4 +8,4 @@
 
 source ~/.bashrc
 conda activate finemap_old
-mpiexec -n 128 python -m mpi4py.futures /flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/Meta_Fine-Mapping/1_Locus_Defining/count_variants_at_sig_thresholds.py -l /flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/mapping_loci/sig_loci.EAS.master.csv -g /flare/GeomicVar/multi-biobank-meta/metaanalysis_for_export/EAS -o /flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/mapping_loci/sig_loci.EAS.plus_var_counts.csv -p 1 -m 0
+mpiexec -n 128 python -m mpi4py.futures /flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/Meta_Fine-Mapping/1_Locus_Defining/count_variants_at_sig_thresholds.py -l /flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/mapping_loci/sig_loci.ALL.master.csv -g /flare/GeomicVar/multi-biobank-meta/metaanalysis_for_export/ALL -o /flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/mapping_loci/sig_loci.ALL.plus_var_counts.csv -p 1 -m 0
