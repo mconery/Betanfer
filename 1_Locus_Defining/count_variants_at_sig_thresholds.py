@@ -38,6 +38,7 @@ ARGUMENTS
 ###########################  PROCESS INDIVIDUAL LOCUS  ########################
 ###############################################################################
 
+#Create a function to process an individual trait
 def process_trait(trait_group, gwas_folder, naming_conv, thresholds, chr_col, pos_col, p_col):
     """Process all loci for a single trait"""
     trait, group = trait_group
@@ -72,6 +73,20 @@ def process_trait(trait_group, gwas_folder, naming_conv, thresholds, chr_col, po
     except Exception as e:
         print(f"ERROR processing {trait}: {str(e)}")
         return []
+
+#Create function to split up the traits with too many loci
+def split_large_trait_groups(loci_df, max_loci_per_group=200):
+    """Split traits with >N loci into subgroup chunks"""
+    trait_groups = []
+    for trait, group in loci_df.groupby('TRAIT'):
+        n_loci = len(group)
+        if n_loci > max_loci_per_group:
+            for i in range(0, n_loci, max_loci_per_group):
+                subgroup = group.iloc[i:i+max_loci_per_group]
+                trait_groups.append((f"{trait}_PART_{i//max_loci_per_group+1}", subgroup))
+        else:
+            trait_groups.append((trait, group))
+    return trait_groups
 
 ###############################################################################
 ###############  COLLECT / CHECK ARGUMENTS AND MULTI-PROCESS LOCI #############
@@ -151,7 +166,7 @@ def main(argv):
     # Calculate trait groups
     loci_df = pd.read_csv(loci_file)
     long_df = loci_df[loci_df["LENGTH"].astype(int) >= min_len * 1e6].copy()
-    trait_groups = long_df.groupby('TRAIT')
+    trait_groups = split_large_trait_groups(long_df, max_loci_per_group=200)
 
     # Create worker partial
     worker = partial(process_trait,
