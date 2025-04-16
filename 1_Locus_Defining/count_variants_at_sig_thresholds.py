@@ -17,7 +17,7 @@ import sys
 import os
 from multiprocessing import Pool, cpu_count
 from functools import partial
-from mpi4py.futures import MPIPoolExecutor 
+from mpi4py.futures import MPIPoolExecutor
 
 def help(exit_num=1):
     print("""-----------------------------------------------------------------
@@ -42,6 +42,8 @@ ARGUMENTS
 def process_trait(trait_group, gwas_folder, naming_conv, thresholds, chr_col, pos_col, p_col):
     """Process all loci for a single trait"""
     trait, group = trait_group
+    if '_PART_' in trait:
+        trait = trait.split('_PART_')[0]
     try:
         # Load GWAS data once per trait
         gwas_file = os.path.join(gwas_folder, f"{naming_conv}".replace("<TRAIT>", trait))
@@ -75,7 +77,7 @@ def process_trait(trait_group, gwas_folder, naming_conv, thresholds, chr_col, po
         return []
 
 #Create function to split up the traits with too many loci
-def split_large_trait_groups(loci_df, max_loci_per_group=200):
+def split_large_trait_groups(loci_df, max_loci_per_group=100):
     """Split traits with >N loci into subgroup chunks"""
     trait_groups = []
     for trait, group in loci_df.groupby('TRAIT'):
