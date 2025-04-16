@@ -10,6 +10,8 @@ length to 0.
 ***Run in Conda finemap environment***
 '''
 
+import time
+start_time = time.time()
 
 import pandas as pd
 import numpy as np
@@ -174,3 +176,5 @@ def main(argv):
 
 if __name__ == "__main__":
     main(sys.argv[1:])
+
+print("--- %s seconds ---" % (time.time() - start_time))
