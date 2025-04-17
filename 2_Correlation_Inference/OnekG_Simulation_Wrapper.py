@@ -17,6 +17,7 @@ import os
 from mpi4py.futures import MPIPoolExecutor
 from functools import partial
 from OnekG_Simulation_Test import OnekG_Simulation_Test
+import numpy as np
 
 #Define help function
 def help(exit_num=0):
@@ -180,7 +181,7 @@ def main():
             return iter(lambda: tuple(islice(it, size)), ())
         
         # Each node gets a chunk of parameters to process locally
-        param_chunks = chunk(test_parameters, len(test_parameters)//2 + 1)
+        param_chunks = np.array_split(test_parameters, 2)
         
         # Process chunks on nodes using all local cores
         results = executor.map(worker, param_chunks)
