@@ -335,6 +335,7 @@ def main():
     
     # Process correlations in parallel
     n_workers = os.cpu_count()
+    print(f"NOTE: Using {n_workers} threads per node for multi-thread calculations")
     pair_chunks = np.array_split(all_pairs, n_workers*4)
     geno_corrs = []
     with ThreadPoolExecutor(max_workers=n_workers) as executor:
