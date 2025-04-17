@@ -19,7 +19,7 @@ from functools import partial
 
 #Define help function
 def help(exit_num=0):
-    print("""Usage: python 1000G_Simulation_Test.py [OPTIONS]
+    print("""Usage: python OnekG_Simulation_Wrapper.py [OPTIONS]
 Options:
   --command_file        File of simulation commands to run (required)
   --plink_dir           Directory of 1000G Plink Files (required)
