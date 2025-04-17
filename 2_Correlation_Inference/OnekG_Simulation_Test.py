@@ -264,7 +264,8 @@ def OnekG_Simulation_Test(input_command):
     n_vars = len(variant_ids)
     chunk_size = 500
     all_pairs = []
-    with ThreadPoolExecutor() as executor:
+    n_workers = os.cpu_count()
+    with ThreadPoolExecutor(max_workers=n_workers) as executor:
         futures = []
         for start in range(0, n_vars, chunk_size):
             end = min(start + chunk_size, n_vars)
@@ -314,7 +315,6 @@ def OnekG_Simulation_Test(input_command):
         return chunk_results
     
     # Process correlations in parallel
-    n_workers = os.cpu_count()
     pair_chunks = np.array_split(all_pairs, n_workers*4)
     geno_corrs = []
     with ThreadPoolExecutor(max_workers=n_workers) as executor:
