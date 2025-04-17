@@ -15,6 +15,7 @@ import sys
 import getopt
 import os
 from mpi4py.futures import MPIPoolExecutor
+from mpi4py import MPI
 from functools import partial
 from OnekG_Simulation_Test import OnekG_Simulation_Test
 import numpy as np
@@ -173,7 +174,7 @@ def main():
     # Create worker partial
     worker = partial(OnekG_Simulation_Test)
     #Now loop over the test_parameters and submit the jobs
-    with MPIPoolExecutor(max_workers=2) as executor:  # 1 worker per node
+    with MPIPoolExecutor(max_workers=2, mpi_info=MPI.Info.Create().Set("oversubscribe", "true")) as executor:  # 1 worker per node
         # Split test_parameters into 32 chunks (one per node)
         from itertools import islice
         def chunk(it, size):
