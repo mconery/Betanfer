@@ -16,6 +16,7 @@ import getopt
 import os
 from mpi4py.futures import MPIPoolExecutor
 from functools import partial
+from OnekG_Simulation_Test import OnekG_Simulation_Test
 
 #Define help function
 def help(exit_num=0):
@@ -167,11 +168,9 @@ def main():
                                 else:
                                     test_parameters.append(temp)
     
-    #Create running function
-    def run_command(command):
-        os.system(command)
+
     # Create worker partial
-    worker = partial(run_command)
+    worker = partial(OnekG_Simulation_Test)
     #Now loop over the test_parameters and submit the jobs
     with MPIPoolExecutor() as executor:
         results = executor.map(worker, test_parameters)
