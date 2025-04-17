@@ -445,9 +445,9 @@ def main():
             theta += [delta0, delta1]
             if np.max(np.abs([delta0, delta1])) < tol:
                 break
-            # Calculate standard errors from Hessian
-            se = np.sqrt(np.abs(det))  # From Hessian determinant
-            z_scores = theta[1] / se
+        # Calculate standard errors from Hessian
+        se = np.sqrt(np.abs(det))  # From Hessian determinant
+        z_scores = theta[1] / se
         return theta[1], se, z_scores  # Return only slope coefficients
     #Function that runs regressions
     def process_regression_chunk(indices_chunk, n_traits=Y.shape[1]):
