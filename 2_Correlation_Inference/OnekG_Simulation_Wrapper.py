@@ -166,9 +166,7 @@ def main():
                                         test_parameters.append(temp_b)
                                 else:
                                     test_parameters.append(temp)
-    for command in test_parameters:
-        print(command + '\n')
-    '''
+    
     #Create running function
     def run_command(command):
         os.system(command)
@@ -178,7 +176,7 @@ def main():
     with MPIPoolExecutor() as executor:
         results = executor.map(worker, test_parameters)
     del results
-    '''
+    
     toc = time.perf_counter()
     print(f"SUCCESS: Simulations complete in {(toc - tic)/60:0.4f} minutes")
 
