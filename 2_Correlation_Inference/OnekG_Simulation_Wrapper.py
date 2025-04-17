@@ -172,8 +172,18 @@ def main():
     # Create worker partial
     worker = partial(OnekG_Simulation_Test)
     #Now loop over the test_parameters and submit the jobs
-    with MPIPoolExecutor() as executor:
-        results = executor.map(worker, test_parameters)
+    with MPIPoolExecutor(max_workers=32) as executor:  # 1 worker per node
+        # Split test_parameters into 32 chunks (one per node)
+        from itertools import islice
+        def chunk(it, size):
+            it = iter(it)
+            return iter(lambda: tuple(islice(it, size)), ())
+        
+        # Each node gets a chunk of parameters to process locally
+        param_chunks = chunk(test_parameters, len(test_parameters)//32 + 1)
+        
+        # Process chunks on nodes using all local cores
+        results = executor.map(worker, param_chunks)
     del results
     
     toc = time.perf_counter()
