@@ -82,7 +82,7 @@ def main():
         sys.exit(2)
 
     # Path Validation checks
-    if not all(os.path.exists(f) for f in [command_file, plink_dir, keep_dir, out_dir]):
+    if not all(os.path.exists(f) for f in [plink_dir, keep_dir, out_dir]):
         print("ERROR: Input command file does not exist.")
         sys.exit(1)
         
