@@ -17,10 +17,13 @@ library(tidyverse)
 library(pbapply)
 
 #Set input directory
-inp_dir <- "C:/Users/mitch/Documents/Argonne/Meta-Analysis_Fine-Mapping/Data/Defining_Loci/"
+inp_dir <- "C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/Defining_Loci/"
 #Set input files
-long_file <- paste0(inp_dir, "long_loci.plus_var_counts.csv")
-sig_file <- paste0(inp_dir, "sig_loci.plus_var_counts.csv")
+ALL_file <- paste0(inp_dir, "sig_loci.ALL.plus_var_counts.csv")
+AFR_file <- paste0(inp_dir, "sig_loci.AFR.plus_var_counts.csv")
+AMR_file <- paste0(inp_dir, "sig_loci.AMR.plus_var_counts.csv")
+EAS_file <- paste0(inp_dir, "sig_loci.EAS.plus_var_counts.csv")
+EUR_file <- paste0(inp_dir, "sig_loci.EUR.plus_var_counts.csv")
 ```
 
 ### 2) Read in Files and Make a Basic Histogram of Locus sizes by bp
@@ -31,75 +34,79 @@ the information to begin scoping out our work.
 ```{r}
 
 #Read in files
-long_raw <- read.table(long_file, sep = ",", header = TRUE)
-sig_raw <- read.table(sig_file, sep = ",", header = TRUE)
+ALL_raw <- read.table(ALL_file, sep = ",", header = TRUE)
+AFR_raw <- read.table(AFR_file, sep = ",", header = TRUE)
+AMR_raw <- read.table(AMR_file, sep = ",", header = TRUE)
+EAS_raw <- read.table(EAS_file, sep = ",", header = TRUE)
+EUR_raw <- read.table(EUR_file, sep = ",", header = TRUE)
 
-# Make cumulative distribution plot of all significant locus lengths
-ggplot(sig_raw, mapping = aes(x = LENGTH)) + 
-  stat_ecdf(geom = "step", color = "blue", size=2) + 
-  xlab("Locus Length") + ylab("Cumulative Proportion of Loci") + 
-  xlim(0,6e6) + 
-  theme(
-    panel.background = element_blank(), 
-    legend.title = element_blank(), 
-    axis.line = element_line(colour = "black"),
-    axis.text.x = element_text(size = 12, angle=45, hjust = 1, vjust = 1), 
-    plot.title = element_text(size=20, color="black", hjust=0.5),
-    legend.position = "none", 
-    axis.text.y = element_text(size=12), 
-    axis.title = element_text(size = 16)
-  )
+make_size_plot <- function(sig_raw){
+  # Calculate scaling factor and percentiles
+  max_length <- max(sig_raw$LENGTH)
+  max_pv <- max(sig_raw$PV_1e.00)
+  scale_factor <- max_length / max_pv
+  percentiles <- quantile(sig_raw$LENGTH, c(0.95, 0.99))  # Calculate percentiles
+  
+  # Create dual-axis cumulative distribution plot
+  p<-ggplot(sig_raw) +
+    stat_ecdf(aes(x = LENGTH), geom = "step", color = "blue", size = 1.2) +
+    stat_ecdf(aes(x = PV_1e.00 * scale_factor), geom = "step", color = "red", size = 1.2) +
+    geom_vline(
+      xintercept = percentiles,
+      linetype = "dashed",
+      color = "darkgray",
+      linewidth = 0.8
+    ) +
+    scale_x_continuous(
+      name = "Locus Length",
+      limits = c(0, 6e6),
+      sec.axis = sec_axis(~./scale_factor, name = "Number of Variants")
+    ) +
+    ylab("Cumulative Proportion") +
+    theme(
+      panel.background = element_blank(),
+      axis.line = element_line(colour = "black"),
+      axis.text.x = element_text(size = 12),
+      axis.text.x.bottom = element_text(color = "blue"),
+      axis.title.x.bottom = element_text(color = "blue"),
+      axis.text.x.top = element_text(color = "red"),
+      axis.title.x.top = element_text(color = "red"),
+      axis.title = element_text(size = 16),
+      axis.text.y = element_text(size = 12)
+    ) +
+    annotate(
+      "text",
+      x = percentiles+1.8e5,
+      y = 1.02,
+      label = c("95th", "99th"),
+      color = "darkgray",
+      size = 4,
+      vjust = 0
+    )
+  print(p)
+}
+
+#Make ALL plot
+make_size_plot(ALL_raw)
 
 ```
 
 I note that there is a single variant in the locus QTL_UA.chr1:145250001-146000000. This is not a mistake. There is one variant with a p-value of 10^-94.
 
-### 3) Read Make a Basic Histogram of Locus sizes by SNPs and Length
+### 3) Make histograms for ancestral populations
 
 ```{r}
-
-# Calculate scaling factor and percentiles
-max_length <- max(sig_raw$LENGTH)
-max_pv <- max(sig_raw$PV_1e.00)
-scale_factor <- max_length / max_pv
-percentiles <- quantile(sig_raw$LENGTH, c(0.95, 0.99))  # Calculate percentiles
-
-# Create dual-axis cumulative distribution plot
-ggplot(sig_raw) +
-  stat_ecdf(aes(x = LENGTH), geom = "step", color = "blue", size = 1.2) +
-  stat_ecdf(aes(x = PV_1e.00 * scale_factor), geom = "step", color = "red", size = 1.2) +
-  geom_vline(
-    xintercept = percentiles,
-    linetype = "dashed",
-    color = "darkgray",
-    linewidth = 0.8
-  ) +
-  scale_x_continuous(
-    name = "Locus Length",
-    limits = c(0, 6e6),
-    sec.axis = sec_axis(~./scale_factor, name = "Number of Variants")
-  ) +
-  ylab("Cumulative Proportion") +
-  theme(
-    panel.background = element_blank(),
-    axis.line = element_line(colour = "black"),
-    axis.text.x = element_text(size = 12),
-    axis.text.x.bottom = element_text(color = "blue"),
-    axis.title.x.bottom = element_text(color = "blue"),
-    axis.text.x.top = element_text(color = "red"),
-    axis.title.x.top = element_text(color = "red"),
-    axis.title = element_text(size = 16),
-    axis.text.y = element_text(size = 12)
-  ) +
-  annotate(
-    "text",
-    x = percentiles+1.8e5,
-    y = 1.02,
-    label = c("95th", "99th"),
-    color = "darkgray",
-    size = 4,
-    vjust = 0
-  )
-
+make_size_plot(AFR_raw)
 ```
 
+```{r}
+make_size_plot(AMR_raw)
+```
+
+```{r}
+make_size_plot(EAS_raw)
+```
+
+```{r}
+make_size_plot(EUR_raw)
+```
