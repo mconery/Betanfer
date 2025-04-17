@@ -1,6 +1,6 @@
 #!/bin/bash -l
 #PBS -A GeomicVar
-#PBS -l walltime=3:00:00
+#PBS -l walltime=4:00:00
 #PBS -l filesystems=flare
 #PBS -l select=32:ncpus=208:mpiprocs=1
 #PBS -l place=scatter:excl
@@ -27,8 +27,8 @@ cd ../../script_logs
 
 #Create lists of commands
 >multinode_1000G_simulations.commands.txt
-for chromosome in 2 3 4; do
-	for pop in EUR AFR ALL; do
+for chromosome in 2; do
+	for pop in EUR; do
 		for trait_type in continuous binary; do
 			for n_trait in 50 100 200 300 400 500 1000; do 
 				for n_causal in 0 1 2 3 4 5; do 
