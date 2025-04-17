@@ -15,11 +15,6 @@ import sys
 import getopt
 import os
 import numpy as np
-import pandas as pd
-from pandas_plink import read_plink1_bin
-import random
-from concurrent.futures import ThreadPoolExecutor
-from bisect import bisect_right
 
 #Define help function
 def help(exit_num=0):
@@ -182,6 +177,13 @@ def main():
     if os.path.exists(output_path):
         print(f"NOTE: Output file already exists for {out_file_name}")
         sys.exit(0)
+    
+    #Import remainder of necessary packages (Done here to save on processing before file existence check)
+    import pandas as pd
+    from pandas_plink import read_plink1_bin
+    import random
+    from concurrent.futures import ThreadPoolExecutor
+    from bisect import bisect_right
     
     # Read and filter genotype data for samples
     geno = read_plink1_bin(plink_path, verbose=False)
