@@ -1,7 +1,7 @@
 '''
 OnekG_Simulation_Allocator.py
 
-The purpose of this script is to act as a wrapper for 1000G_Simulation_Test.py
+The purpose of this script is to act as a wrapper for 1000G_Simulation_Standalone.py
 and manage the multi-node distribution of jobs using mpi4py
 
 ***Run in Conda finemap environment***
