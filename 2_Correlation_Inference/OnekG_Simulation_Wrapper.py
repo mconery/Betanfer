@@ -24,7 +24,6 @@ import numpy as np
 def help(exit_num=0):
     print("""Usage: python OnekG_Simulation_Wrapper.py [OPTIONS]
 Options:
-  --command_file        File of simulation commands to run (required)
   --plink_dir           Directory of 1000G Plink Files (required)
   --keep_dir            Directory of Population Keep Files for Plink Filtering (required)
   --out_dir             Output Directory (required)
@@ -60,7 +59,6 @@ def main():
         sys.exit(2)
         
     #Set parameter default values
-    command_file = None
     plink_dir = None
     keep_dir = None
     out_dir = None
@@ -174,7 +172,8 @@ def main():
     # Create worker partial
     worker = partial(OnekG_Simulation_Test)
     #Now loop over the test_parameters and submit the jobs
-    with MPIPoolExecutor(max_workers=2, mpi_info=MPI.Info.Create().Set("oversubscribe", "true")) as executor:  # 1 worker per node
+    comm = MPI.COMM_WORLD
+    with MPIPoolExecutor(max_workers=comm.size, mpi_info=MPI.Info.Create().Set("oversubscribe", "true"), python_args=['-m', 'mpi4py.futures']) as executor:  # 1 worker per node
         # Split test_parameters into 32 chunks (one per node)
         from itertools import islice
         def chunk(it, size):
@@ -182,7 +181,7 @@ def main():
             return iter(lambda: tuple(islice(it, size)), ())
         
         # Each node gets a chunk of parameters to process locally
-        param_chunks = np.array_split(test_parameters, 2)
+        param_chunks = np.array_split(test_parameters, comm.size)
         
         # Process chunks on nodes using all local cores
         results = executor.map(worker, param_chunks)
