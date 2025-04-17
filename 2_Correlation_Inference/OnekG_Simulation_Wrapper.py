@@ -167,7 +167,7 @@ def main():
                                 else:
                                     test_parameters.append(temp)
     for command in test_parameters:
-        print(command)
+        print(command + '\n')
     '''
     #Create running function
     def run_command(command):
