@@ -70,7 +70,7 @@ def main():
             plink_dir = a
         elif o == "--keep_dir":
             keep_dir = a
-        elif o == "--plink_dir":
+        elif o == "--out_dir":
             out_dir = a
         else:
             print(o)
