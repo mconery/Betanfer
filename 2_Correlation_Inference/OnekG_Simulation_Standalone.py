@@ -1,5 +1,5 @@
 '''
-OnekG_Simulation_Test.py
+OnekG_Simulation_Standalone.py
 
 The purpose of this script is to test the beta correlation approach on 1000G 
 data using simulated traits. 
