@@ -48,7 +48,7 @@ def main():
         opts, args = getopt.getopt(
             sys.argv[1:],
             "h",
-            ["help", "command_file=", "plink_dir=", "keep_dir=", "out_dir=",
+            ["help", "plink_dir=", "keep_dir=", "out_dir=",
              "chromosomes=", "populations=", "trait_types=", "n_traits=", 
              "n_pairs=", "n_causals=", "effect_sizes=", "case_probs_binary="]
         )
@@ -66,8 +66,6 @@ def main():
         if o in ("-h", "--help"):
             help()
             sys.exit()
-        elif o == "--command_file":
-            command_file = a
         elif o == "--plink_dir":
             plink_dir = a
         elif o == "--keep_dir":
@@ -78,7 +76,7 @@ def main():
             assert False, "WARNING: Unhandled input option"
     
     # Validate required arguments
-    if None in [command_file, plink_dir, keep_dir, out_dir]:
+    if None in [plink_dir, keep_dir, out_dir]:
         print("ERROR: Missing required command file!")
         sys.exit(2)
 
