@@ -73,6 +73,7 @@ def main():
         elif o == "--plink_dir":
             out_dir = a
         else:
+            print(o)
             assert False, "WARNING: Unhandled input option"
     
     # Validate required arguments
