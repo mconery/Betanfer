@@ -14,8 +14,9 @@ tic = time.perf_counter()
 import sys
 import getopt
 import os
-from mpi4py.futures import MPIPoolExecutor
+#from mpi4py.futures import MPIPoolExecutor
 from mpi4py import MPI
+import subprocess
 from functools import partial
 from OnekG_Simulation_Test import OnekG_Simulation_Test
 import numpy as np
