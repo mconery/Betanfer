@@ -2,51 +2,31 @@
 OnekG_Simulation_Test.py
 
 The purpose of this script is to test the beta correlation approach on 1000G 
-data using simulated traits. 
+data using simulated traits. This version of the code is meant to be imported as a function.
 
 ***Run in Conda finemap environment***
+***NOTE: The input command should include python at the front****
 '''
-
-#For timing
-import time
-tic = time.perf_counter()
-
-import sys
-import getopt
-import os
-import numpy as np
-import pandas as pd
-from pandas_plink import read_plink1_bin
-import random
-from concurrent.futures import ThreadPoolExecutor
-from bisect import bisect_right
-
-#Define help function
-def help(exit_num=0):
-    print("""Usage: python OnekG_Simulation_Test.py [OPTIONS]
-Options:
-  --plink         Path to PLINK bed file (required)
-  --pairs         Number of variant pairs to test (required)
-  --traits        Number of traits to simulate (required)
-  --outdir        Output directory (required)
-  --keep          File with individuals to keep (optional)
-  --trait_type    Trait type: continuous/binary (default: continuous; optional)
-  --case_prob     Case probability for binary traits (default: 0.5; optional)
-  --max_dist      Maximum distance of variant pairs (default: 1Mb; optional)
-  --n_causal      Number of causal variants (0-5, default: 0; optional)
-  --min_distance  Causal variant minimum distance from tested pairs (default: 10Mb; optional)
-  --effect_size   Per-allele effect size (default: 0.1; optional)
-  --keep_conv     Keep file naming convention (default: 1000G.<POP>.txt; optional)
-  --plink_conv    Plink file naming convention (default: <CHROMOSOME>_10k_sample.bed; optional)
-  -h, --help      Show this help message""")
-    sys.exit(exit_num)
 
 
 ###############################################################################
 ###############  COLLECT / CHECK ARGUMENTS AND MULTI-PROCESS LOCI #############
 ###############################################################################
 
-def main():
+def OnekG_Simulation_Test(input_command):
+    ###Package imports
+    #For timing
+    import time
+    tic = time.perf_counter()
+    import sys
+    import getopt
+    import os
+    import numpy as np
+    import pandas as pd
+    from pandas_plink import read_plink1_bin
+    import random
+    from concurrent.futures import ThreadPoolExecutor
+    from bisect import bisect_right
     
     #Fix a random seed
     np.random.seed(5)
@@ -54,7 +34,7 @@ def main():
     # Parse command-line arguments
     try:
         opts, args = getopt.getopt(
-            sys.argv[1:],
+            input_command.split(" ")[2:],
             "h",
             ["help", "plink=", "pairs=", "traits=", "keep=", "outdir=", 
              "max_dist=", "trait_type=", "case_prob=", "keep_conv=", "plink_conv=",
@@ -572,6 +552,3 @@ def main():
     
     toc = time.perf_counter()
     print(f"SUCCESS: Simulation complete in {toc - tic:0.4f} seconds")
-
-if __name__ == "__main__":
-    main()
