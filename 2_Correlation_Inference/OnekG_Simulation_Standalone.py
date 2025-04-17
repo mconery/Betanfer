@@ -176,7 +176,7 @@ def main():
         pop_name='ALL'
        
     #Create output file name
-    out_file_name = f"{chromo}.{pop_name}.{n_traits}_traits.{n_pairs}_pairs.{f'{trait_type}_{case_prob}' if trait_type == 'binary' else f'{trait_type}'}{f'.{n_causal}_causal_{effect_size}' if n_causal > 0 else '{n_causal}_causal'}.csv"
+    out_file_name = f"{chromo}.{pop_name}.{n_traits}_traits.{n_pairs}_pairs.{f'{trait_type}_{case_prob}' if trait_type == 'binary' else f'{trait_type}'}{f'.{n_causal}_causal_{effect_size}' if n_causal > 0 else f'.{n_causal}_causal'}.csv"
     output_path = os.path.join(outdir, out_file_name)
     #Check if output file exists and exit if it does
     if os.path.exists(output_path):
