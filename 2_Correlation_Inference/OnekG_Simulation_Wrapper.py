@@ -173,7 +173,7 @@ def main():
     worker = partial(OnekG_Simulation_Test)
     #Now loop over the test_parameters and submit the jobs
     comm = MPI.COMM_WORLD
-    with MPIPoolExecutor(max_workers=comm.size, mpi_info=MPI.Info.Create().Set("oversubscribe", "true"), python_args=['-m', 'mpi4py.futures']) as executor:  # 1 worker per node
+    with MPIPoolExecutor(max_workers=comm.size, mpi_info=MPI.Info.Create(), python_args=['-m', 'mpi4py.futures']) as executor:  # 1 worker per node
         # Split test_parameters into 32 chunks (one per node)
         from itertools import islice
         def chunk(it, size):
