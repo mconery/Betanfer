@@ -165,7 +165,7 @@ def main():
                                         temp_b = f"{temp} --case_prob={case_prob}"
                                         test_parameters.append(temp_b)
                                 else:
-                                    test_parameters(temp)
+                                    test_parameters.append(temp)
     
     #Create running function
     def run_command(command):
