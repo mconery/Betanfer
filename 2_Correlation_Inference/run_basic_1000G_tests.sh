@@ -1,8 +1,8 @@
 #!/bin/bash -l
 #PBS -A GeomicVar
-#PBS -l walltime=4:00:00
+#PBS -l walltime=6:00:00
 #PBS -l filesystems=flare
-#PBS -l select=32:ncpus=208:mpiprocs=1
+#PBS -l select=400:ncpus=208:mpiprocs=1
 #PBS -l place=scatter:excl
 #PBS -q prod
 #PBS -M mconery@anl.gov
@@ -28,9 +28,9 @@ cd ../../script_logs
 #Create lists of commands
 >multinode_1000G_simulations.commands.txt
 for chromosome in 2; do
-	for pop in EUR; do
-		for trait_type in continuous binary; do
-			for n_trait in 50 100 200 300 400 500 1000; do 
+	for pop in EUR AFR ALL; do
+		for trait_type in binary continuous; do
+			for n_trait in 1000 500 400 300 200 100 50; do 
 				for n_causal in 0 1 2 3 4 5; do 
 					temp="python $onekg_script --plink $plink_dir/chr"$chromosome"_10k_sample.bed --pairs=10000 --traits=$n_trait --outdir=$out_dir --keep=$keep_dir/1000G.$pop.txt --trait_type=$trait_type --n_causal=$n_causal --min_distance 30000000"
 					if [ "$n_causal" != 0 ]; then
