@@ -200,6 +200,11 @@ def main():
     with open(command_file, 'r') as file:
         commands = file.readlines()
     
+    #Get the names of the output files
+    out_files = [get_output_names(x) for x in commands]
+    #Get the commands for the files that don't exist yet
+    needed_commands = [commands[i] for i in range(len(out_files)) if not os.path.exists(out_files[i])]
+    
     #Now loop over the test_parameters and submit the jobs
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
@@ -209,8 +214,8 @@ def main():
     chunk_dict = {x : [] for x in range(num_nodes)}
     loop_rank = 0
     i = 0
-    while i < len(commands): 
-        chunk_dict[loop_rank].append(commands[i])
+    while i < len(needed_commands): 
+        chunk_dict[loop_rank].append(needed_commands[i])
         i += 1
         if loop_rank < num_nodes - 1:
             loop_rank += 1
