@@ -167,6 +167,8 @@ def main():
         pop_name = os.path.basename(keep_file)
         for remnant in keep_name_remnant:
             pop_name = pop_name.replace(remnant, "")
+        if pop_name == 'ALL':
+            keep_file = None
     else:
         pop_name='ALL'
        
