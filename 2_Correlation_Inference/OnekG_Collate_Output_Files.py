@@ -57,16 +57,19 @@ def process_file(file_path):
         # Parse causal variants and effect size if present
         if len(parts) > 5:
             causal_part = parts[5]
-            if '_causal' in causal_part:
+            if causal_part[0] == '0':
+                n_causal = 0
+                meta['n_causal'] = int(n_causal)
+            elif '_causal' in causal_part:
                 n_causal, effect = causal_part.split('_causal_')
                 meta['n_causal'] = int(n_causal)
                 meta['effect_size'] = float(effect)
             else:
                 meta['n_causal'] = int(causal_part.replace('_causal', ''))
-        # Read CSV and add metadata columns
-        df = pd.read_csv(file_path, sep='\t')
-        for k, v in meta.items():
-            df[k] = v
+                # Read CSV and add metadata columns
+                df = pd.read_csv(file_path, sep='\t')
+                for k, v in meta.items():
+                    df[k] = v
         
         return df
     except Exception as e:
