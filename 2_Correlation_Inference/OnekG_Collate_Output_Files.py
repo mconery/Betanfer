@@ -1,0 +1,115 @@
+'''
+OnekG_Collate_Output_Files.py
+
+The purpose of this script is to combine together the outputs of all the 1000G
+Simulations that have been executed.
+
+***Run in Conda finemap environment***
+'''
+
+import sys
+import os
+import getopt
+import pandas as pd
+from pathlib import Path
+from multiprocessing import Pool, cpu_count
+from tqdm import tqdm
+
+def help():
+    print("""Usage: python combine_simulations.py -i <input_dir> -o <output_path>
+      Options:
+        -i              Path to input directory of simulation results (required)
+        -o              Name of output file (required)
+        -h, --help      Show this help message""")
+    sys.exit(2)
+
+###############################################################################
+####################  PROCESS INDIVIDUAL SIMULATION FILE ######################
+###############################################################################
+
+def process_file(file_path):
+    """Process individual file and extract metadata from filename"""
+    try:
+        # Extract base filename without extension
+        fname = Path(file_path).stem
+        
+        # Split filename into components using the naming convention
+        parts = fname.split('.')
+        chrom, pop, n_traits, n_pairs = parts[0], parts[1], parts[2], parts[3]
+        # Initialize metadata dictionary
+        meta = {
+            'chromosome': chrom,
+            'population': pop,
+            'n_traits': int(n_traits.replace('_traits', '')),
+            'n_pairs': int(n_pairs.replace('_pairs', '')),
+            'trait_type': None,
+            'case_prob': None,
+            'n_causal': 0,
+            'effect_size': None
+        }
+        # Parse trait type and case probability (if binary)
+        trait_part = parts[4]
+        if '_' in trait_part:
+            meta['trait_type'], case_prob = trait_part.split('_')
+            meta['case_prob'] = float(case_prob)
+        else:
+            meta['trait_type'] = trait_part
+        # Parse causal variants and effect size if present
+        if len(parts) > 5:
+            causal_part = parts[5]
+            if '_causal' in causal_part:
+                n_causal, effect = causal_part.split('_causal_')
+                meta['n_causal'] = int(n_causal)
+                meta['effect_size'] = float(effect)
+            else:
+                meta['n_causal'] = int(causal_part.replace('_causal', ''))
+        # Read CSV and add metadata columns
+        df = pd.read_csv(file_path, sep='\t')
+        for k, v in meta.items():
+            df[k] = v
+        
+        return df
+    except Exception as e:
+        print(f"ERROR: Error processing {file_path}: {str(e)}")
+        return pd.DataFrame()
+
+###############################################################################
+############################  COLLATION FUNCTIONS #############################
+###############################################################################
+
+def combine_simulation_outputs(input_dir, output_path, n_workers=cpu_count()):
+    files = list(Path(input_dir).glob('*.csv'))
+    print(f"NOTE: Found {len(files)} simulation files")
+    with Pool(n_workers) as pool:
+        results = list(tqdm(pool.imap(process_file, files), total=len(files)))
+    combined_df = pd.concat(results, ignore_index=True)
+    combined_df.to_parquet(output_path, index=False)
+    print(f"SUCCESS: Combined data saved to {output_path}")
+
+def main(argv):
+    input_dir = None
+    output_path = None
+    try:
+        opts, args = getopt.getopt(argv, "hi:o:", ["help", "input_dir=", "output_path="])
+    except getopt.GetoptError:
+        help()
+    for opt, arg in opts:
+        if opt in ("-h", "--help"):
+            help()
+        elif opt in ("-i", "--input_dir"):
+            input_dir = arg
+        elif opt in ("-o", "--output_path"):
+            output_path = arg
+    if not input_dir or not output_path:
+        help()
+    if not os.path.exists(input_dir):
+        print("ERROR: Input directory does not exist.")
+        sys.exit(1)
+    elif not os.path.exists(os.path.dirname(output_path)):
+        print("ERROR: Directory of output file does not exist.")
+        sys.exit(1)
+    #No errors detected so call function
+    combine_simulation_outputs(input_dir, output_path)
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
