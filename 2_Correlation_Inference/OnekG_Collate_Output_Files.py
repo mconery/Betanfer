@@ -66,11 +66,10 @@ def process_file(file_path):
                 meta['effect_size'] = float(effect)
             else:
                 meta['n_causal'] = int(causal_part.replace('_causal', ''))
-                # Read CSV and add metadata columns
-                df = pd.read_csv(file_path, sep='\t')
-                for k, v in meta.items():
-                    df[k] = v
-        
+        # Read CSV and add metadata columns
+        df = pd.read_csv(file_path, sep='\t')
+        for k, v in meta.items():
+            df[k] = v
         return df
     except Exception as e:
         print(f"ERROR: Error processing {file_path}: {str(e)}")
