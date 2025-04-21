@@ -83,7 +83,7 @@ def combine_simulation_outputs(input_dir, output_path, n_workers=cpu_count()):
     with Pool(n_workers) as pool:
         results = list(tqdm(pool.imap(process_file, files), total=len(files)))
     combined_df = pd.concat(results, ignore_index=True)
-    combined_df.to_parquet(output_path, index=False)
+    combined_df.to_csv(output_path, index=False)
     print(f"SUCCESS: Combined data saved to {output_path}")
 
 def main(argv):
