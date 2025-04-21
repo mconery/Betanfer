@@ -2,7 +2,7 @@
 #PBS -A GeomicVar
 #PBS -l walltime=6:00:00
 #PBS -l filesystems=flare
-#PBS -l select=400:ncpus=208:mpiprocs=1
+#PBS -l select=32:ncpus=208:mpiprocs=1
 #PBS -l place=scatter:excl
 #PBS -q prod
 #PBS -M mconery@anl.gov
