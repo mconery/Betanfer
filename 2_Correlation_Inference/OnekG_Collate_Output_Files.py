@@ -36,6 +36,13 @@ def process_file(file_path):
         # Split filename into components using the naming convention
         parts = fname.split('.')
         chrom, pop, n_traits, n_pairs = parts[0], parts[1], parts[2], parts[3]
+        #Recombine parts as needed due to decimal splits
+        if "causal" not in parts[5]:
+            temp = parts.pop(5)
+            parts[4] = parts[4] + '.' + temp
+        if len(parts) > 6:
+            temp = parts.pop(6)
+            parts[5] = parts[5] + '.' + temp
         # Initialize metadata dictionary
         meta = {
             'chromosome': chrom,
@@ -62,6 +69,8 @@ def process_file(file_path):
                 meta['n_causal'] = int(n_causal)
             elif '_causal' in causal_part:
                 n_causal, effect = causal_part.split('_causal_')
+                if n_causal != 0 and effect == 0:
+                    effect = '0.' + parts[-1]
                 meta['n_causal'] = int(n_causal)
                 meta['effect_size'] = float(effect)
             else:
@@ -84,9 +93,9 @@ def combine_simulation_outputs(input_dir, output_path, n_workers=cpu_count()):
     print(f"NOTE: Found {len(files)} simulation files")
     with Pool(n_workers) as pool:
         results = list(tqdm(pool.imap(process_file, files), total=len(files)))
-    combined_df = pd.concat(results, ignore_index=True)
-    combined_df.to_csv(output_path, index=False)
-    print(f"SUCCESS: Combined data saved to {output_path}")
+        combined_df = pd.concat(results, ignore_index=True)
+        combined_df.to_csv(output_path, index=False)
+        print(f"SUCCESS: Combined data saved to {output_path}")
 
 def main(argv):
     input_dir = None
