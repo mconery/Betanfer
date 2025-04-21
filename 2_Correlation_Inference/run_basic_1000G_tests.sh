@@ -29,7 +29,7 @@ cd ../../script_logs
 >multinode_1000G_simulations.commands.txt
 for n_trait in 1000 500 400 300 200 100 50; do
 	for trait_type in binary continuous; do
-		for pop in EUR AFR ALL; do
+		for pop in EUR AFR; do
 			 for chromosome in 2; do
 				for n_causal in 0 1 2 3 4 5; do 
 					temp="python $onekg_script --plink $plink_dir/chr"$chromosome"_10k_sample.bed --pairs=10000 --traits=$n_trait --outdir=$out_dir --keep=$keep_dir/1000G.$pop.txt --trait_type=$trait_type --n_causal=$n_causal --min_distance 30000000"
