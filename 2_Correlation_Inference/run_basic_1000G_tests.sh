@@ -62,6 +62,6 @@ for n_trait in 1000 500 400 300 200 100 50; do
 done
 
 #Read in commands to array
-#readarray -t commands < multinode_1000G_simulations.commands.txt
+readarray -t commands < multinode_1000G_simulations.commands.txt
 #Launch using MPI
-#mpirun -np 32 -ppn 1 python $allocator_script --command_file multinode_1000G_simulations.commands.txt
+mpirun -np 32 -ppn 1 python $allocator_script --command_file multinode_1000G_simulations.commands.txt
