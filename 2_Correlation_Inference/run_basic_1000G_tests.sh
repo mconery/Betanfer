@@ -29,12 +29,12 @@ cd ../../script_logs
 >multinode_1000G_simulations.commands.txt
 for n_trait in 1000 500 400 300 200 100 50; do
 	for trait_type in binary continuous; do
-		for pop in EUR AFR; do
+		for pop in EUR AFR ALL; do
 			 for chromosome in 2; do
 				for n_causal in 0 1 2 3 4 5; do 
 					temp="python $onekg_script --plink $plink_dir/chr"$chromosome"_10k_sample.bed --pairs=10000 --traits=$n_trait --outdir=$out_dir --keep=$keep_dir/1000G.$pop.txt --trait_type=$trait_type --n_causal=$n_causal --min_distance 30000000"
 					if [ "$n_causal" != 0 ]; then
-						for effect_size in 0.1 0.5 1 2 5; do
+						for effect_size in 0.1; do
 							temp_e="$temp"" --effect_size=$effect_size"
 							if [ "$trait_type" == "binary" ]; then
 								for case_prob in 0.05 0.1 0.2 0.3 0.4 0.5; do
@@ -47,7 +47,7 @@ for n_trait in 1000 500 400 300 200 100 50; do
 						done 
 					else
 						if [ "$trait_type" == "binary" ]; then
-							for case_prob in 0.1 0.2 0.3 0.4 0.5; do
+							for case_prob in 0.05 0.1 0.2 0.3 0.4 0.5; do
 								temp_b="$temp"" --case_prob=$case_prob"
 								echo $temp_b >> multinode_1000G_simulations.commands.txt
 							done
@@ -62,6 +62,6 @@ for n_trait in 1000 500 400 300 200 100 50; do
 done
 
 #Read in commands to array
-readarray -t commands < multinode_1000G_simulations.commands.txt
+#readarray -t commands < multinode_1000G_simulations.commands.txt
 #Launch using MPI
-mpirun -np 32 -ppn 1 python $allocator_script --command_file multinode_1000G_simulations.commands.txt
+#mpirun -np 32 -ppn 1 python $allocator_script --command_file multinode_1000G_simulations.commands.txt
