@@ -88,7 +88,7 @@ def process_file(file_path):
         return [df, missing_df]
     except Exception as e:
         print(f"ERROR: Error processing {file_path}: {str(e)}")
-        return pd.DataFrame()
+        return [pd.DataFrame(), pd.DataFrame()]
 
 ###############################################################################
 ############################  COLLATION FUNCTIONS #############################
@@ -99,8 +99,10 @@ def combine_simulation_outputs(input_dir, output_path, missing_path, n_workers=c
     print(f"NOTE: Found {len(files)} simulation files")
     with Pool(n_workers) as pool:
         results = list(tqdm(pool.imap(process_file, files), total=len(files)))
-        combined_df = pd.concat(results, ignore_index=True)
+        combined_df = pd.concat([x[0] for x in results], ignore_index=True)
         combined_df.to_csv(output_path, index=False)
+        missing_df = pd.concat([x[1] for x in results], ignore_index=True).dropna()
+        missing_df.to_csv(missing_path, index=False)
         print(f"SUCCESS: Combined data saved to {output_path}")
 
 def main(argv):
