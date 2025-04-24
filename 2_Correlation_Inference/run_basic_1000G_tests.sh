@@ -2,9 +2,9 @@
 #PBS -A GeomicVar
 #PBS -l walltime=6:00:00
 #PBS -l filesystems=flare
-#PBS -l select=32:ncpus=208:mpiprocs=1
+#PBS -l select=2:ncpus=208:mpiprocs=1
 #PBS -l place=scatter:excl
-#PBS -q prod
+#PBS -q debug
 #PBS -M mconery@anl.gov
 #PBS -N onekg_test 
 #PBS -o /flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/script_logs/multinode_1000G_simulations.log
@@ -64,4 +64,4 @@ done
 #Read in commands to array
 readarray -t commands < multinode_1000G_simulations.commands.txt
 #Launch using MPI
-mpirun -np 32 -ppn 1 python $allocator_script --command_file multinode_1000G_simulations.commands.txt
+mpirun -np 2 -ppn 1 python $allocator_script --command_file multinode_1000G_simulations.commands.txt
