@@ -1,6 +1,6 @@
 #!/bin/bash -l
 #PBS -A GeomicVar
-#PBS -l walltime=6:00:00
+#PBS -l walltime=1:00:00
 #PBS -l filesystems=flare
 #PBS -l select=2:ncpus=208:mpiprocs=1
 #PBS -l place=scatter:excl
