@@ -350,7 +350,12 @@ def main():
     ################# TRAIT SIMULATIONS #####################
     if n_causal > 0:
         causal_geno = geno_data[:, causal_indices]  # (samples × n_causal)
-        genetic_effects = causal_geno @ np.full(n_causal, effect_size)
+        alt_pct = np.sum(causal_geno == 2)/len(causal_geno)
+        ref_pct = np.sum(causal_geno == 0)/len(causal_geno)
+        if alt_pct <= ref_pct: #check minor allele in order to set genetic effects based on minor allele
+            genetic_effects = causal_geno @ np.full(n_causal, effect_size)
+        else:
+            genetic_effects = (2-causal_geno) @ np.full(n_causal, effect_size)
     else:
         genetic_effects = np.zeros(n_samples)
     if trait_type == 'continuous':
