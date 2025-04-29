@@ -220,7 +220,7 @@ def main():
     
     #Change working directory
     os.chdir(log_dir)
-    print("NOTE: Starting my_parsl_workflow")
+    print("NOTE: Starting Simulations")
     
     with parsl.load(aurora_single_tile_config):
         # run simulations
