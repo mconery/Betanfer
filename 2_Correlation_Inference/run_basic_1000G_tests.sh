@@ -27,7 +27,7 @@ cd ../../script_logs
 
 #Create lists of commands
 >multinode_1000G_simulations.commands.txt
-for n_trait in 1000 500 400 300 200 100 50; do
+for n_trait in 50; do
 	for trait_type in binary continuous; do
 		for pop in EUR AFR ALL; do
 			 for chromosome in 2; do
@@ -61,7 +61,5 @@ for n_trait in 1000 500 400 300 200 100 50; do
 	done
 done
 
-#Read in commands to array
-readarray -t commands < multinode_1000G_simulations.commands.txt
 #Launch using MPI
-mpirun -np 2 -ppn 1 python $allocator_script --command_file multinode_1000G_simulations.commands.txt
+#mpirun -np 2 -ppn 1 python $allocator_script --command_file multinode_1000G_simulations.commands.txt
