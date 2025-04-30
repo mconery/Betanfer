@@ -471,7 +471,7 @@ def main():
             chunk_betas[variant_ids[idx]] = betas
         return {'betas': chunk_betas}
     
-    print("Calculating betas/z-scores in parallel...")
+    print("Calculating betas in parallel...")
     all_betas = {}
     with ThreadPoolExecutor(max_workers=n_workers) as executor:
         # Split into index-based chunks for zero lookups
@@ -485,7 +485,7 @@ def main():
     betas = pd.DataFrame.from_dict(all_betas, orient='index', columns=traits.columns)
 
     # Beta Correlation Section with Parallel Processing
-    print("Calculating beta/z-score correlations...")
+    print("Calculating beta correlations...")
     # Precompute mapping and convert to numpy array
     var_to_idx = {var: idx for idx, var in enumerate(variant_ids)}
     beta_matrix = betas.values.astype(np.float32)  # traits × variants
