@@ -34,7 +34,7 @@ for n_trait in 50 1000 500 400 300 200 100; do
 				for n_causal in 0 1 2 3 4 5; do 
 					temp="python $onekg_script --plink $plink_dir/chr"$chromosome"_10k_sample.bed --pairs=10000 --traits=$n_trait --outdir=$out_dir --keep=$keep_dir/1000G.$pop.txt --trait_type=$trait_type --n_causal=$n_causal --min_distance 30000000"
 					if [ "$n_causal" != 0 ]; then
-						for effect_size in 0.1; do
+						for effect_size in 0.1 0.5 1 2; do
 							temp_e="$temp"" --effect_size=$effect_size"
 							if [ "$trait_type" == "binary" ]; then
 								for case_prob in 0.05 0.1 0.2 0.3 0.4 0.5; do
