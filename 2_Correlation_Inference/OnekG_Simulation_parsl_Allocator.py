@@ -172,7 +172,7 @@ def main():
         opts, args = getopt.getopt(
             sys.argv[1:],
             "h",
-            ["help", "command_file="]
+            ["help", "command_file=", "log_dir="]
         )
     except getopt.GetoptError as err:
         print(str(err))
