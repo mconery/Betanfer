@@ -2,7 +2,7 @@
 #PBS -A GeomicVar
 #PBS -l walltime=1:00:00
 #PBS -l filesystems=flare
-#PBS -l select=2:ncpus=208:mpiprocs=1
+#PBS -l select=10:ncpus=208:mpiprocs=1
 #PBS -l place=scatter:excl
 #PBS -q debug
 #PBS -M mconery@anl.gov
@@ -27,7 +27,7 @@ cd ../../script_logs
 
 #Create lists of commands
 >multinode_1000G_simulations.commands.txt
-for n_trait in 50; do
+for n_trait in 1000 500 400 300 200 100 50; do
 	for trait_type in binary continuous; do
 		for pop in EUR AFR ALL; do
 			 for chromosome in 2; do
@@ -62,4 +62,4 @@ for n_trait in 50; do
 done
 
 #Launch using MPI
-#mpirun -np 2 -ppn 1 python $allocator_script --command_file multinode_1000G_simulations.commands.txt
+mpirun -np 10 -ppn 1 python $allocator_script --command_file multinode_1000G_simulations.commands.txt
