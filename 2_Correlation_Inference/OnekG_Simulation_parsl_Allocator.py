@@ -200,8 +200,8 @@ def main():
         sys.exit(2)
     
     # Path Validation checks
-    if not all(os.path.exists(f) for f in [command_file]):
-        print("ERROR: Input command file does not exist.")
+    if not all(os.path.exists(f) for f in [command_file, log_dir]):
+        print("ERROR: Input command file or log directory does not exist.")
         sys.exit(1)
     
     #Read in the command files
