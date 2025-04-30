@@ -1,10 +1,10 @@
 #!/bin/bash -l
 #PBS -A GeomicVar
-#PBS -l walltime=1:00:00
+#PBS -l walltime=6:00:00
 #PBS -l filesystems=flare
 #PBS -l select=10:ncpus=208:mpiprocs=1
 #PBS -l place=scatter:excl
-#PBS -q debug
+#PBS -q prod
 #PBS -M mconery@anl.gov
 #PBS -N onekg_test 
 #PBS -o /flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/script_logs/multinode_1000G_simulations.log
