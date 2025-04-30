@@ -61,5 +61,8 @@ for n_trait in 50 1000 500 400 300 200 100; do
 	done
 done
 
+#Get number of nodes
+num_nodes=$(cat ${PBS_NODEFILE} | wc -l)
+
 #Launch using MPI
-mpirun -np 10 -ppn 1 python $allocator_script --command_file multinode_1000G_simulations.commands.txt
+mpirun -np $num_nodes -ppn 1 python $allocator_script --command_file multinode_1000G_simulations.commands.txt
