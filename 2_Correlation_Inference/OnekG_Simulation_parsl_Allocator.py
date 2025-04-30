@@ -198,13 +198,12 @@ def main():
     if None in [command_file]:
         print("ERROR: Missing required command file!")
         sys.exit(2)
-
-
+    
     # Path Validation checks
     if not all(os.path.exists(f) for f in [command_file]):
         print("ERROR: Input command file does not exist.")
         sys.exit(1)
-        
+    
     #Read in the command files
     with open(command_file, 'r') as file:
         commands = file.readlines()
