@@ -189,6 +189,10 @@ def main():
     from concurrent.futures import ThreadPoolExecutor
     from bisect import bisect_right
     
+    #Adjust random seed so that different regions are picked for each simulation in a given pop
+    random_seed = random_seed + n_traits + round(effect_size * 10) + n_causal
+    if trait_type == "binary": 
+        random_seed += 1
     #Set random seeds
     np.random.seed(random_seed)
     random.seed(random_seed)
