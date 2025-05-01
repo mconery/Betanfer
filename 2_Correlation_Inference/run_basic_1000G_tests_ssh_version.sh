@@ -1,8 +1,8 @@
 #!/bin/bash -l
 #PBS -A GeomicVar
-#PBS -l walltime=2:30:00
+#PBS -l walltime=6:00:00
 #PBS -l filesystems=flare
-#PBS -l select=4:ncpus=208:mpiprocs=1
+#PBS -l select=40:ncpus=208:mpiprocs=1
 #PBS -l place=scatter:excl
 #PBS -q prod
 #PBS -M mconery@anl.gov
@@ -64,21 +64,12 @@ done
 # Get the number of nodes
 num_nodes=$(cat ${PBS_NODEFILE} | wc -l)
 
-#Split up commands by number of nodes 
-split -n l/$num_nodes multinode_1000G_simulations.commands.txt multinode_1000G_simulations.commands.part_
-
-#Read list of command files into array
-cmd_files=()
-for file in multinode_1000G_simulations.commands.part_*; do
-  [ -f "$file" ] && cmd_files+=("$file")
-done
-
 # Loop over nodes and launch the job with each config file
 i=0
 # get the host ip address (use the same for config files for all nodes)
 for node in $(cat ${PBS_NODEFILE}); do
                 # launch jobs for current node
-                ssh $node "source ~/.bashrc; conda activate finemap_old; python $allocator_script --command_file $(pwd)/${cmd_files[$i]}" & 
+                ssh $node "source ~/.bashrc; conda activate finemap_old; python $allocator_script --command_file $(pwd)/multinode_1000G_simulations.commands.txt --total_nodes=$num_nodes --node_num=$i" & 
                 i=$((i+1))
 done
 
