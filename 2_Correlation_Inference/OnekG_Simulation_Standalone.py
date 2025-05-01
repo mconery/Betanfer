@@ -33,6 +33,7 @@ Options:
   --effect_size   Per-allele effect size (default: 0.1; optional)
   --keep_conv     Keep file naming convention (default: 1000G.<POP>.txt; optional)
   --plink_conv    Plink file naming convention (default: <CHROMOSOME>_10k_sample.bed; optional)
+  --random_seed   Random seed (default: 5; optional)
   -h, --help      Show this help message""")
     sys.exit(exit_num)
 
@@ -42,10 +43,7 @@ Options:
 ###############################################################################
 
 def main():
-    
-    #Fix a random seed
-    np.random.seed(5)
-    
+        
     # Parse command-line arguments
     try:
         opts, args = getopt.getopt(
@@ -53,7 +51,7 @@ def main():
             "h",
             ["help", "plink=", "pairs=", "traits=", "keep=", "outdir=", 
              "max_dist=", "trait_type=", "case_prob=", "keep_conv=", "plink_conv=",
-             "n_causal=", "min_distance=", "effect_size="]
+             "n_causal=", "min_distance=", "effect_size=", "random_seed="]
         )
     except getopt.GetoptError as err:
         print(str(err))
@@ -72,6 +70,7 @@ def main():
     effect_size = 0.1
     keep_conv = "1000G.<POP>.txt"
     plink_conv = "<CHROMOSOME>_10k_sample.bed"
+    random_seed = 5
 
     for o, a in opts:
         if o in ("-h", "--help"):
@@ -109,6 +108,8 @@ def main():
             keep_conv = a
         elif o == "--plink_conv":
             plink_conv = a
+        elif o == "--random_seed":
+            random_seed = a
         else:
             assert False, "WARNING: Unhandled input option"
     
@@ -135,6 +136,7 @@ def main():
     n_pairs = check_int(n_pairs, "number of variant pairs")
     n_causal = check_int(n_causal, "number of causal variants")
     min_distance = check_int(min_distance, "minimum distance of causal variants")
+    random_seed = check_int(random_seed, "random seed")
     
     # Validate trait type
     if trait_type not in ['continuous', 'binary']:
@@ -186,6 +188,10 @@ def main():
     import random
     from concurrent.futures import ThreadPoolExecutor
     from bisect import bisect_right
+    
+    #Set random seeds
+    np.random.seed(random_seed)
+    random.seed(random_seed)
     
     # Read and filter genotype data for samples
     geno = read_plink1_bin(plink_path, verbose=False)
