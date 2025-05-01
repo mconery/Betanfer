@@ -17,6 +17,8 @@ def help(exit_num=0):
     print("""Usage: python OnekG_Simulation_Allocator.py [OPTIONS]
 Options:
   --command_file        File of commands to run (required)
+  --total_nodes         Total number of nodes allocated to job (required)
+  --node_num            Number of current node (required)
   --log_dir             Directory for output logs (default: /flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/script_logs; optional)
   -h, --help            Show this help message""")
     sys.exit(exit_num)
@@ -167,7 +169,7 @@ def main():
         opts, args = getopt.getopt(
             sys.argv[1:],
             "h",
-            ["help", "command_file=", "log_dir="]
+            ["help", "command_file=", "log_dir=", "node_num=", "total_nodes="]
         )
     except getopt.GetoptError as err:
         print(str(err))
@@ -175,6 +177,8 @@ def main():
         
     #Set parameter default values
     command_file = None
+    node_num = None
+    total_nodes = None
     log_dir = "/flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/script_logs"
 
     for o, a in opts:
@@ -183,6 +187,10 @@ def main():
             sys.exit()
         elif o == "--command_file":
             command_file = a
+        elif o == "--node_num":
+            node_num = a
+        elif o == "--total_nodes":
+            total_nodes = a
         elif o == "--log_dir":
             log_dir = a
         else:
@@ -190,7 +198,7 @@ def main():
             assert False, "WARNING: Unhandled input option"
     
     # Validate required arguments
-    if None in [command_file]:
+    if None in [command_file, node_num, total_nodes]:
         print("ERROR: Missing required command file!")
         sys.exit(2)
     
@@ -198,6 +206,17 @@ def main():
     if not all(os.path.exists(f) for f in [command_file, log_dir]):
         print("ERROR: Input command file or log directory does not exist.")
         sys.exit(1)
+    
+    #Check node number is integer
+    def check_int(check_num, description):
+        try:
+           check_num = int(check_num)
+           return check_num
+        except ValueError:
+            print(f"ERROR: Invalid {description} given.")
+            sys.exit(1)
+    node_num = check_int(node_num, "number of current node")
+    total_nodes = check_int(total_nodes, "total number of nodes")
     
     #Read in the command files
     with open(command_file, 'r') as file:
@@ -208,12 +227,28 @@ def main():
     #Get the commands for the files that don't exist yet
     needed_commands = [commands[i] for i in range(len(out_files)) if not os.path.exists(out_files[i])]
     
+    #Rename variables because I borrowed this code and am too lazy to rewrite it
+    rank = node_num
+    num_nodes = total_nodes
+        
+    # Split up commands into a set of chunks
+    chunk_dict = {x : [] for x in range(num_nodes)}
+    loop_rank = 0
+    i = 0
+    while i < len(needed_commands): 
+        chunk_dict[loop_rank].append(needed_commands[i])
+        i += 1
+        if loop_rank < num_nodes - 1:
+            loop_rank += 1
+        else:
+            loop_rank = 0
+    
     #Change working directory
     os.chdir(log_dir)
     print("NOTE: Starting Simulations")
     
     #Loop over commands and send to console
-    for command in needed_commands:
+    for command in chunk_dict[rank]:
         os.system(command)
     
     print(f"SUCCESS: Finished running all simulations for command file: {os.path.basename(command_file)}")
