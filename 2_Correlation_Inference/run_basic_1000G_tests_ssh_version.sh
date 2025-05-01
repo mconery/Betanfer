@@ -2,7 +2,7 @@
 #PBS -A GeomicVar
 #PBS -l walltime=2:00:00
 #PBS -l filesystems=flare
-#PBS -l select=400:ncpus=208:mpiprocs=1
+#PBS -l select=40:ncpus=208:mpiprocs=1
 #PBS -l place=scatter:excl
 #PBS -q prod
 #PBS -M mconery@anl.gov
@@ -27,7 +27,7 @@ cd ../../script_logs
 
 #Create lists of commands
 >multinode_1000G_simulations.commands.txt
-for chromosome in 2 3 4; do
+for chromosome in 2; do
 	for trait_type in binary continuous; do
 		for pop in EUR AFR ALL; do
 			 for n_trait in 50 1000 500 400 300 200 100; do
