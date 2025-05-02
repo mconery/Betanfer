@@ -34,6 +34,7 @@ Options:
   --keep_conv     Keep file naming convention (default: 1000G.<POP>.txt; optional)
   --plink_conv    Plink file naming convention (default: <CHROMOSOME>_10k_sample.bed; optional)
   --random_seed   Random seed (default: 5; optional)
+  --threads       Number of threads (default: all available; optional)
   -h, --help      Show this help message""")
     sys.exit(exit_num)
 
@@ -51,7 +52,7 @@ def main():
             "h",
             ["help", "plink=", "pairs=", "traits=", "keep=", "outdir=", 
              "max_dist=", "trait_type=", "case_prob=", "keep_conv=", "plink_conv=",
-             "n_causal=", "min_distance=", "effect_size=", "random_seed="]
+             "n_causal=", "min_distance=", "effect_size=", "random_seed=", "threads="]
         )
     except getopt.GetoptError as err:
         print(str(err))
@@ -71,6 +72,7 @@ def main():
     keep_conv = "1000G.<POP>.txt"
     plink_conv = "<CHROMOSOME>_10k_sample.bed"
     random_seed = 5
+    n_workers = os.cpu_count()
 
     for o, a in opts:
         if o in ("-h", "--help"):
@@ -110,6 +112,8 @@ def main():
             plink_conv = a
         elif o == "--random_seed":
             random_seed = a
+        elif o == "--threads":
+            n_workers = a
         else:
             assert False, "WARNING: Unhandled input option"
     
@@ -137,6 +141,12 @@ def main():
     n_causal = check_int(n_causal, "number of causal variants")
     min_distance = check_int(min_distance, "minimum distance of causal variants")
     random_seed = check_int(random_seed, "random seed")
+    n_workers = check_int(n_workers, "number of threads")
+    
+    #Validate number of workers
+    if n_workers > os.cpu_count():
+        print(f"ERROR: Selected number of threads exceeds cores per node. Threads must be less than {os.cpu_count()}.")
+        sys.exit(2)
     
     # Validate trait type
     if trait_type not in ['continuous', 'binary']:
@@ -298,7 +308,7 @@ def main():
     n_vars = len(variant_ids)
     chunk_size = 500
     all_pairs = []
-    with ThreadPoolExecutor() as executor:
+    with ThreadPoolExecutor(max_workers=n_workers) as executor:
         futures = []
         for start in range(0, n_vars, chunk_size):
             end = min(start + chunk_size, n_vars)
@@ -348,7 +358,6 @@ def main():
         return chunk_results
     
     # Process correlations in parallel
-    n_workers = os.cpu_count()
     print(f"NOTE: Using {n_workers} threads per node for multi-thread calculations")
     pair_chunks = np.array_split(all_pairs, n_workers*4)
     geno_corrs = []
@@ -405,7 +414,6 @@ def main():
     
     print("Running associations...")
     Y = traits.values  # Convert to numpy array once
-    n_workers = os.cpu_count()
     variant_indices = np.arange(len(variant_ids))
     chunk_size = max(100, len(variant_ids) // (n_workers * 4))
     #Create a function to run linear regression
