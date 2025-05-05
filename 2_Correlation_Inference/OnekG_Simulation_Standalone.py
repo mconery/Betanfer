@@ -4,7 +4,7 @@ OnekG_Simulation_Standalone.py
 The purpose of this script is to test the beta correlation approach on 1000G 
 data using simulated traits. 
 
-***Run in Conda finemap environment***
+***Run in Conda finemap_old environment***
 '''
 
 #For timing
