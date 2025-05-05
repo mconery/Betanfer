@@ -30,7 +30,6 @@ def read_pruned_variants(prune_file):
 def create_loci(variant_list, max_size, var_per_locus):
     """Group variants into loci smaller than specified maximum size."""
     variant_list.sort(key=lambda x: (x[0], x[1]))
-    variant_list = [x for x in variant_list if len(x) >= var_per_locus]
     loci = []
     current_locus = []
     
@@ -44,8 +43,8 @@ def create_loci(variant_list, max_size, var_per_locus):
             else:
                 loci.append(current_locus)
                 current_locus = [(chrom, pos, vid)]
-    if current_locus:
-        loci.append(current_locus)
+    #Filter for loci with sufficient number of variants
+    loci = [x for x in loci if len(x) >= var_per_locus]
     return loci
 
 def select_causal_variants(loci, num_loci, var_per_locus):
@@ -86,7 +85,7 @@ def main():
     
     # Validate requested number of loci
     if len(loci) < args.num_loci:
-        raise ValueError(f"Only {len(loci)} loci available, requested {args.num_loci}")
+        raise ValueError(f"ERROR: Only {len(loci)} loci available, requested {args.num_loci}")
     
     # Select causal variants
     causal_vars = select_causal_variants(loci, args.num_loci, args.var_per_locus)
