@@ -27,9 +27,10 @@ def read_pruned_variants(prune_file):
                 raise ValueError(f"Invalid variant ID format: {vid}")
     return variants
 
-def create_loci(variant_list, max_size):
+def create_loci(variant_list, max_size, var_per_locus):
     """Group variants into loci smaller than specified maximum size."""
     variant_list.sort(key=lambda x: (x[0], x[1]))
+    variant_list = [x for x in variant_list if len(x) >= var_per_locus]
     loci = []
     current_locus = []
     
@@ -80,7 +81,7 @@ def main():
 
     # Read and process variants
     variants = read_pruned_variants(args.prune_in)
-    loci = create_loci(variants, args.max_size)
+    loci = create_loci(variants, args.max_size, args.var_per_locus)
     
     # Validate requested number of loci
     if len(loci) < args.num_loci:
