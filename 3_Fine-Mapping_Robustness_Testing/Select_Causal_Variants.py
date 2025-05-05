@@ -9,25 +9,57 @@ mapped for my RSparsePro robustness test.
 
 import argparse
 import random
+import os
+from collections import defaultdict
 
 ###############################################################################
 ####################  PROCESS INDIVIDUAL SIMULATION FILE ######################
 ###############################################################################
 
-def read_pruned_variants(prune_file):
-    """Read pruned variants and parse genomic positions from variant IDs."""
+def read_bed_regions(bed_file):
+    """Read BED file into dictionary of {chrom: [(start, end)]}."""
+    regions = defaultdict(list)
+    with open(bed_file) as f:
+        for line in f:
+            if line.startswith('#'):
+                continue
+            parts = line.strip().split('\t')
+            if len(parts) < 3:
+                continue
+            chrom = parts[0]
+            start = int(parts[1])
+            end = int(parts[2])
+            regions[chrom].append((start, end))
+    return regions
+
+def read_pruned_variants(prune_file, bed_regions=None):
+    """Read and filter variants with optional BED region filtering."""
     variants = []
     with open(prune_file) as f:
         for line in f:
             vid = line.strip()
             try:
-                chrom, pos, *_ = vid.split(':')
-                variants.append((chrom, int(pos), vid))
+                chrom, pos_str, *_ = vid.split(':')
+                pos = int(pos_str)
             except (ValueError, IndexError):
                 raise ValueError(f"Invalid variant ID format: {vid}")
+
+            # Apply BED filtering if provided
+            if bed_regions is not None:
+                in_region = False
+                if chrom in bed_regions:
+                    pos_0based = pos - 1  # Convert to BED's 0-based coordinate
+                    for start, end in bed_regions[chrom]:
+                        if start <= pos_0based < end:
+                            in_region = True
+                            break
+                if not in_region:
+                    continue  # Skip variants outside BED regions
+
+            variants.append((chrom, pos, vid))
     return variants
 
-def create_loci(variant_list, max_size, var_per_locus):
+def create_loci(variant_list, max_size):
     """Group variants into loci smaller than specified maximum size."""
     variant_list.sort(key=lambda x: (x[0], x[1]))
     loci = []
@@ -43,21 +75,23 @@ def create_loci(variant_list, max_size, var_per_locus):
             else:
                 loci.append(current_locus)
                 current_locus = [(chrom, pos, vid)]
-    #Filter for loci with sufficient number of variants
-    loci = [x for x in loci if len(x) >= var_per_locus]
+    if current_locus:
+        loci.append(current_locus)
     return loci
 
-def select_causal_variants(loci, num_loci, var_per_locus):
-    """Randomly select loci and choose one causal variant per locus."""
+def select_causal_variants(loci, num_loci, causal_per_locus=1):
+    """Select specified number of causal variants per locus."""
     random.shuffle(loci)
     selected = []
     for locus in loci[:num_loci]:
-        causal = random.sample(locus, var_per_locus)
-        for variant in causal:
+        if len(locus) < causal_per_locus:
+            raise ValueError(f"Locus has only {len(locus)} variants, can't select {causal_per_locus}")
+        causals = random.sample(locus, causal_per_locus)
+        for causal in causals:
             selected.append({
-                'variant_id': variant[2],
-                'chrom': variant[0],
-                'pos': variant[1],
+                'variant_id': causal[2],
+                'chrom': causal[0],
+                'pos': causal[1],
                 'locus_size': locus[-1][1] - locus[0][1]
             })
     return selected
@@ -78,10 +112,15 @@ def main():
     parser.add_argument('--output', required=True,
                         help='Output file path')
     args = parser.parse_args()
-
-    # Read and process variants
-    variants = read_pruned_variants(args.prune_in)
-    loci = create_loci(variants, args.max_size, args.var_per_locus)
+    
+    #Get file of ranges to exclude
+    filter_file = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', '1_Locus_Defining', 'grch38_chr_bounds_mhc_only.bed'))
+    bed_regions = read_bed_regions(filter_file)
+    
+    # Read and filter variants
+    variants = read_pruned_variants(args.prune_in, bed_regions) 
+    # Create loci
+    loci = create_loci(variants, args.max_size)
     
     # Validate requested number of loci
     if len(loci) < args.num_loci:
