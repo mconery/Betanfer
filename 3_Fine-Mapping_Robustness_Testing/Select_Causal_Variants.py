@@ -89,7 +89,7 @@ def main():
         raise ValueError(f"Only {len(loci)} loci available, requested {args.num_loci}")
     
     # Select causal variants
-    causal_vars = select_causal_variants(loci, args.num_loci)
+    causal_vars = select_causal_variants(loci, args.num_loci, args.var_per_locus)
     
     # Write output
     with open(args.output, 'w') as f:
