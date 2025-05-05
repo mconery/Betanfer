@@ -48,18 +48,19 @@ def create_loci(variant_list, max_size, var_per_locus):
         loci.append(current_locus)
     return loci
 
-def select_causal_variants(loci, num_loci):
+def select_causal_variants(loci, num_loci, var_per_locus):
     """Randomly select loci and choose one causal variant per locus."""
     random.shuffle(loci)
     selected = []
     for locus in loci[:num_loci]:
-        causal = random.choice(locus)
-        selected.append({
-            'variant_id': causal[2],
-            'chrom': causal[0],
-            'pos': causal[1],
-            'locus_size': locus[-1][1] - locus[0][1]
-        })
+        causal = random.sample(locus, var_per_locus)
+        for variant in causal:
+            selected.append({
+                'variant_id': variant[2],
+                'chrom': variant[0],
+                'pos': variant[1],
+                'locus_size': locus[-1][1] - locus[0][1]
+            })
     return selected
 
 def main():
