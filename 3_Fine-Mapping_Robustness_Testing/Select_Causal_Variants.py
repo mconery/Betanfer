@@ -109,13 +109,14 @@ def main():
                         help='Maximum locus size in base pairs')
     parser.add_argument('--var_per_locus', type=int, required=True,
                         help='Number of variants to select per locus')
+    parser.add_argument('--filter-file', 
+                        help='BED file defining allowed genomic regions')
     parser.add_argument('--output', required=True,
                         help='Output file path')
     args = parser.parse_args()
     
-    #Get file of ranges to exclude
-    filter_file = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', '1_Locus_Defining', 'grch38_chr_bounds_mhc_only.bed'))
-    bed_regions = read_bed_regions(filter_file)
+    # Read BED regions if provided
+    bed_regions = read_bed_regions(args.filter_file) if args.filter_file else None
     
     # Read and filter variants
     variants = read_pruned_variants(args.prune_in, bed_regions) 
