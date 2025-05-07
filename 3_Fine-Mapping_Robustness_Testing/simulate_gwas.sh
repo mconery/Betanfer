@@ -4,7 +4,7 @@
 #SBATCH -o simulate_gwas.log
 #SBATCH -N 1
 #SBATCH -p batch
-#SBATCH -t 2-00:00:00
+#SBATCH -t 2:00:00
 
 #Activate conda directory
 conda activate biogwas
