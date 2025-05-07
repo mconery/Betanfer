@@ -3,8 +3,8 @@
 #SBATCH -J runbiogwas 
 #SBATCH -o simulate_gwas.log
 #SBATCH -N 1
-#SBATCH -p batch
-#SBATCH -t 2:00:00
+#SBATCH -p extended
+#SBATCH -t 24:00:00
 
 #Activate conda directory
 source ~/.bashrc
@@ -84,6 +84,6 @@ min_distance=1000000 #Minimum distance between causal variants falling into sepa
 #	ls $pop_dir/"$pop"_chr*_biogwas.bed | sed 's/.bed/,/g' | awk -F "_" '{print $0$5}' | sort -V > $gwas_dir/$pop.genotypes.list
 #done
 #Run biogwas
-for pop in AFR EUR; do
-	python $biogwas_script --data_dir $gwas_dir --img_dir $image_dir -bfile --input_list $gwas_dir/$pop.genotypes.list --anno_file $gencode_gtf --use_causal_snps --causal_snps $gwas_dir/$pop.1_causal_per_locus.variants.txt -maf 0.01 -maf_min 0.01 --skip_simulation -d $dependency_file --pattern "$pop"_1_causal --threads 128
-done
+for pop in EUR AFR; do for i in {1..3}; do
+	python $biogwas_script --data_dir $gwas_dir --img_dir $image_dir -bfile --input_list $gwas_dir/$pop.genotypes.list --anno_file $gencode_gtf --use_causal_snps --causal_snps $gwas_dir/$pop."$i"_causal_per_locus.variants.txt -maf 0.01 -maf_min 0.01 --skip_simulation -d $dependency_file --pattern "$pop"_"$i"_causal
+done; done
