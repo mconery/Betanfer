@@ -7,6 +7,7 @@
 #SBATCH -t 2:00:00
 
 #Activate conda directory
+source ~/.bashrc
 conda activate biogwas
 
 ################################################################################################################
@@ -84,5 +85,5 @@ min_distance=1000000 #Minimum distance between causal variants falling into sepa
 #done
 #Run biogwas
 for pop in AFR EUR; do
-	python $biogwas_script --data_dir $gwas_dir --img_dir $image_dir -bfile --input_list $gwas_dir/$pop.genotypes.list --anno_file $gencode_gtf --use_causal_snps --causal_snps $gwas_dir/$pop.1_causal_per_locus.variants.txt -maf 0.01 -maf_min 0.01 --skip_simulation -d $dependency_file --pattern "$pop"_simulated --threads 128
+	python $biogwas_script --data_dir $gwas_dir --img_dir $image_dir -bfile --input_list $gwas_dir/$pop.genotypes.list --anno_file $gencode_gtf --use_causal_snps --causal_snps $gwas_dir/$pop.1_causal_per_locus.variants.txt -maf 0.01 -maf_min 0.01 --skip_simulation -d $dependency_file --pattern "$pop"_1_causal --threads 128
 done
