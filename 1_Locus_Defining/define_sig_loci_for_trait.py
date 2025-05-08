@@ -110,7 +110,7 @@ def driver(gwas_file, output_loc, prime_p_thresh, sec_p_thresh, stagger_bp,
     
     # Tile processing (unchanged logic)
     temp = filt_file.index.str.split(":")
-    sig_tiles = [int(filt_file['chr_col'][x]) + (int(filt_file['pos_col'][x].lstrip('chr'))//stagger_bp)/1e9 for x in range(len(filt_file))]
+    sig_tiles = [int(filt_file[chr_col][x]) + (int(filt_file[pos_col][x].lstrip('chr'))//stagger_bp)/1e9 for x in range(len(filt_file))]
     sig_tiles_no_dups = np.sort(list(set(sig_tiles)))
 
     if not sig_tiles_no_dups.size:
