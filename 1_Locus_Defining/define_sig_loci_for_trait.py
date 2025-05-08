@@ -28,6 +28,7 @@ ARGUMENTS
 --chr-col => chromosome column name (default 'CHR') OPTIONAL  
 --pos-col => position column name (default 'BP') OPTIONAL
 --p-col => p-value column name (default 'P') OPTIONAL
+--id-col => number of column for unique SNP id (zero-indexed; default 0) OPTIONAL
 -h => help""")
     sys.exit(exit_num)
 
@@ -38,7 +39,7 @@ ARGUMENTS
 def main(argv):
     try:
         opts, args = getopt.getopt(sys.argv[1:], "g:o:p:s:t:c:nhb:", 
-                                 ["help", "chr-col=", "pos-col=", "p-col="])
+                                 ["help", "chr-col=", "pos-col=", "p-col=", "id-col="])
     except getopt.GetoptError:
         print("ERROR: Incorrect usage of getopts flags!")
         help()
@@ -67,6 +68,7 @@ def main(argv):
         prime_p_thresh = float(options_dict.get('-p', 5e-8))
         sec_p_thresh = float(options_dict.get('-s', 1e-6))
         stagger_bp = int(options_dict.get('-t', 250000))
+        id_col = int(options_dict.get('--p-col', 0))
     except ValueError:
         print("ERROR: Invalid numeric parameter format")
         sys.exit(1)
@@ -83,14 +85,14 @@ def main(argv):
         sys.exit(1)
 
     driver(gwas_file, output_loc, prime_p_thresh, sec_p_thresh,
-           stagger_bp, chromo_lengths, base_name, chr_col, pos_col, p_col)
+           stagger_bp, chromo_lengths, base_name, chr_col, pos_col, p_col, id_col)
 
 ###############################################################################
 #############################  DRIVER  ########################################
 ###############################################################################
 
 def driver(gwas_file, output_loc, prime_p_thresh, sec_p_thresh, stagger_bp,
-          chromo_lengths, base_name, chr_col, pos_col, p_col):
+          chromo_lengths, base_name, chr_col, pos_col, p_col, id_col):
     
     #Add slash to output dir and make it if necessary
     output_loc = output_loc.rstrip('/') + '/'
@@ -99,16 +101,16 @@ def driver(gwas_file, output_loc, prime_p_thresh, sec_p_thresh, stagger_bp,
     output_loci_file = f"{output_loc}{base_name}.sig_loci.csv"
 
     # Read GWAS data with column flexibility
-    cur_file = pd.read_csv(gwas_file, index_col=0, sep="\t")
+    cur_file = pd.read_csv(gwas_file, index_col=id_col, sep="\t")
     if cur_file.shape[1] <= 1:  # Fallback to space-separated
-        cur_file = pd.read_csv(gwas_file, index_col=0, sep=" ")
+        cur_file = pd.read_csv(gwas_file, index_col=id_col, sep=" ")
     
     # Filter using configurable column names
     filt_file = cur_file[cur_file[p_col] <= sec_p_thresh]
     
     # Tile processing (unchanged logic)
     temp = filt_file.index.str.split(":")
-    sig_tiles = [int(x[0]) + (int(x[1])//stagger_bp)/1e9 for x in temp]
+    sig_tiles = [int(filt_file['chr_col'][x]) + (int(filt_file['pos_col'][x])//stagger_bp)/1e9 for x in range(len(filt_file))]
     sig_tiles_no_dups = np.sort(list(set(sig_tiles)))
 
     if not sig_tiles_no_dups.size:
