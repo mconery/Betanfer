@@ -148,7 +148,7 @@ def driver(gwas_file, output_loc, prime_p_thresh, sec_p_thresh, stagger_bp,
     out_ranges = sorted(out_ranges, key = lambda x: (x[0], x[1], x[2]))
     
     #Filter down the filt_file again for the variants significant at the primary threshold
-    temp = filt_file[filt_file['P'] <= prime_p_thresh].index.str.split(":")
+    temp = filt_file[filt_file[p_col] <= prime_p_thresh].index.str.split(":")
     prime_sig_vars = [int(x[0]) + float(x[1])/1e9 for x in temp]
     #Check that there are at least some significant variants at primary threshold
     if len(prime_sig_vars) == 0:
