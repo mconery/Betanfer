@@ -68,7 +68,7 @@ def main(argv):
         prime_p_thresh = float(options_dict.get('-p', 5e-8))
         sec_p_thresh = float(options_dict.get('-s', 1e-6))
         stagger_bp = int(options_dict.get('-t', 250000))
-        id_col = int(options_dict.get('--p-col', 0))
+        id_col = int(options_dict.get('--id-col', 0))
     except ValueError:
         print("ERROR: Invalid numeric parameter format")
         sys.exit(1)
@@ -110,7 +110,7 @@ def driver(gwas_file, output_loc, prime_p_thresh, sec_p_thresh, stagger_bp,
     
     # Tile processing (unchanged logic)
     temp = filt_file.index.str.split(":")
-    sig_tiles = [int(filt_file['chr_col'][x]) + (int(filt_file['pos_col'][x])//stagger_bp)/1e9 for x in range(len(filt_file))]
+    sig_tiles = [int(filt_file['chr_col'][x]) + (int(filt_file['pos_col'][x].lstrip('chr'))//stagger_bp)/1e9 for x in range(len(filt_file))]
     sig_tiles_no_dups = np.sort(list(set(sig_tiles)))
 
     if not sig_tiles_no_dups.size:
