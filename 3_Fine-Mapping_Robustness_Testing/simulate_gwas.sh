@@ -84,6 +84,6 @@ min_distance=1000000 #Minimum distance between causal variants falling into sepa
 #	ls $pop_dir/"$pop"_chr*_biogwas.bed | sed 's/.bed/,/g' | awk -F "_" '{print $0$5}' | sort -V > $gwas_dir/$pop.genotypes.list
 #done
 #Run biogwas
-for pop in EUR AFR; do for i in {1..3}; do
+for pop in EUR AFR; do for i in {2..3}; do
 	python $biogwas_script --data_dir $gwas_dir --img_dir $image_dir -bfile --input_list $gwas_dir/$pop.genotypes.list --anno_file $gencode_gtf --use_causal_snps --causal_snps $gwas_dir/$pop."$i"_causal_per_locus.variants.txt -maf 0.01 -maf_min 0.01 --skip_simulation -d $dependency_file --pattern "$pop"_"$i"_causal
 done; done
