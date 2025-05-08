@@ -38,7 +38,6 @@ Options:
   -h, --help      Show this help message""")
     sys.exit(exit_num)
 
-
 ###############################################################################
 ###############  COLLECT / CHECK ARGUMENTS AND MULTI-PROCESS LOCI #############
 ###############################################################################
@@ -198,6 +197,23 @@ def main():
     import random
     from concurrent.futures import ThreadPoolExecutor
     from bisect import bisect_right
+    import dpnp
+    import dpctl
+    
+    #Find and select GPUs
+    def select_gpu_devices():
+        """Detect and select available GPU devices"""
+        available_devices = [device for device in dpctl.get_devices() if device.is_gpu]
+        if not available_devices:
+            print("WARNING: No GPU devices found. Falling back to CPU.")
+            return None, False
+        print(f"Found {len(available_devices)} GPU devices.")
+        for i, device in enumerate(available_devices):
+            print(f"  Device {i}: {device.name}")
+        return available_devices, True
+    
+    # Call this after argument processing
+    available_gpus, gpu_enabled = select_gpu_devices()
     
     #Adjust random seed so that different regions are picked for each simulation in a given pop
     random_seed = random_seed + n_traits + round(effect_size * 10) + n_causal
@@ -275,7 +291,7 @@ def main():
         region_indices = np.where((positions >= region_start) & (positions <= region_end))[0]
         causal_indices = np.random.choice(region_indices, n_causal, replace=False)
         return causal_indices, (region_start, region_end)
-
+    
     #Create a function to filter out variant pairs too close to causal variants
     def filter_pairs(all_pairs, positions, variant_ids, region_coords, min_distance):
         """Filter pairs to stay outside causal region buffer"""
@@ -293,7 +309,7 @@ def main():
                (pos2 < buffer_start or pos2 > buffer_end):
                 valid_pairs.append((v1, v2))
         return valid_pairs    
-
+    
     # Multithreaded pair finding
     print(f"Finding pairs within {int(max_distance)}bp...")
     def find_pairs_chunk(start, end):
@@ -304,7 +320,7 @@ def main():
             j_max = bisect_right(pos_array, max_pos, i+1)
             chunk_pairs.extend([(variant_ids[i], variant_ids[j]) for j in range(i+1, j_max)])
         return chunk_pairs
-
+    
     n_vars = len(variant_ids)
     chunk_size = 500
     all_pairs = []
@@ -338,34 +354,69 @@ def main():
     else: 
         print("WARNING: Less than specified number of pairs remaining after filtering for causal region.")
     
+    ###########################################################################################################    
+    ############################################ GPU-Enabled Section ##########################################
+    ###########################################################################################################
     # Multithreaded genotype correlation calculation
-    print("Calculating genotype correlations...")
-    def process_correlation_chunk(pair_chunk):
-        chunk_results = []
-        for v1, v2 in pair_chunk:
-            idx1 = np.where(variant_ids == v1)[0][0]
-            idx2 = np.where(variant_ids == v2)[0][0]
-            g1 = geno_data[:, idx1]
-            g2 = geno_data[:, idx2]
-            
-            valid = ~(np.isnan(g1) | np.isnan(g2))
-            if np.sum(valid) < 10:
-                corr = np.nan
-            else:
-                corr = np.corrcoef(g1[valid], g2[valid])[0,1]
-            
-            chunk_results.append((v1, v2, corr))
-        return chunk_results
+    print("NOTE: Calculating genotype correlations using GPUs...")
+    # Create SYCL queues for all GPUs
+    context = dpctl.SyclContext(available_gpus)  # Shared across all 6 GPUs
+    queues = [dpctl.SyclQueue(context, gpu) for gpu in available_gpus]
+    #Allocate genotype data to gpus
+    queue0 = dpctl.SyclQueue(available_gpus[0])
+    # Allocate geno_gpu explicitly on first GPU's queue
+    geno_gpu = dpnp.asarray(geno_data, dtype=dpnp.float32, sycl_queue=queue0)
+    #Create gpu-enabled function for calculating genotype correlations
+    def gpu_correlation_batch(pair_batch, queue):
+        """Compute correlations for a batch of pairs on specified GPU queue"""
+        with queue:
+            # Create GPU arrays using explicit queue
+            corr_results = dpnp.empty(len(pair_batch), dtype=dpnp.float32, sycl_queue=queue)
+            # Get variant indices
+            var_indices = [(np.where(variant_ids == v1)[0][0],
+                            np.where(variant_ids == v2)[0][0]) 
+                           for v1, v2 in pair_batch]
+            # Batch process correlations
+            for i, (idx1, idx2) in enumerate(var_indices):
+                g1 = geno_gpu[:, idx1]
+                g2 = geno_gpu[:, idx2]
+                # Vectorized NaN handling
+                valid = ~(dpnp.isnan(g1) | dpnp.isnan(g2))
+                n_valid = dpnp.sum(valid)
+                if n_valid < 10:
+                    corr_results[i] = dpnp.nan
+                else:
+                    g1_valid = g1[valid]
+                    g2_valid = g2[valid]
+                    cov_matrix = dpnp.cov(g1_valid, g2_valid)
+                    v = dpnp.sqrt(cov_matrix.diagonal())
+                    outer_v = dpnp.outer(v, v)
+                    corr_matrix = cov_matrix / outer_v
+                    corr_matrix[dpnp.isnan(corr_matrix)] = 0  # Handle division issues
+                    corr_results[i] = corr_matrix[0, 1]
+            return list(zip([p[0] for p in pair_batch], 
+                            [p[1] for p in pair_batch], 
+                            corr_results.get()))
     
-    # Process correlations in parallel
-    print(f"NOTE: Using {n_workers} threads per node for multi-thread calculations")
-    pair_chunks = np.array_split(all_pairs, n_workers*4)
+    # Split pairs across 6 GPUs
+    pair_batches = np.array_split(all_pairs, 6)
+    futures = []
     geno_corrs = []
-    with ThreadPoolExecutor(max_workers=n_workers) as executor:
-        futures = [executor.submit(process_correlation_chunk, chunk) for chunk in pair_chunks]
+    # Process correlations in parallel
+    print(f"NOTE: Using {len(available_gpus)} GPUs for multi-thread genotype calculations")
+    # Submit batches to GPU queues
+    with ThreadPoolExecutor(max_workers=len(queues)) as executor:
+        futures = []
+        for q, batch in zip(queues, pair_batches):
+            futures.append(executor.submit(gpu_correlation_batch, batch, q))
+        # Collect results
+        geno_corrs = []
         for future in futures:
             geno_corrs.extend(future.result())
-
+    ###########################################################################################################
+    ###########################################################################################################
+    ###########################################################################################################
+    
     ################# TRAIT SIMULATIONS #####################
     if n_causal > 0:
         causal_geno = geno_data[:, causal_indices]  # (samples × n_causal)
