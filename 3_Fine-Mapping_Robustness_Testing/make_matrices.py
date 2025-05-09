@@ -47,10 +47,11 @@ def main(argv):
     options_dict = dict(opts)
     
     ## Check for help flag and return empty string to break function
+    print(options_dict)
     help_ind = options_dict.get('-h', False)
     help_ind = options_dict.get("--help", False) or help_ind
     if help_ind != False:
-        help()
+        help(0)
     
     ## Required arguments
     try:
