@@ -48,7 +48,7 @@ def main(argv):
     
     ## Check for help flag and return empty string to break function
     help_ind = options_dict.get('-h', False)
-    help_ind = options_dict.get("--help", False) or help_ind
+    help_ind = options_dict.get("help", False) or help_ind
     if help_ind != False:
         help()
     
