@@ -47,10 +47,7 @@ def main(argv):
     options_dict = dict(opts)
     
     ## Check for help flag and return empty string to break function
-    print(options_dict)
-    help_ind = options_dict.get('-h', False)
-    help_ind = options_dict.get("--help", False) or help_ind
-    if help_ind != False:
+    if '--help' in options_dict.keys() or '-h' in options_dict.keys():
         help(0)
     
     ## Required arguments
