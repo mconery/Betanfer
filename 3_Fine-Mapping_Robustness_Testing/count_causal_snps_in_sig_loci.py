@@ -20,9 +20,9 @@ USAGE:
   python count_causal_snps_in_loci.py -l <loci_csv> -c <causal_snps_file>
 
 ARGUMENTS:
-  -l, --loci         Path to significant loci CSV file (output from define_sig_loci_for_trait.py) [REQUIRED]
-  -c, --causal       Path to file with causal SNP IDs, one per line [REQUIRED]
-  -h, --help         Show this help message and exit
+  -l, --loci    Path to significant loci CSV file (output from define_sig_loci_for_trait.py) [REQUIRED]
+  -c, --causal  Path to file with causal SNP IDs, one per line [REQUIRED]
+  -h, --help    Show this help message and exit
 
 The loci CSV must have columns: CHR, START, END.
 The causal SNP file must have IDs in the format: chromosome:position:ref:alt
@@ -57,14 +57,16 @@ def read_causal_snps(causal_file):
             snps.append((chrom, pos))
     return snps
 
-def count_snps_in_loci(loci, snps):
-    count = 0
+def count_snps_and_loci_with_causal(loci, snps):
+    snp_count = 0
+    loci_with_causal = set()  # Store indices of loci that contain at least one causal SNP
     for chrom, pos in snps:
-        for locus_chrom, start, end in loci:
+        for idx, (locus_chrom, start, end) in enumerate(loci):
             if chrom == locus_chrom and start <= pos <= end:
-                count += 1
-                break
-    return count
+                snp_count += 1
+                loci_with_causal.add(idx)
+                break  # Only count each SNP once
+    return snp_count, len(loci_with_causal)
 
 def main(argv):
     loci_csv = None
@@ -90,8 +92,10 @@ def main(argv):
 
     loci = read_loci(loci_csv)
     snps = read_causal_snps(causal_file)
-    count = count_snps_in_loci(loci, snps)
-    print(f"Out of {len(snps)} causal snps {count} are contained in a significant locus.")
+    snp_count, loci_count = count_snps_and_loci_with_causal(loci, snps)
+
+    print(f"Out of {len(snps)} causal SNPs, {snp_count} are contained in a significant locus.")
+    print(f"{loci_count} significant loci contain at least one causal SNP out of a total of {len(loci)}.")
 
 if __name__ == "__main__":
     main(sys.argv[1:])
