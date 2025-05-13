@@ -199,6 +199,8 @@ def main():
     from bisect import bisect_right
     import dpnp
     import dpctl
+    import warnings
+    warnings.simplefilter(action='ignore', category=RuntimeWarning) #Silence runtime warnings
     
     #Find and select GPUs
     def select_gpu_devices():
@@ -355,66 +357,61 @@ def main():
         print("WARNING: Less than specified number of pairs remaining after filtering for causal region.")
     
     ###########################################################################################################    
-    ############################################ GPU-Enabled Section ##########################################
+    ################################# GPU-Enabled Variant Correlation Calculations ############################
     ###########################################################################################################
     # Multithreaded genotype correlation calculation
     print("NOTE: Calculating genotype correlations using GPUs...")
     # Create SYCL queues for all GPUs
     context = dpctl.SyclContext(available_gpus)  # Shared across all 6 GPUs
     queues = [dpctl.SyclQueue(context, gpu) for gpu in available_gpus]
-    #Allocate genotype data to gpus
-    queue0 = dpctl.SyclQueue(available_gpus[0])
-    # Allocate geno_gpu explicitly on first GPU's queue
-    geno_gpu = dpnp.asarray(geno_data, dtype=dpnp.float32, sycl_queue=queue0)
     #Create gpu-enabled function for calculating genotype correlations
-    def gpu_correlation_batch(pair_batch, queue):
+    def gpu_correlation_batch(g1, g2, queue):
         """Compute correlations for a batch of pairs on specified GPU queue"""
-        with queue:
-            # Create GPU arrays using explicit queue
-            corr_results = dpnp.empty(len(pair_batch), dtype=dpnp.float32, sycl_queue=queue)
-            # Get variant indices
-            var_indices = [(np.where(variant_ids == v1)[0][0],
-                            np.where(variant_ids == v2)[0][0]) 
-                           for v1, v2 in pair_batch]
-            # Batch process correlations
-            for i, (idx1, idx2) in enumerate(var_indices):
-                g1 = geno_gpu[:, idx1]
-                g2 = geno_gpu[:, idx2]
-                # Vectorized NaN handling
-                valid = ~(dpnp.isnan(g1) | dpnp.isnan(g2))
-                n_valid = dpnp.sum(valid)
-                if n_valid < 10:
-                    corr_results[i] = dpnp.nan
-                else:
-                    g1_valid = g1[valid]
-                    g2_valid = g2[valid]
-                    cov_matrix = dpnp.cov(g1_valid, g2_valid)
-                    v = dpnp.sqrt(cov_matrix.diagonal())
-                    outer_v = dpnp.outer(v, v)
-                    corr_matrix = cov_matrix / outer_v
-                    corr_matrix[dpnp.isnan(corr_matrix)] = 0  # Handle division issues
-                    corr_results[i] = corr_matrix[0, 1]
-            return list(zip([p[0] for p in pair_batch], 
-                            [p[1] for p in pair_batch], 
-                            corr_results.get()))
+        # Create GPU output array as a place holder
+        corr_results = dpnp.empty(g1.shape[1], dtype=dpnp.float32, sycl_queue=queue)
+        # Vectorized NaN handling
+        valid = ~(dpnp.isnan(g1) | dpnp.isnan(g2))
+        n_valid = dpnp.sum(valid, axis=0, dtype=int)
+        #Write nas where the correlation is based on too few samples
+        corr_results[dpnp.where(n_valid < 10)] = dpnp.nan
+        #Handle calculable samples where there are sufficient samples
+        g1_valid = g1[:,dpnp.where(n_valid >= 10)[0]]
+        g2_valid = g2[:,dpnp.where(n_valid >= 10)[0]]
+        combined_g = dpnp.concatenate((g1_valid.T, g2_valid.T), axis=0)
+        cov_matrix = dpnp.cov(combined_g) #Calculate covariance matrix
+        std_devs = dpnp.sqrt(cov_matrix.diagonal()) #Extract variances for all variants then sqrt to get std_devs
+        #Extract the covariances corresponding to the variant pairs we care about
+        needed_covs = cov_matrix[dpnp.asarray(range(g1_valid.shape[1]), dtype=int, sycl_queue=queue), dpnp.asarray(range(g1_valid.shape[1], 2* g1_valid.shape[1]), sycl_queue=queue)]
+        corrs = needed_covs/(std_devs[0:len(needed_covs)] * std_devs[len(needed_covs):]) # Handle division issues
+        corr_results[dpnp.where(n_valid >= 10)] = corrs
+        del corrs, g1, g2, needed_covs, std_devs, cov_matrix, g1_valid, g2_valid, combined_g
+        return corr_results
     
     # Split pairs across 6 GPUs
-    pair_batches = np.array_split(all_pairs, 6)
+    pair_batches = np.array_split(all_pairs, len(available_gpus))
     futures = []
-    geno_corrs = []
     # Process correlations in parallel
-    print(f"NOTE: Using {len(available_gpus)} GPUs for multi-thread genotype calculations")
+    print(f"NOTE: Using {len(available_gpus)} GPUs for multi-thread genotype-correlation calculations")
     # Submit batches to GPU queues
     with ThreadPoolExecutor(max_workers=len(queues)) as executor:
         futures = []
         for q, batch in zip(queues, pair_batches):
-            futures.append(executor.submit(gpu_correlation_batch, batch, q))
-        # Collect results
-        geno_corrs = []
-        for future in futures:
-            geno_corrs.extend(future.result())
+            #Get indices of variant pairs
+            var_indices = np.asarray([(np.where(variant_ids == v1)[0][0], np.where(variant_ids == v2)[0][0]) for v1, v2 in batch])
+            idx1 = var_indices[:,0]
+            idx2 = var_indices[:,1]
+            #Slice the genotype data
+            g1 = dpnp.asarray(geno_data[:, idx1], dtype=dpnp.float32, sycl_queue=q)
+            g2 = dpnp.asarray(geno_data[:, idx2], dtype=dpnp.float32, sycl_queue=q)
+            corrs = executor.submit(gpu_correlation_batch, g1, g2, q)
+            futures.append(list(zip([(batch[i][0], batch[i][1], corrs.result()[i]) for i in range(len(batch))])))
+    # Collect results
+    geno_corrs = []
+    for future in futures:
+        geno_corrs.extend(future)
+    
     ###########################################################################################################
-    ###########################################################################################################
+    ############################################### Calculate Trait Values ####################################
     ###########################################################################################################
     
     ################# TRAIT SIMULATIONS #####################
@@ -437,159 +434,175 @@ def main():
             columns=[f"trait_{i}" for i in range(n_traits)]
         )
     elif trait_type == 'binary':
-        #Convter genetic effects into a matrix
-        genetic_effects = np.tile(genetic_effects.reshape(-1, 1), (1, n_traits))
-        # Find intercept for each trait to achieve target case probability
-        intercepts = []
-        for trait_idx in range(n_traits):
-            def f(intercept):
-                probs = 1 / (1 + np.exp(-(intercept + genetic_effects[:, trait_idx])))
-                return np.mean(probs) - case_prob
-            # Newton-Raphson optimization
-            intercept = 0.0  # Initial guess
-            for _ in range(100):
-                probs = 1 / (1 + np.exp(-(intercept + genetic_effects[:, trait_idx])))
-                grad = np.mean(probs * (1 - probs))
-                if abs(grad) < 1e-6: break
-                intercept -= f(intercept)/grad
-                if abs(f(intercept)) < 1e-4: break
-            intercepts.append(intercept)
+        # Find intercept for each trait to achieve target case probability (They're the same for all traits)
+        def f(intercept):
+            probs = 1 / (1 + np.exp(-(intercept + genetic_effects)))
+            return np.mean(probs) - case_prob
+        # Newton-Raphson optimization
+        intercept = 0.0  # Initial guess
+        for _ in range(100):
+            probs = 1 / (1 + np.exp(-(intercept + genetic_effects)))
+            grad = np.mean(probs * (1 - probs))
+            if abs(grad) < 1e-6: break
+            intercept -= f(intercept)/grad
+            if abs(f(intercept)) < 1e-4: break
         # Generate traits with per-trait intercepts
-        log_odds = genetic_effects + intercepts
+        log_odds = genetic_effects + intercept
         probs = 1 / (1 + np.exp(-log_odds))
+        #Reshape probs to calculate trait values for all traits
+        probs = np.tile(probs.reshape(-1, 1), (1, n_traits))
         traits = pd.DataFrame(
             np.random.binomial(1, probs, (n_samples, n_traits)),
             index=geno.sample.values,
             columns=[f"trait_{i}" for i in range(n_traits)]
         )
     
-    print("Running associations...")
-    Y = traits.values  # Convert to numpy array once
-    variant_indices = np.arange(len(variant_ids))
-    chunk_size = max(100, len(variant_ids) // (n_workers * 4))
-    #Create a function to run linear regression
-    def calculate_linear_regression(X, Y):
-        """Calculate beta, SE, and z-scores for linear regression"""
-        X_mean = np.nanmean(X)
-        X_centered = X - X_mean
-        Y_centered = Y - np.nanmean(Y, axis=0, keepdims=True)
+    ###########################################################################################################
+    ######################### GPU-Enabled Calculation of Regression Coefficients ##############################
+    ###########################################################################################################
         
-        cov_xy = X_centered.T @ Y_centered
-        var_x = np.sum(X_centered**2)
-        betas = cov_xy / var_x
-                
-        return betas
-
+    print("NOTE: Running associations...")
+    #Create a function to run linear regression
+    def calculate_linear_regression(X_valid, Y_valid, queue):
+        """Calculate beta, SE, and z-scores for linear regression"""
+        X_mean = dpnp.nanmean(X_valid, axis=0)
+        X_centered = X_valid - X_mean
+        Y_centered = Y_valid - dpnp.nanmean(Y_valid, axis=0, keepdims=True)
+        cov_matrix = dpnp.cov(X_centered.T, Y_centered.T) #Calculate covariance matrix
+        cov_xy = cov_matrix[dpnp.asarray(range(X_centered.shape[1]), dtype=int, sycl_queue=queue),]
+        cov_xy = cov_xy[:,dpnp.asarray(range(X_centered.shape[1], cov_matrix.shape[1]), sycl_queue=queue)]
+        var_x = cov_matrix.diagonal()[dpnp.asarray(range(X_centered.shape[1]), dtype=int, sycl_queue=queue)]
+        betas = cov_xy.T / var_x
+        return betas.T
+    
     #Create function that runs logistic regression quickly
-    def calculate_logistic_betas_fast(X_valid, Y_valid, max_iter=500, tol=1e-6):
+    def calculate_logistic_betas_fast(X, Y, queue, max_iter=100, tol=1e-6):
         """
         Vectorized Newton-Raphson implementation for logistic regression coefficients.
         Returns only the beta coefficients (slope parameters).
         """
-        X = X_valid.ravel()  # Convert to 1D array
-        Y = Y_valid.T        # Transpose for column-wise operations
-        n_samples, n_targets = Y.shape
+        n_samples, n_variants = X.shape
+        _, n_targets = Y.shape
         # Initialize parameters (intercept and slope)
-        intercept_init = np.log(Y.mean(axis=0)/(1 - Y.mean(axis=0)))
-        theta = np.zeros((2, n_targets))
+        y_mean = Y.mean(axis=0, keepdims=True)
+        intercept_init = dpnp.log(y_mean / (1 - y_mean))
+        theta = dpnp.zeros((2, n_variants, n_targets), dtype = dpnp.float32, sycl_queue=queue)
         theta[0] = intercept_init
-        X_sq = X ** 2  # Precompute squared terms
-        for _ in range(max_iter):
-            # Compute linear predictor and probabilities
-            logits = theta[0] + theta[1] * X[:, None]
-            p = 1 / (1 + np.exp(-logits))
-            # Compute weights and residuals
-            W = p * (1 - p)
-            residuals = Y - p
-            # Compute gradient components
+        del intercept_init, y_mean
+        # Precompute reusable buffers
+        X_expanded = X[:, :, None]  # (samples, variants, 1)
+        X_sq = dpnp.square(X)  # In-place computation
+        # Reusable buffers for intermediate calculations
+        logits = dpnp.empty([n_samples, n_variants, n_traits], dtype=X.dtype, sycl_queue=queue)
+        p = dpnp.empty_like(logits, sycl_queue=queue)
+        W = dpnp.empty_like(logits, sycl_queue=queue)
+        residuals = dpnp.empty_like(logits, sycl_queue=queue)
+        #Redirect output to a null file
+        for iteration in range(max_iter):
+            # Vectorized logit/probability calculation
+            dpnp.add(theta[0][None], X_expanded * theta[1][None], out=logits)
+            dpnp.negative(logits, out=logits)
+            dpnp.exp(logits, out=logits)
+            dpnp.add(1, logits, out=logits)
+            dpnp.reciprocal(logits, out=p)
+            # Weights and residuals
+            dpnp.subtract(1, p, out=W)
+            dpnp.multiply(p, W, out=W)
+            dpnp.subtract(Y[:, None, :], p, out=residuals)
+            # Batch gradient calculation
             grad0 = residuals.sum(axis=0)
-            grad1 = (residuals * X[:, None]).sum(axis=0)
-            # Compute Hessian components
+            grad1 = dpnp.sum(residuals * X_expanded, axis=0)
+            # Parallel Hessian components
             H0 = W.sum(axis=0)
-            H1 = (W * X[:, None]).sum(axis=0)
-            H2 = (W * X_sq[:, None]).sum(axis=0)
-            # Compute determinants and inverse Hessian components
-            det = H0 * H2 - H1 ** 2
-            np.divide(1, det, out=det, where=det!=0)  # Safe division
-            # Parameter updates
+            H1 = dpnp.sum(W * X_expanded, axis=0)
+            H2 = dpnp.sum(W * X_sq[:, :, None], axis=0)
+            # Stabilized matrix inversion
+            det = H0 * H2 - H1**2
+            dpnp.divide(1, det, out=det)
+            # Simultaneous parameter updates
             delta0 = (H2 * grad0 - H1 * grad1) * det
             delta1 = (-H1 * grad0 + H0 * grad1) * det
-            # Update parameters and check convergence
-            theta += [delta0, delta1]
-            if np.max(np.abs([delta0, delta1])) < tol:
+            theta[0, :, :] = theta[0, :, :] + delta0
+            theta[1, :, :] = theta[1, :, :] + delta1
+            # Early exit check using reduced memory
+            max_delta = max(dpnp.max(dpnp.abs(delta0)), 
+                           dpnp.max(dpnp.abs(delta1)))
+            if max_delta < tol:
                 break
-        return theta[1]  # Return only slope coefficients
+        return theta[1]
+    
     #Function that runs regressions
-    def process_regression_chunk(indices_chunk, n_traits=Y.shape[1]):
-        """Process regression for both linear and logistic models"""
-        chunk_betas = {}
-        for idx in indices_chunk:
-            # Genotype processing
-            X = geno_data[:, idx]
-            mask = ~np.isnan(X)
-            X_valid = X[mask]  # Keep original values
-            # Skip invalid variants
-            if len(X_valid) < 10 or np.sum(X_valid**2) < 1e-6:
-                chunk_betas[variant_ids[idx]] = [np.nan] * n_traits
-                continue
-            # TRAIT TYPE BRANCHING
-            if trait_type == 'continuous':
-                betas = calculate_linear_regression(X_valid, Y[mask])
-            elif trait_type == 'binary':
-                betas = calculate_logistic_betas_fast(X_valid, Y[mask].T)
-            #Fill the chunk-wide dicts
-            chunk_betas[variant_ids[idx]] = betas
-        return {'betas': chunk_betas}
+    def process_regression_chunk(X, Y, queue, min_var_calls=10):
+        #Make matrix to hold outputs
+        chunk_betas = dpnp.empty([X.shape[1], Y.shape[1]], dtype=dpnp.float32, sycl_queue=queue)
+        #Drop variants with sufficient missingness
+        mask = ~dpnp.isnan(X)
+        n_valid = dpnp.sum(mask, axis=0, dtype=int)
+        #Skip invalid variants
+        chunk_betas[dpnp.asarray(dpnp.where(n_valid < min_var_calls), sycl_queue=queue)[0,:],:] = dpnp.nan
+        X_valid = X[:,dpnp.asarray(dpnp.where(n_valid >= min_var_calls), sycl_queue=queue)[0,:]]
+        # TRAIT TYPE BRANCHING
+        if trait_type == 'continuous':
+            betas = calculate_linear_regression(X_valid, Y, queue)
+        elif trait_type == 'binary':
+            betas = calculate_logistic_betas_fast(X_valid, Y, queue)
+        #Fill the chunk-wide list for non-missing variants
+        chunk_betas[dpnp.asarray(dpnp.where(n_valid >= min_var_calls), sycl_queue=queue)[0,:],:] = betas
+        return chunk_betas
     
-    print("Calculating betas in parallel...")
-    all_betas = {}
-    with ThreadPoolExecutor(max_workers=n_workers) as executor:
-        # Split into index-based chunks for zero lookups
-        futures = []
-        for i in range(0, len(variant_indices), chunk_size):
-            chunk = variant_indices[i:i+chunk_size]
-            futures.append(executor.submit(process_regression_chunk, chunk))
-        for future in futures:
-            all_betas.update(future.result()['betas'])
-
-    betas = pd.DataFrame.from_dict(all_betas, orient='index', columns=traits.columns)
-
+    print("NOTE: Calculating betas in parallel...")
+    all_betas = []
+    # Split pairs across 6 GPUs
+    variant_indices = np.arange(len(variant_ids))
+    chunk_count = 10 #Number of times to split up gpu loads
+    var_chunks = np.array_split(variant_indices, chunk_count)
+    var_chunks = [np.array_split(x, len(available_gpus)) for x in var_chunks]
+    # Process correlations in parallel
+    print(f"NOTE: Using {len(available_gpus)} GPUs for multi-thread regressions")
+    #Loop over the chunks
+    for i in range(len(var_chunks)):
+        #Pull the current set of chunks
+        sub_chunks = var_chunks[i]
+        # Submit batches to GPU queues
+        with ThreadPoolExecutor(max_workers=len(queues)) as executor:
+            # Split into chunks for each gpu
+            for q, chunk in zip(queues, sub_chunks):
+                #Extract variant genotypes
+                X = dpnp.asarray(geno_data[:,chunk], dtype=dpnp.float32, sycl_queue=q)
+                Y = dpnp.asarray(traits.values, dtype=dpnp.float32, sycl_queue=q)
+                betas = executor.submit(process_regression_chunk, X, Y, q)
+                betas = pd.DataFrame(betas.result().asnumpy(), columns=traits.columns, index=variant_ids[chunk])
+                all_betas.append(betas)
+        print(f"NOTE: Finished iteration {i + 1} of {chunk_count} for beta calculations.")
+    #Merge dataframes together       
+    betas = pd.concat(all_betas)
+    
+    ###########################################################################################################
+    ################################# GPU-Enabled Calculation of Beta Correlations ############################
+    ###########################################################################################################
+    
     # Beta Correlation Section with Parallel Processing
-    print("Calculating beta correlations...")
-    # Precompute mapping and convert to numpy array
-    var_to_idx = {var: idx for idx, var in enumerate(variant_ids)}
-    beta_matrix = betas.values.astype(np.float32)  # traits × variants
+    print("NOTE: Calculating beta correlations...")
+    # Split pairs across 6 GPUs
+    futures = []
+    # Process correlations in parallel
+    print(f"NOTE: Using {len(available_gpus)} GPUs for multi-thread beta-correlation calculations")
+    # Submit batches to GPU queues
+    with ThreadPoolExecutor(max_workers=len(queues)) as executor:
+        for q, batch in zip(queues, pair_batches):
+            #Slice the beta data
+            b1 = dpnp.asarray(betas.loc[batch[:,0],:], dtype=dpnp.float32, sycl_queue=q).T
+            b2 = dpnp.asarray(betas.loc[batch[:,1],:], dtype=dpnp.float32, sycl_queue=q).T
+            corrs = executor.submit(gpu_correlation_batch, b1, b2, q)
+            futures.append(list(zip([(batch[i][0], batch[i][1], corrs.result()[i]) for i in range(len(batch))])))
+    # Collect results
+    beta_corrs = []
+    for future in futures:
+        beta_corrs.extend(future)
     
-    def calculate_beta_correlations(pair_chunk):
-        """Process chunk of variant pairs for beta correlations"""
-        chunk_results = []
-        for var1, var2 in pair_chunk:
-            try:
-                i = var_to_idx[var1]
-                j = var_to_idx[var2]
-            except KeyError:
-                continue  # Skip invalid pairs (shouldn't occur with proper filtering)
-            b1 = beta_matrix[i]
-            b2 = beta_matrix[j]
-            # Vectorized NaN handling
-            valid = ~(np.isnan(b1) | np.isnan(b2))
-            n_valid = valid.sum()
-            
-            if n_valid < 2:
-                corr = np.nan
-            else:
-                corr = np.corrcoef(b1[valid], b2[valid])[0, 1]
-            chunk_results.append((var1, var2, corr))
-        return chunk_results
-        
-    # Parallel processing beta setup
-    pair_chunks = np.array_split(all_pairs, max(1, len(all_pairs)//chunk_size))
-    beta_results = []
-    with ThreadPoolExecutor(max_workers=n_workers) as executor:
-        futures = {executor.submit(calculate_beta_correlations, chunk): chunk 
-                  for chunk in pair_chunks}
-        for future in futures:
-            beta_results.extend(future.result())
+    ###########################################################################################################
+    #################################### Combine and Output Table of Results ##################################
+    ###########################################################################################################    
     
     # Merge results with genotype correlations
     results_df = pd.DataFrame(all_pairs, columns=['var1', 'var2'])
@@ -598,15 +611,15 @@ def main():
     results_df['maf2'] = results_df['var2'].map(maf_mapping)
     # Merge correlations
     results_df = results_df.merge(
-        pd.DataFrame(geno_corrs, columns=['var1', 'var2', 'geno_corr']),
+        pd.DataFrame([x[0] for x in geno_corrs], columns=['var1', 'var2', 'geno_corr']),
         on=['var1', 'var2']
     ).merge(
-        pd.DataFrame(beta_results, columns=['var1', 'var2', 'beta_corr']),
+        pd.DataFrame([x[0] for x in beta_corrs], columns=['var1', 'var2', 'beta_corr']),
         on=['var1', 'var2']
     )
     
     # Write output
-    print("Writing results...")
+    print("NOTE: Writing results...")
     results_df.to_csv(output_path, sep='\t', index=False)
     
     toc = time.perf_counter()
