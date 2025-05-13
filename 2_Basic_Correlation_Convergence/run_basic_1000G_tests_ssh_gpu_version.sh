@@ -1,10 +1,10 @@
 #!/bin/bash -l
 #PBS -A GeomicVar
-#PBS -l walltime=4:00:00
+#PBS -l walltime=1:00:00
 #PBS -l filesystems=flare
-#PBS -l select=10:ncpus=208:mpiprocs=1
+#PBS -l select=2:ncpus=208:mpiprocs=1
 #PBS -l place=scatter:excl
-#PBS -q prod
+#PBS -q debug
 #PBS -M mconery@anl.gov
 #PBS -N onekg_test 
 #PBS -o /flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/script_logs/multinode_1000G_simulations.gpu.log
@@ -65,12 +65,12 @@ done
 num_nodes=$(cat ${PBS_NODEFILE} | wc -l)
 
 # Loop over nodes and launch the job with each config file
-#i=0
-## get the host ip address (use the same for config files for all nodes)
-#for node in $(cat ${PBS_NODEFILE}); do
-#                # launch jobs for current node
-#                ssh $node "source ~/.bashrc; conda activate finemap_old; python $allocator_script --command_file $(pwd)/multinode_1000G_simulations.gpu.commands.txt --total_nodes=$num_nodes --node_num=$i" & 
-#                i=$((i+1))
-#done
-#
-#wait
+i=0
+# get the host ip address (use the same for config files for all nodes)
+for node in $(cat ${PBS_NODEFILE}); do
+                # launch jobs for current node
+                ssh $node "source ~/.bashrc; conda activate finemap_old; python $allocator_script --command_file $(pwd)/multinode_1000G_simulations.gpu.commands.txt --total_nodes=$num_nodes --node_num=$i" & 
+                i=$((i+1))
+done
+
+wait
