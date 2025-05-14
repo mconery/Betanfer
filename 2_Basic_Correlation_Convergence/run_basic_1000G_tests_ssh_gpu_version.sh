@@ -69,7 +69,7 @@ i=0
 # get the host ip address (use the same for config files for all nodes)
 for node in $(cat ${PBS_NODEFILE}); do
                 # launch jobs for current node
-                ssh $node "source ~/.bashrc; conda activate finemap_old; python $allocator_script --command_file $(pwd)/multinode_1000G_simulations.gpu.commands.txt --total_nodes=$num_nodes --node_num=$i" & 
+                ssh $node "source ~/.bashrc; conda activate finemap; python $allocator_script --command_file $(pwd)/multinode_1000G_simulations.gpu.commands.txt --total_nodes=$num_nodes --node_num=$i" & 
                 i=$((i+1))
 done
 
