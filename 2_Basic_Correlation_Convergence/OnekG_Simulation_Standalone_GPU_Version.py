@@ -210,7 +210,7 @@ def main():
         if not available_devices:
             print("WARNING: No GPU devices found. Falling back to CPU.")
             return None, False
-        print(f"Found {len(available_devices)} GPU devices.")
+        print(f"NOTE: Found {len(available_devices)} GPU devices.")
         for i, device in enumerate(available_devices):
             print(f"  Device {i}: {device.name}")
         return available_devices, True
@@ -232,19 +232,19 @@ def main():
         #Filter genotype file
         keep_ids = pd.read_csv(keep_file, sep='\t')['#IID'].values
         geno = geno.sel(sample=keep_ids)
-        print(f"Retained {len(geno.sample)} samples after filtering")
+        print(f"NOTE: Retained {len(geno.sample)} samples after filtering")
     
     #Filter genotype data to remove monomorphic SNPs
-    print("Removing monomorphic SNPs in filtered samples...")
+    print("NOTE: Removing monomorphic SNPs in filtered samples...")
     variances = np.var(geno.values, axis=0)
     monomorphic_mask = variances < 1e-6
     geno = geno.sel(variant=geno.variant.values[~monomorphic_mask])
-    print(f"Retained {len(geno.variant)} polymorphic SNPs after filtering")
+    print(f"NOTE: Retained {len(geno.variant)} polymorphic SNPs after filtering")
         
     #Get number of samples
     n_samples = len(geno)        
     # Precompute genotype matrix for faster access
-    print("Precomputing genotypes...")
+    print("NOTE: Precomputing genotypes...")
     geno_data = geno.values.astype(np.float32)
     variant_ids = geno['variant'].values
     positions = geno['pos'].values    
@@ -265,7 +265,7 @@ def main():
         return maf
     
     #Calculate MAF for all remaining variants
-    print("Calculating MAF values...")
+    print("NOTE: Calculating MAF values...")
     maf_values = calculate_maf(geno_data)
     maf_mapping = dict(zip(variant_ids, maf_values))
     
@@ -314,7 +314,7 @@ def main():
         return valid_pairs    
     
     # Multithreaded pair finding
-    print(f"Finding pairs within {int(max_distance)}bp...")
+    print(f"NOTE: Finding pairs within {int(max_distance)}bp...")
     def find_pairs_chunk(start, end):
         chunk_pairs = []
         pos_array = positions
@@ -381,7 +381,7 @@ def main():
         return chunk_results
     
     # Process correlations in parallel
-    print(f"NOTE: Using {n_workers} threads per node for multi-thread calculations")
+    print(f"NOTE: Using {len(available_gpus)} threads per node for correlation calculations")
     pair_chunks = np.array_split(all_pairs, n_workers*4)
     geno_corrs = []
     with ThreadPoolExecutor(max_workers=len(available_gpus)) as executor:
@@ -565,7 +565,7 @@ def main():
     
     
     # Beta Correlation Section with Parallel Processing
-    print("Calculating beta correlations...")
+    print("NOTE: Calculating beta correlations...")
     
     def calculate_beta_correlations(pair_chunk):
         """Process chunk of variant pairs for beta correlations"""
