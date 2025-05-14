@@ -12,7 +12,7 @@
 
 #Set up conda environment
 source ~/.bashrc
-conda activate finemap_old
+conda activate finemap
 
 #Set key directories and locations
 onekg_script=/flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/Meta_Fine-Mapping/2_Basic_Correlation_Convergence/OnekG_Simulation_Standalone_GPU_Version.py
