@@ -7,8 +7,6 @@ ld-matrix variant file
 ***This needs to be run in the rsparsepro conda environment ***
 '''
 
-#!/usr/bin/env python3
-
 import sys
 import getopt
 from os.path import exists
@@ -16,19 +14,24 @@ import pandas as pd
 
 def help(exit_num=1):
     print("""-----------------------------------------------------------------
-    ARGUMENTS
-    -v => Input .vcor1.vars file (variant list) REQUIRED
-    -g => GWAS summary statistics file (CSV/TSV) REQUIRED
-    -o => Output file path REQUIRED
-    --zscore => Name of Z-score column in GWAS (either this or beta+se required)
-    --beta => Name of beta column in GWAS
-    --se => Name of standard error column in GWAS
+ARGUMENTS
+-v => Input .vcor1.vars file (variant list) REQUIRED
+-g => GWAS summary statistics file (CSV/TSV) REQUIRED
+-o => Output file path REQUIRED
+--varcol => Name of variant ID column in GWAS file REQUIRED
+--zscore => Name of Z-score column in GWAS (either this or beta+se required)
+--beta => Name of beta column in GWAS
+--se => Name of standard error column in GWAS
 """)
     sys.exit(exit_num)
 
 def main(argv):
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "v:g:o:h", ["zscore=", "beta=", "se=", "help"])
+        opts, args = getopt.getopt(
+            sys.argv[1:], 
+            "v:g:o:h", 
+            ["zscore=", "beta=", "se=", "varcol=", "help"]
+        )
     except getopt.GetoptError:
         print("ERROR: Incorrect usage of flags")
         help()
@@ -38,11 +41,12 @@ def main(argv):
     if '--help' in options or '-h' in options:
         help(0)
         
-    # Validate required arguments
+    # Required arguments
     try:
         vars_file = options['-v']
         gwas_file = options['-g']
         output_file = options['-o']
+        varcol = options['--varcol']
     except KeyError:
         print("ERROR: Missing required arguments")
         help()
@@ -64,7 +68,7 @@ def main(argv):
         print("ERROR: Must specify either --zscore or both --beta and --se")
         help()
 
-    print("Acceptable inputs given")
+    print("Acceptable Inputs Given")
     
     # Read variant IDs
     with open(vars_file) as f:
@@ -74,15 +78,15 @@ def main(argv):
     try:
         df = pd.read_csv(gwas_file, sep=None, engine='python')  # auto-detect delimiter
     except Exception as e:
-        print(f"ERROR: Error reading GWAS file: {e}")
+        print(f"ERROR reading GWAS file: {e}")
         sys.exit(1)
 
     # Validate columns exist
     required_cols = []
     if zcol:
-        required_cols = [zcol, 'variant_id']  # Assumes variant ID column name
+        required_cols = [zcol, varcol]
     else:
-        required_cols = [beta_col, se_col, 'variant_id']
+        required_cols = [beta_col, se_col, varcol]
     
     missing = [col for col in required_cols if col not in df.columns]
     if missing:
@@ -90,7 +94,7 @@ def main(argv):
         sys.exit(1)
 
     # Filter and calculate scores
-    filtered = df[df['variant_id'].isin(target_variants)].copy()
+    filtered = df[df[varcol].isin(target_variants)].copy()
     
     if zcol:
         filtered['zscore'] = filtered[zcol]
@@ -99,14 +103,14 @@ def main(argv):
 
     # Write output
     try:
-        filtered[['variant_id', 'zscore']].to_csv(
+        filtered[[varcol, 'zscore']].to_csv(
             output_file, 
             sep='\t', 
             index=False, 
             header=False
         )
     except Exception as e:
-        print(f"ERROR: Error writing output: {e}")
+        print(f"ERROR writing output: {e}")
         sys.exit(1)
 
     print(f"SUCCESS: Wrote {len(filtered)} variants to {output_file}")
