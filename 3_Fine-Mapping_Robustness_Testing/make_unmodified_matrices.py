@@ -1,13 +1,11 @@
 '''
-make_matrices.py
+make_unmodified_matrices.py
 
-The purpose of this script is to be a wrapper that determines for each locus
-which plink files are needed to map the locus. It submits separate srun 
-commands to combine the plink files and then ultimately makes map 
-files, or both map files and matrices depending upon the input parameters
+The purpose of this script is to be a wrapper that prepares a list of commands,
+each of which makes a raw LD matrix. These raw LD matrices are drawn directly
+from the study population for the simulation, and are not modified in any way.
 
-***This needs to be run on Python/3.9 as there's an incompatability with ***
-***other versions of python.                                             ***
+***This needs to be run in the rsparsepro conda environment ***
 '''
 
 #import modules that will be needed
