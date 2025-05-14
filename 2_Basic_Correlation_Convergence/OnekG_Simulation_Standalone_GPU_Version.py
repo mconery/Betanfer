@@ -368,7 +368,7 @@ def main():
     def gpu_correlation_batch(g1, g2, queue):
         """Compute correlations for a batch of pairs on specified GPU queue"""
         # Create GPU output array as a place holder
-        corr_results = dpnp.empty(g1.shape[1], dtype=dpnp.float32, sycl_queue=queue)
+        corr_results = dpnp.empty(g1.shape[1], dtype=dpnp.float64, sycl_queue=queue)
         # Vectorized NaN handling
         valid = ~(dpnp.isnan(g1) | dpnp.isnan(g2))
         n_valid = dpnp.sum(valid, axis=0, dtype=int)
@@ -401,8 +401,8 @@ def main():
             idx1 = var_indices[:,0]
             idx2 = var_indices[:,1]
             #Slice the genotype data
-            g1 = dpnp.asarray(geno_data[:, idx1], dtype=dpnp.float32, sycl_queue=q)
-            g2 = dpnp.asarray(geno_data[:, idx2], dtype=dpnp.float32, sycl_queue=q)
+            g1 = dpnp.asarray(geno_data[:, idx1], dtype=dpnp.float64, sycl_queue=q)
+            g2 = dpnp.asarray(geno_data[:, idx2], dtype=dpnp.float64, sycl_queue=q)
             corrs = executor.submit(gpu_correlation_batch, g1, g2, q)
             futures.append(list(zip([(batch[i][0], batch[i][1], corrs.result()[i]) for i in range(len(batch))])))
     # Collect results
@@ -486,7 +486,7 @@ def main():
         # Initialize parameters (intercept and slope)
         y_mean = Y.mean(axis=0, keepdims=True)
         intercept_init = dpnp.log(y_mean / (1 - y_mean))
-        theta = dpnp.zeros((2, n_variants, n_targets), dtype = dpnp.float32, sycl_queue=queue)
+        theta = dpnp.zeros((2, n_variants, n_targets), dtype = dpnp.float64, sycl_queue=queue)
         theta[0] = intercept_init
         del intercept_init, y_mean
         # Precompute reusable buffers
@@ -534,7 +534,7 @@ def main():
     #Function that runs regressions
     def process_regression_chunk(X, Y, queue, min_var_calls=10):
         #Make matrix to hold outputs
-        chunk_betas = dpnp.empty([X.shape[1], Y.shape[1]], dtype=dpnp.float32, sycl_queue=queue)
+        chunk_betas = dpnp.empty([X.shape[1], Y.shape[1]], dtype=dpnp.float64, sycl_queue=queue)
         #Drop variants with sufficient missingness
         mask = ~dpnp.isnan(X)
         n_valid = dpnp.sum(mask, axis=0, dtype=int)
@@ -568,8 +568,8 @@ def main():
             # Split into chunks for each gpu
             for q, chunk in zip(queues, sub_chunks):
                 #Extract variant genotypes
-                X = dpnp.asarray(geno_data[:,chunk], dtype=dpnp.float32, sycl_queue=q)
-                Y = dpnp.asarray(traits.values, dtype=dpnp.float32, sycl_queue=q)
+                X = dpnp.asarray(geno_data[:,chunk], dtype=dpnp.float64, sycl_queue=q)
+                Y = dpnp.asarray(traits.values, dtype=dpnp.float64, sycl_queue=q)
                 betas = executor.submit(process_regression_chunk, X, Y, q)
                 betas = pd.DataFrame(betas.result().asnumpy(), columns=traits.columns, index=variant_ids[chunk])
                 all_betas.append(betas)
