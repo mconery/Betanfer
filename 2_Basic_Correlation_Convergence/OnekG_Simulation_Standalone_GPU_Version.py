@@ -458,7 +458,7 @@ def main():
         return betas.T
     
     #Create function that runs logistic regression quickly
-    def calculate_logistic_betas_fast(X, Y, queue, max_iter=500, tol=1e-6):
+    def calculate_logistic_betas_fast(X, Y, queue, max_iter=100, tol=1e-6):
         """
         Vectorized Newton-Raphson implementation for logistic regression coefficients.
         Returns only the beta coefficients (slope parameters).
