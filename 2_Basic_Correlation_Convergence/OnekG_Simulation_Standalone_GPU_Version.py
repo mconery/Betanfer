@@ -384,7 +384,7 @@ def main():
     print(f"NOTE: Using {n_workers} threads per node for multi-thread calculations")
     pair_chunks = np.array_split(all_pairs, n_workers*4)
     geno_corrs = []
-    with ThreadPoolExecutor(max_workers=n_workers) as executor:
+    with ThreadPoolExecutor(max_workers=len(available_gpus)) as executor:
         futures = [executor.submit(process_correlation_chunk, chunk) for chunk in pair_chunks]
         for future in futures:
             geno_corrs.extend(future.result())
@@ -587,7 +587,7 @@ def main():
     # Parallel processing beta setup
     pair_chunks = np.array_split(all_pairs, max(1, len(all_pairs)//chunk_size))
     beta_results = []
-    with ThreadPoolExecutor(max_workers=n_workers) as executor:
+    with ThreadPoolExecutor(max_workers=len(available_gpus)) as executor:
         futures = [executor.submit(calculate_beta_correlations, chunk) for chunk in pair_chunks]
         for future in futures:
             beta_results.extend(future.result())
