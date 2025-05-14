@@ -16,7 +16,7 @@ conda activate finemap_old
 
 #Set key directories and locations
 onekg_script=/flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/Meta_Fine-Mapping/2_Basic_Correlation_Convergence/OnekG_Simulation_Standalone.py
-allocator_script=/flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/Meta_Fine-Mapping/2_Basic_Correlation_Convergencee/OnekG_Simulation_looping_Allocator.py
+allocator_script=/flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/Meta_Fine-Mapping/2_Basic_Correlation_Convergence/OnekG_Simulation_looping_Allocator.py
 plink_dir=/flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/1000G_Simulations/plink_files
 out_dir=/flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/1000G_Simulations/simulation_results
 keep_dir=/flare/GeomicVar/mconery/resources/1000G
