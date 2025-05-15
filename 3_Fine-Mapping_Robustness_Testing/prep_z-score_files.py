@@ -104,10 +104,10 @@ def main(argv):
     # Write output
     try:
         filtered[[varcol, 'zscore']].to_csv(
-            output_file, 
-            sep='\t', 
-            index=False, 
-            header=False
+            output_file,
+            sep='\t',
+            index=False,
+            header=["RSID", "Z"]
         )
     except Exception as e:
         print(f"ERROR writing output: {e}")
