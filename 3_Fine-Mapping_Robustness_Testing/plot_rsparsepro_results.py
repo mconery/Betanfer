@@ -21,6 +21,16 @@ def plot_finemapping_results(results_file, causal_file, output_file):
     causal_snps = pd.read_csv(causal_file, header=None, names=['SNP'])
     causal_set = set(causal_snps['SNP'])
 
+    # Extract genomic position from RSID column
+    df['pos'] = df['RSID'].apply(
+        lambda x: int(x.split(':')[1]) if pd.notna(x) else np.nan
+    )
+    
+    # Get chromosome and position range for labeling
+    chrom = df['RSID'].iloc[0].split(':')[0]
+    min_pos = df['pos'].min()
+    max_pos = df['pos'].max()
+
     # Calculate p-values from Z-scores
     df['neg_log10_p'] = -np.log10(2 * (1 - norm.cdf(np.abs(df['Z']))))
     
@@ -30,42 +40,43 @@ def plot_finemapping_results(results_file, causal_file, output_file):
     cs_colors = {cs: color_map(i) for i, cs in enumerate(unique_cs)}
     df['color'] = df['cs'].apply(lambda x: cs_colors[x] if pd.notna(x) else 'lightgrey')
 
-    # Create figure
+    # Create figure with shared x-axis
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
     
     # Top plot: -log10 p-values
     ax1.scatter(df['pos'], df['neg_log10_p'], c=df['color'], edgecolor='none', s=40)
     ax1.set_ylabel('-log10(p-value)')
-    ax1.set_title('Association Signals and Credible Sets')
+    ax1.set_title(f'Association Signals and Credible Sets (chr{chrom}:{min_pos}-{max_pos})')
     
     # Bottom plot: PIP values
     ax2.scatter(df['pos'], df['PIP'], c=df['color'], edgecolor='none', s=40)
     ax2.set_ylabel('PIP')
-    ax2.set_xlabel('Genomic Position')
+    ax2.set_xlabel(f'Genomic Position (chr{chrom}:{min_pos}-{max_pos})')
     
     # Highlight causal variants
     causal_df = df[df['SNP'].isin(causal_set)]
     for ax in [ax1, ax2]:
         y = causal_df['neg_log10_p'] if ax == ax1 else causal_df['PIP']
         ax.scatter(causal_df['pos'], y, facecolors='none', 
-                   edgecolors='black', s=100, linewidth=1.5)
+                 edgecolors='black', s=100, linewidth=1.5)
     
     # Create legend
     legend_elements = [
         plt.Line2D([0], [0], marker='o', color='w', label=f'CS {cs}',
-                  markerfacecolor=cs_colors[cs], markersize=8) for cs in unique_cs
+                 markerfacecolor=cs_colors[cs], markersize=8) for cs in unique_cs
     ]
     legend_elements += [
         plt.Line2D([0], [0], marker='o', color='w', label='Non-CS',
-                  markerfacecolor='lightgrey', markersize=8),
+                 markerfacecolor='lightgrey', markersize=8),
         plt.Line2D([0], [0], marker='o', color='black', label='Causal SNP',
-                  markerfacecolor='none', markersize=10, markeredgewidth=1.5)
+                 markerfacecolor='none', markersize=10, markeredgewidth=1.5)
     ]
     ax1.legend(handles=legend_elements, bbox_to_anchor=(1.05, 1), loc='upper left')
     
     plt.tight_layout()
     plt.savefig(output_file, format='jpeg', dpi=300, bbox_inches='tight')
     plt.close()
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
