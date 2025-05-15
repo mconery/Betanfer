@@ -57,6 +57,15 @@ def plot_finemapping_results(results_file, causal_file, output_file):
     ax2.set_ylabel('PIP')
     ax2.set_xlabel(f'Genomic Position (chr{chrom}:{min_pos}-{max_pos})')
     
+    # Ensure all points are within y-axis limits with a small margin
+    def get_ylim(y):
+        y_min, y_max = np.min(y), np.max(y)
+        margin = 0.05 * (y_max - y_min) if y_max > y_min else 1.0
+        return y_min - margin, y_max + margin
+    
+    ax1.set_ylim(get_ylim(df['neg_log10_p']))
+    ax2.set_ylim(get_ylim(df['PIP']))
+    
     # Highlight causal variants
     causal_df = df[df['RSID'].isin(causal_set)]
     for ax in [ax1, ax2]:
