@@ -34,11 +34,15 @@ def plot_finemapping_results(results_file, causal_file, output_file):
     # Calculate p-values from Z-scores
     df['neg_log10_p'] = -np.log10(2 * (1 - norm.cdf(np.abs(df['Z']))))
     
-    # Create color mapping for credible sets
-    unique_cs = df['cs'].dropna().unique()
+    # Create color mapping for credible sets (exclude cs=0)
+    unique_cs = df.loc[df['cs'] != 0, 'cs'].dropna().unique()
     color_map = plt.cm.get_cmap('tab10', len(unique_cs))
     cs_colors = {cs: color_map(i) for i, cs in enumerate(unique_cs)}
-    df['color'] = df['cs'].apply(lambda x: cs_colors[x] if pd.notna(x) else 'lightgrey')
+    
+    # Assign colors (treat cs=0 as non-credible set)
+    df['color'] = df['cs'].apply(
+        lambda x: cs_colors[x] if (pd.notna(x) and x != 0) else 'lightgrey'
+    )
 
     # Create figure with shared x-axis
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
@@ -54,7 +58,7 @@ def plot_finemapping_results(results_file, causal_file, output_file):
     ax2.set_xlabel(f'Genomic Position (chr{chrom}:{min_pos}-{max_pos})')
     
     # Highlight causal variants
-    causal_df = df[df['RSID'].isin(causal_set)]
+    causal_df = df[df['SNP'].isin(causal_set)]
     for ax in [ax1, ax2]:
         y = causal_df['neg_log10_p'] if ax == ax1 else causal_df['PIP']
         ax.scatter(causal_df['pos'], y, facecolors='none', 
