@@ -18,7 +18,7 @@ import argparse
 def plot_finemapping_results(results_file, causal_file, output_file):
     # Load data
     df = pd.read_csv(results_file)
-    causal_snps = pd.read_csv(causal_file, header=None, names=['SNP'])
+    causal_snps = pd.read_csv(causal_file, header=None, names=['SNP'], sep="\t")
     causal_set = set(causal_snps['SNP'])
 
     # Calculate p-values from Z-scores
