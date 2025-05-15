@@ -14,6 +14,7 @@ import pandas as pd
 import numpy as np
 from scipy.stats import norm
 import argparse
+from scipy.special import logsumexp
 
 def plot_finemapping_results(results_file, causal_file, output_file):
     # Load data
@@ -32,7 +33,9 @@ def plot_finemapping_results(results_file, causal_file, output_file):
     max_pos = df['pos'].max()
 
     # Calculate p-values from Z-scores
-    df['neg_log10_p'] = -np.log10(2 * (1 - norm.cdf(np.abs(df['Z']))))
+    log_sf = norm.logsf(np.abs(df['Z']))  # log(1 - CDF(|Z|))
+    log_p = log_sf + np.log(2)  # Account for two-tailed test
+    df['neg_log10_p'] = -log_p / np.log(10)  # Convert to -log10(p)
     
     # Create color mapping for credible sets (exclude cs=0)
     unique_cs = df.loc[df['cs'] != 0, 'cs'].dropna().unique()
@@ -56,15 +59,6 @@ def plot_finemapping_results(results_file, causal_file, output_file):
     ax2.scatter(df['pos'], df['PIP'], c=df['color'], edgecolor='none', s=40)
     ax2.set_ylabel('PIP')
     ax2.set_xlabel(f'Genomic Position (chr{chrom}:{min_pos}-{max_pos})')
-    
-    # Ensure all points are within y-axis limits with a small margin
-    def get_ylim(y):
-        y_min, y_max = np.min(y), np.max(y)
-        margin = 0.05 * (y_max - y_min) if y_max > y_min else 1.0
-        return y_min - margin, y_max + margin
-    
-    ax1.set_ylim(get_ylim(df['neg_log10_p']))
-    ax2.set_ylim(get_ylim(df['PIP']))
     
     # Highlight causal variants
     causal_df = df[df['RSID'].isin(causal_set)]
