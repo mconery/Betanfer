@@ -536,7 +536,7 @@ def main():
     all_betas = []
     # Split pairs across 6 GPUs
     variant_indices = np.arange(len(variant_ids))
-    chunk_count = 10 #Number of times to split up gpu loads
+    chunk_count = 20 #Number of times to split up gpu loads
     var_chunks = np.array_split(variant_indices, chunk_count)
     var_chunks = [np.array_split(x, len(available_gpus)) for x in var_chunks]
     # Process correlations in parallel
