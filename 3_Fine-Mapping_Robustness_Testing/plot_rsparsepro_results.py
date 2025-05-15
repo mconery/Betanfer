@@ -54,7 +54,7 @@ def plot_finemapping_results(results_file, causal_file, output_file):
     ax2.set_xlabel(f'Genomic Position (chr{chrom}:{min_pos}-{max_pos})')
     
     # Highlight causal variants
-    causal_df = df[df['SNP'].isin(causal_set)]
+    causal_df = df[df['RSID'].isin(causal_set)]
     for ax in [ax1, ax2]:
         y = causal_df['neg_log10_p'] if ax == ax1 else causal_df['PIP']
         ax.scatter(causal_df['pos'], y, facecolors='none', 
