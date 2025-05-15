@@ -73,17 +73,17 @@ if __name__ == '__main__':
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument(
-        'results_file',
+        '--results_file',
         type=str,
         help='Path to the RSparsePro results CSV file'
     )
     parser.add_argument(
-        'causal_file',
+        '--causal_file',
         type=str,
         help='Path to the causal SNPs CSV file (one SNP per line)'
     )
     parser.add_argument(
-        'output_file',
+        '--output_file',
         type=str,
         help='Output path for JPEG plot (e.g., results_plot.jpg)'
     )
