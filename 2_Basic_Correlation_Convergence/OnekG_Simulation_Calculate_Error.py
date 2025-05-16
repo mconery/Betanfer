@@ -19,11 +19,11 @@ def calculate_metrics(true_values, pred_values):
     filtered_pred = pred_values[mask]
     if len(filtered_true) < 2:
         return np.nan, np.nan, np.nan
-    absolute_errors = np.abs(filtered_true - filtered_pred)
+    mean_errors = np.mean(filtered_true - filtered_pred)
+    stddev_errors = np.std(filtered_true - filtered_pred)
     mae = mean_absolute_error(filtered_true, filtered_pred)
-    std_ae = np.std(absolute_errors)  # Standard deviation of absolute errors
     rmse = np.sqrt(mean_squared_error(filtered_true, filtered_pred))
-    return mae, std_ae, rmse # Replaced "mape" with "std_ae"
+    return mean_errors, stddev_errors, mae, rmse # Replaced "mape" with "std_ae"
 
 
 def main():
@@ -73,15 +73,16 @@ def main():
         
         # Overall metrics
         valid_data = scenario_df[['geno_corr', 'beta_corr']].dropna()
-        overall_metrics = calculate_metrics(valid_data['geno_corr'], valid_data['beta_corr']) if not valid_data.empty else (np.nan,)*3
+        overall_metrics = calculate_metrics(valid_data['geno_corr'], valid_data['beta_corr']) if not valid_data.empty else (np.nan,)*4
         results.append({
             **scenario_dict,
             'bucket_type': 'overall',
             'bucket_range': '0.0-1.0',
             'n_pairs': len(valid_data),
-            'mae': overall_metrics[0],
-            'std_ae': overall_metrics[1],
-            'rmse': overall_metrics[2]
+            'mean_error': overall_metrics[0],
+            'stddev_error': overall_metrics[1],
+            'mae': overall_metrics[2],
+            'rmse': overall_metrics[3]
         })
         
         # Binary trait n_traits==beta_traits
@@ -92,11 +93,11 @@ def main():
             
             # Calculate metrics
             if not filtered_valid.empty:
-                filtered_mae, filtered_std_ae, filtered_rmse = calculate_metrics(
+                filtered_mean_error, filtered_stddev_error, filtered_mae, filtered_rmse = calculate_metrics(
                     filtered_valid['geno_corr'], filtered_valid['beta_corr']
                 )
             else:
-                filtered_mae = filtered_std_ae = filtered_rmse = np.nan
+                filtered_mean_error = filtered_stddev_error = filtered_mae = filtered_rmse = np.nan
             
             # Append new row
             results.append({
@@ -104,8 +105,9 @@ def main():
                 'bucket_type': 'overall_filtered',
                 'bucket_range': '0.0-1.0',
                 'n_pairs': len(filtered_valid),
+                'mean_error': filtered_mean_error,
+                'stddev_error': filtered_stddev_error,
                 'mae': filtered_mae,
-                'std_ae': filtered_std_ae,
                 'rmse': filtered_rmse,
             })
         
@@ -114,15 +116,16 @@ def main():
         for bucket in range(len(GENO_BINS)-1):
             bucket_df = scenario_df[scenario_df['geno_bucket'] == bucket]
             bucket_data = bucket_df[['geno_corr', 'beta_corr']].dropna()
-            metrics = calculate_metrics(bucket_data['geno_corr'], bucket_data['beta_corr']) if not bucket_data.empty else (np.nan,)*3
+            metrics = calculate_metrics(bucket_data['geno_corr'], bucket_data['beta_corr']) if not bucket_data.empty else (np.nan,)*4
             results.append({
                 **scenario_dict,
                 'bucket_type': 'geno_corr',
                 'bucket_range': f"{GENO_BINS[bucket]:.1f}-{GENO_BINS[bucket+1]:.1f}",
                 'n_pairs': len(bucket_data),
-                'mae': metrics[0],
-                'std_ae': metrics[1],
-                'rmse': metrics[2]
+                'mean_error': metrics[0],
+                'stddev_error': metrics[1],
+                'mae': metrics[2],
+                'rmse': metrics[3]
             })
         
         # MAF buckets
@@ -130,15 +133,16 @@ def main():
         for bucket in range(len(MAF_BINS)-1):
             bucket_df = scenario_df[scenario_df['maf_bucket'] == bucket]
             bucket_data = bucket_df[['geno_corr', 'beta_corr']].dropna()
-            metrics = calculate_metrics(bucket_data['geno_corr'], bucket_data['beta_corr']) if not bucket_data.empty else (np.nan,)*3
+            metrics = calculate_metrics(bucket_data['geno_corr'], bucket_data['beta_corr']) if not bucket_data.empty else (np.nan,)*4
             results.append({
                 **scenario_dict,
                 'bucket_type': 'maf',
                 'bucket_range': f"{MAF_BINS[bucket]:.1f}-{MAF_BINS[bucket+1]:.1f}",
                 'n_pairs': len(bucket_data),
-                'mae': metrics[0],
-                'std_ae': metrics[1],
-                'rmse': metrics[2]
+                'mean_error': metrics[0],
+                'stddev_error': metrics[1],
+                'mae': metrics[2],
+                'rmse': metrics[3]
             })
     
     # Clean up and save
