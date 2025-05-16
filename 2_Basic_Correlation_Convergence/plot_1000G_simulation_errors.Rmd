@@ -1,0 +1,112 @@
+---
+title: "plot_1000G_simulation_errors"
+output: html_document
+date: "2025-04-23"
+---
+
+# 1) Read in File and Make Plotting Function ====
+
+This section of the code reads in the file and makes the plots.
+
+```{r}
+#Set plot directories
+library(ggplot2)
+library(dplyr)
+
+#Set results file
+results_file="C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/1000G_Simulations/genotype_beta_correlation_deviation_metrics.csv"
+#Read in the results file
+input_df <- read.csv(results_file)
+#Set factors for buckets
+input_df$bucket_range <- factor(input_df$bucket_range, levels = c("0.0-1.0","0.0-0.2","0.2-0.4","0.4-0.6","0.6-0.8","0.8-1.0","0.0-0.1","0.1-0.2", "0.2-0.3", "0.3-0.4","0.4-0.5"))
+
+#Set function
+plot_simulation_results <- function(inp_df, 
+                                   x_var, 
+                                   y_var, 
+                                   color_var = NULL,
+                                   filter_bucket = "overall",
+                                   filter_trait_type = NULL,
+                                   filter_n_causal = NULL,
+                                   facet_var = NULL, plot_title=NULL) {
+  # Read results data
+  df <- inp_df %>%
+    filter(bucket_type == filter_bucket)
+  
+  # Apply optional filters
+  if (!is.null(filter_trait_type)) {
+    df <- df %>% filter(trait_type %in% filter_trait_type)
+  }
+  if (!is.null(filter_n_causal)) {
+    df <- df %>% filter(n_causal %in% filter_n_causal)
+  }
+  
+  # Create base plot
+  p <- ggplot(df, aes_string(x = x_var, y = y_var, color = color_var)) +
+    geom_point(alpha = 0.7, size = 2) +
+    theme_minimal() +
+    labs(
+      title = plot_title,
+      x = gsub("_", " ", toupper(x_var)),
+      y = gsub("_", " ", toupper(y_var))
+    )
+  
+  # Faceting
+  if (!is.null(facet_var)) {
+    p <- p + facet_wrap(as.formula(paste("~", facet_var)), scales = "free_x")
+  }
+  
+  # Handle numeric vs categorical x-variables
+  if (is.numeric(df[[x_var]])) {
+    p <- p + scale_x_continuous(labels = scales::comma)
+  } else {
+    p <- p + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  }
+  
+  print(p)
+}
+
+```
+
+
+```{r}
+
+plot_simulation_results(input_df, x_var="n_traits", y_var="mae", color_var="n_causal", filter_bucket = "overall", filter_trait_type = "continuous", 
+                        plot_title="Continuous Traits", facet_var="population")
+
+```
+
+```{r}
+
+plot_simulation_results(input_df, x_var="n_traits", y_var="mae", color_var="case_prob", filter_bucket = "overall", filter_trait_type = "binary", 
+                        plot_title="Binary Traits with 0 Causal Variants", facet_var="population")
+
+```
+
+```{r}
+
+plot_simulation_results(input_df, x_var="bucket_range", y_var="mae", color_var="n_traits", filter_bucket = "geno_corr", filter_trait_type = "continuous", 
+                        plot_title="Continuous Traits with 0 Causal Variants Split by Genotype Correlation", filter_n_causal = 0, facet_var="population")
+
+```
+
+```{r}
+
+plot_simulation_results(input_df, x_var="bucket_range", y_var="mae", color_var="n_traits", filter_bucket = "maf", filter_trait_type = "continuous", 
+                        plot_title="Continuous Traits with 0 Causal Variants Split by MAF", filter_n_causal = 0, facet_var="population")
+
+```
+
+```{r}
+
+plot_simulation_results(input_df, x_var="n_traits", y_var="mae", color_var="effect_size", filter_bucket = "overall", filter_trait_type = "binary", 
+                        plot_title="Binary Traits", facet_var="population")
+
+```
+
+```{r}
+
+plot_simulation_results(input_df, x_var="n_traits", y_var="mae", color_var="n_causal", filter_bucket = "overall", filter_trait_type = "binary", 
+                        plot_title="Binary Traits", facet_var="population")
+
+```
