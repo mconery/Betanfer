@@ -114,7 +114,7 @@ def main():
                 **scenario_dict,
                 'bucket_type': 'overall_filtered',
                 'bucket_range': '0.0-1.0',
-                'n_pairs_in_bucket': len(filtered_valid),
+                'n_pairs': len(filtered_valid),
                 'mae': filtered_mae,
                 'rmse': filtered_rmse,
                 'r_squared': filtered_r2
