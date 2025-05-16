@@ -6,10 +6,6 @@ This script calculates the error metrics for the 1000G Simulations.
 ***This needs to be run in the finemap_old conda environment ***
 '''
 
-#Set key file locations
-inp_file="/flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/1000G_Simulations/master.results.csv.gz"
-out_file="/flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/1000G_Simulations/fixed_bucket_metrics.csv"
-
 #Import needed packages
 import pandas as pd
 import numpy as np
