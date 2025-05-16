@@ -23,14 +23,13 @@ def calculate_metrics(true_values, pred_values):
     
     mae = mean_absolute_error(filtered_true, filtered_pred)
     rmse = np.sqrt(mean_squared_error(filtered_true, filtered_pred))
+    # Pearson correlation (returns np.nan if <2 points)
+    if len(filtered_true) > 1:
+        pearson_corr = np.corrcoef(filtered_true, filtered_pred)[0, 1]
+    else:
+        pearson_corr = np.nan
     
-    try:
-        r2 = r2_score(filtered_true, filtered_pred)
-        r2 = max(0, r2) if not np.isnan(r2) else np.nan
-    except:
-        r2 = np.nan
-    
-    return mae, rmse, r2
+    return mae, rmse, pearson_corr
 
 
 def main():
@@ -88,7 +87,7 @@ def main():
             'n_pairs': len(valid_data),
             'mae': overall_metrics[0],
             'rmse': overall_metrics[1],
-            'r_squared': overall_metrics[2]
+            'pearson_r': overall_metrics[2]
         })
         
         # Binary trait n_traits==beta_traits
@@ -99,11 +98,11 @@ def main():
             
             # Calculate metrics
             if not filtered_valid.empty:
-                filtered_mae, filtered_rmse, filtered_r2 = calculate_metrics(
+                filtered_mae, filtered_rmse, filtered_r = calculate_metrics(
                     filtered_valid['geno_corr'], filtered_valid['beta_corr']
                 )
             else:
-                filtered_mae = filtered_rmse = filtered_r2 = np.nan
+                filtered_mae = filtered_rmse = filtered_r = np.nan
             
             # Append new row
             results.append({
@@ -113,7 +112,7 @@ def main():
                 'n_pairs': len(filtered_valid),
                 'mae': filtered_mae,
                 'rmse': filtered_rmse,
-                'r_squared': filtered_r2
+                'pearson_r': filtered_r
             })
         
         # Genotype correlation buckets
@@ -129,7 +128,7 @@ def main():
                 'n_pairs': len(bucket_data),
                 'mae': metrics[0],
                 'rmse': metrics[1],
-                'r_squared': metrics[2]
+                'pearson_r': metrics[2]
             })
         
         # MAF buckets
@@ -145,7 +144,7 @@ def main():
                 'n_pairs': len(bucket_data),
                 'mae': metrics[0],
                 'rmse': metrics[1],
-                'r_squared': metrics[2]
+                'pearson_r': metrics[2]
             })
     
     # Clean up and save
