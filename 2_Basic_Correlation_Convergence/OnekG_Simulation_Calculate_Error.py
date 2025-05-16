@@ -18,7 +18,7 @@ def calculate_metrics(true_values, pred_values):
     filtered_true = true_values[mask]
     filtered_pred = pred_values[mask]
     if len(filtered_true) < 2:
-        return np.nan, np.nan, np.nan
+        return np.nan, np.nan, np.nan, np.nan
     mean_errors = np.mean(filtered_true - filtered_pred)
     stddev_errors = np.std(filtered_true - filtered_pred)
     mae = mean_absolute_error(filtered_true, filtered_pred)
