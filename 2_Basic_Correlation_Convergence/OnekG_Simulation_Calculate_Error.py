@@ -9,7 +9,7 @@ This script calculates the error metrics for the 1000G Simulations.
 #Import needed packages
 import pandas as pd
 import numpy as np
-from sklearn.metrics import mean_absolute_error, mean_squared_error, mean_absolute_percentage_error
+from sklearn.metrics import mean_absolute_error, mean_squared_error
 import argparse
 
 #Metric calculation function
@@ -17,19 +17,13 @@ def calculate_metrics(true_values, pred_values):
     mask = ~np.isnan(pred_values)
     filtered_true = true_values[mask]
     filtered_pred = pred_values[mask]
-    
-    if len(filtered_true) == 0:
+    if len(filtered_true) < 2:
         return np.nan, np.nan, np.nan
-    
+    absolute_errors = np.abs(filtered_true - filtered_pred)
     mae = mean_absolute_error(filtered_true, filtered_pred)
+    std_ae = np.std(absolute_errors)  # Standard deviation of absolute errors
     rmse = np.sqrt(mean_squared_error(filtered_true, filtered_pred))
-    # Pearson correlation (returns np.nan if <2 points)
-    if len(filtered_true) > 1:
-        mape = mean_absolute_percentage_error(filtered_true, filtered_pred)
-    else:
-        mape = np.nan
-    
-    return mae, rmse, mape
+    return mae, std_ae, rmse # Replaced "mape" with "std_ae"
 
 
 def main():
@@ -86,8 +80,8 @@ def main():
             'bucket_range': '0.0-1.0',
             'n_pairs': len(valid_data),
             'mae': overall_metrics[0],
-            'rmse': overall_metrics[1],
-            'mape': overall_metrics[2]
+            'std_ae': overall_metrics[1],
+            'rmse': overall_metrics[2]
         })
         
         # Binary trait n_traits==beta_traits
@@ -98,11 +92,11 @@ def main():
             
             # Calculate metrics
             if not filtered_valid.empty:
-                filtered_mae, filtered_rmse, filtered_mape = calculate_metrics(
+                filtered_mae, filtered_std_ae, filtered_rmse = calculate_metrics(
                     filtered_valid['geno_corr'], filtered_valid['beta_corr']
                 )
             else:
-                filtered_mae = filtered_rmse = filtered_mape = np.nan
+                filtered_mae = filtered_std_ae = filtered_rmse = np.nan
             
             # Append new row
             results.append({
@@ -111,8 +105,8 @@ def main():
                 'bucket_range': '0.0-1.0',
                 'n_pairs': len(filtered_valid),
                 'mae': filtered_mae,
+                'std_ae': filtered_std_ae,
                 'rmse': filtered_rmse,
-                'mape': filtered_mape
             })
         
         # Genotype correlation buckets
@@ -127,8 +121,8 @@ def main():
                 'bucket_range': f"{GENO_BINS[bucket]:.1f}-{GENO_BINS[bucket+1]:.1f}",
                 'n_pairs': len(bucket_data),
                 'mae': metrics[0],
-                'rmse': metrics[1],
-                'mape': metrics[2]
+                'std_ae': metrics[1],
+                'rmse': metrics[2]
             })
         
         # MAF buckets
@@ -143,8 +137,8 @@ def main():
                 'bucket_range': f"{MAF_BINS[bucket]:.1f}-{MAF_BINS[bucket+1]:.1f}",
                 'n_pairs': len(bucket_data),
                 'mae': metrics[0],
-                'rmse': metrics[1],
-                'mape': metrics[2]
+                'std_ae': metrics[1],
+                'rmse': metrics[2]
             })
     
     # Clean up and save
