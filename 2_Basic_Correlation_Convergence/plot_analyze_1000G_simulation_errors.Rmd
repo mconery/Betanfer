@@ -5,9 +5,7 @@ date: "2025-04-23"
 ---
 
 # 1) Read in File and Make Plotting Function ====
-
-This section of the code reads in the file and makes the plots.
-
+This section of the code reads in the file and makes the function that makes the plots.
 ```{r}
 #Set plot directories
 library(ggplot2)
@@ -30,9 +28,11 @@ plot_simulation_results <- function(inp_df,
                                    filter_n_causal = NULL,
                                    facet_var = NULL, plot_title=NULL) {
   # Read results data
-  df <- inp_df %>%
-    filter(bucket_type == filter_bucket)
+  df <- inp_df
   
+  if(!is.null(filter_bucket)){
+    df <- df %>% filter(bucket_type %in% filter_bucket)
+  }
   # Apply optional filters
   if (!is.null(filter_trait_type)) {
     df <- df %>% filter(trait_type %in% filter_trait_type)
@@ -67,46 +67,67 @@ plot_simulation_results <- function(inp_df,
 }
 
 ```
-
-
+# 2) Make basic plot of continuous traits ====
 ```{r}
 
 plot_simulation_results(input_df, x_var="n_traits", y_var="mae", color_var="n_causal", filter_bucket = "overall", filter_trait_type = "continuous", 
                         plot_title="Continuous Traits", facet_var="population")
 
 ```
-
+# 3) Make Basic Plot of Binary Traits Colored by Case Proportion====
 ```{r}
 
 plot_simulation_results(input_df, x_var="n_traits", y_var="mae", color_var="case_prob", filter_bucket = "overall", filter_trait_type = "binary", 
-                        plot_title="Binary Traits with 0 Causal Variants", facet_var="population")
+                        plot_title="Binary Traits", facet_var="population")
 
 ```
+# 4) Make Plot of All Simulations with 0 Causal Variants ====
+```{r}
 
+plot_simulation_results(input_df, x_var="n_traits", y_var="mae", color_var="trait_type", filter_bucket = "overall", filter_n_causal = 0, 
+                        plot_title="Continuous and Binary Traits with 0 Causal Variants", facet_var="population")
+
+```
+# 5) Make Plot of All Traits with 0 Causal variants and Binary Traits limited to Variant Pairs for which all betas were calculable ====
+```{r}
+#Filter for overall rows where beta correlations are based off of all simulated traits (there were no calculation errors)
+full_calc_df <-input_df %>% filter((trait_type == "continuous" & bucket_type=="overall") | (trait_type == "binary" & bucket_type=="overall_filtered"))
+plot_simulation_results(full_calc_df, x_var="n_traits", y_var="mae", color_var="trait_type", filter_n_causal=0,
+                        plot_title="No Causality Continuous and Binary Traits of Full-Trait Variant Pairs", facet_var="population", filter_bucket = NULL)
+
+```
+# 6) Make Plot of Genotype Correlation Buckets ====
 ```{r}
 
 plot_simulation_results(input_df, x_var="bucket_range", y_var="mae", color_var="n_traits", filter_bucket = "geno_corr", filter_trait_type = "continuous", 
                         plot_title="Continuous Traits with 0 Causal Variants Split by Genotype Correlation", filter_n_causal = 0, facet_var="population")
 
 ```
-
+# 7) Make Plot of MAF Buckets ====
 ```{r}
 
 plot_simulation_results(input_df, x_var="bucket_range", y_var="mae", color_var="n_traits", filter_bucket = "maf", filter_trait_type = "continuous", 
                         plot_title="Continuous Traits with 0 Causal Variants Split by MAF", filter_n_causal = 0, facet_var="population")
 
 ```
-
+# 8) Make Binary Trait Plot Colored by Effect Size ====
 ```{r}
 
 plot_simulation_results(input_df, x_var="n_traits", y_var="mae", color_var="effect_size", filter_bucket = "overall", filter_trait_type = "binary", 
                         plot_title="Binary Traits", facet_var="population")
 
 ```
-
+# 9) Make Binary Trait Plot Colored by Number of Causal Variants ====
 ```{r}
 
 plot_simulation_results(input_df, x_var="n_traits", y_var="mae", color_var="n_causal", filter_bucket = "overall", filter_trait_type = "binary", 
                         plot_title="Binary Traits", facet_var="population")
 
+```
+# 10) Make Table of Continuous Trait Standard Errors ====
+```{r}
+#Set output file location
+out_file <- "C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/1000G_Simulations/correlation_error_standard_deviations.csv"
+#Filter and write file
+input_df %>% filter(trait_type == "continuous" & bucket_type == "geno_corr") %>% group_by(n_traits, bucket_range) %>% summarize(stddev_error=mean(stddev_error, na.rm=TRUE)) %>% write.csv(file=out_file, col.names = TRUE, row.names = FALSE, quote = FALSE, sep = ",")
 ```
