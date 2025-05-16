@@ -9,7 +9,7 @@ This script calculates the error metrics for the 1000G Simulations.
 #Import needed packages
 import pandas as pd
 import numpy as np
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.metrics import mean_absolute_error, mean_squared_error, mean_absolute_percentage_error
 import argparse
 
 #Metric calculation function
@@ -25,11 +25,11 @@ def calculate_metrics(true_values, pred_values):
     rmse = np.sqrt(mean_squared_error(filtered_true, filtered_pred))
     # Pearson correlation (returns np.nan if <2 points)
     if len(filtered_true) > 1:
-        pearson_corr = np.corrcoef(filtered_true, filtered_pred)[0, 1]
+        mape = mean_absolute_percentage_error(filtered_true, filtered_pred)
     else:
-        pearson_corr = np.nan
+        mape = np.nan
     
-    return mae, rmse, pearson_corr
+    return mae, rmse, mape
 
 
 def main():
@@ -87,7 +87,7 @@ def main():
             'n_pairs': len(valid_data),
             'mae': overall_metrics[0],
             'rmse': overall_metrics[1],
-            'pearson_r': overall_metrics[2]
+            'mape': overall_metrics[2]
         })
         
         # Binary trait n_traits==beta_traits
@@ -98,11 +98,11 @@ def main():
             
             # Calculate metrics
             if not filtered_valid.empty:
-                filtered_mae, filtered_rmse, filtered_r = calculate_metrics(
+                filtered_mae, filtered_rmse, filtered_mape = calculate_metrics(
                     filtered_valid['geno_corr'], filtered_valid['beta_corr']
                 )
             else:
-                filtered_mae = filtered_rmse = filtered_r = np.nan
+                filtered_mae = filtered_rmse = filtered_mape = np.nan
             
             # Append new row
             results.append({
@@ -112,7 +112,7 @@ def main():
                 'n_pairs': len(filtered_valid),
                 'mae': filtered_mae,
                 'rmse': filtered_rmse,
-                'pearson_r': filtered_r
+                'mape': filtered_mape
             })
         
         # Genotype correlation buckets
@@ -128,7 +128,7 @@ def main():
                 'n_pairs': len(bucket_data),
                 'mae': metrics[0],
                 'rmse': metrics[1],
-                'pearson_r': metrics[2]
+                'mape': metrics[2]
             })
         
         # MAF buckets
@@ -144,7 +144,7 @@ def main():
                 'n_pairs': len(bucket_data),
                 'mae': metrics[0],
                 'rmse': metrics[1],
-                'pearson_r': metrics[2]
+                'mape': metrics[2]
             })
     
     # Clean up and save
