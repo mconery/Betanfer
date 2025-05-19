@@ -138,8 +138,8 @@ def main():
     args = parser.parse_args()
     
     #Create ouptut file names
-    variant_out_file = os.path.join(args.out_dir, args.out_prefix + '.txt')
-    loci_out_file = os.path.join(args.out_dir, args.out_prefix + '.bed')
+    variant_out_file = os.path.join(args.out_dir, args.out_prefix + '.variants.txt')
+    loci_out_file = os.path.join(args.out_dir, args.out_prefix + '.loci.bed')
     
     # Read BED regions if provided
     bed_regions = read_bed_regions(args.filter_file) if args.filter_file else None
