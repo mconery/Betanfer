@@ -81,11 +81,12 @@ def create_loci(variant_list, max_size):
         loci.append(current_locus)
     return loci
 
-def select_causal_variants(loci, num_loci, causal_per_locus=1, min_distance=1000000):
+def select_causal_variants(loci, num_loci, causal_per_locus=1, min_distance=1000000, padding=500000):
     """Select specified number of causal variants per locus."""
     random.shuffle(loci)
     selected = []
     selected_loci = []
+    bed_entries = []
     for locus in loci:
         if len(locus) < causal_per_locus:
             raise ValueError(f"ERROR: Locus has only {len(locus)} variants, can't select {causal_per_locus}")
@@ -98,6 +99,7 @@ def select_causal_variants(loci, num_loci, causal_per_locus=1, min_distance=1000
             continue #Skipping current locus because it's too close to previously selected locus
         else:
             selected_loci.append([locus_chr, locus_min, locus_max])
+            bed_entries.append({'chrom':locus_chr, 'start':max(locus_min - padding, 0), 'end':(locus_max + padding)})
         causals = random.sample(locus, causal_per_locus)
         for causal in causals:
             selected.append({
@@ -107,7 +109,7 @@ def select_causal_variants(loci, num_loci, causal_per_locus=1, min_distance=1000
                 'locus_size': locus[-1][1] - locus[0][1]
                 })
         if len(selected_loci) >= num_loci:
-            return selected
+            return selected, bed_entries
     raise ValueError("ERROR: Insufficient number of loci found")
 
 def main():
@@ -127,9 +129,17 @@ def main():
                         help='Number of variants to select per locus')
     parser.add_argument('--filter-file', 
                         help='BED file defining allowed genomic regions')
-    parser.add_argument('--output', required=True,
-                        help='Output file path')
+    parser.add_argument('--out_dir', required=True,
+                        help='Output directory path')
+    parser.add_argument('--out_prefix', required=True,
+                        help='Prefix for output files')
+    parser.add_argument('--padding', type=int, default=250000,
+                        help='Padding distance for locus boundaries (bp)')
     args = parser.parse_args()
+    
+    #Create ouptut file names
+    variant_out_file = os.path.join(args.out_dir, args.out_prefix + '.txt')
+    loci_out_file = os.path.join(args.out_dir, args.out_prefix + '.bed')
     
     # Read BED regions if provided
     bed_regions = read_bed_regions(args.filter_file) if args.filter_file else None
@@ -147,12 +157,17 @@ def main():
         raise ValueError(f"ERROR: Only {len(loci)} loci with {args.var_per_locus} available, requested {args.num_loci}")
     
     # Select causal variants
-    causal_vars = select_causal_variants(acceptable_loci, args.num_loci, args.var_per_locus, args.min_distance)
+    causal_vars, causal_loci = select_causal_variants(acceptable_loci, args.num_loci, args.var_per_locus, args.min_distance, args.padding)
     
-    # Write output
-    with open(args.output, 'w') as f:
+    # Write variant output
+    with open(variant_out_file, 'w') as f:
         for var in causal_vars:
             f.write(f"{var['variant_id']}\n")
+    
+    #Write locus output
+    with open(loci_out_file, 'w') as f:
+        for chrom, start, end in causal_loci:
+            f.write(f"{chrom}\t{start}\t{end}\n")
 
 if __name__ == "__main__":
     main()
