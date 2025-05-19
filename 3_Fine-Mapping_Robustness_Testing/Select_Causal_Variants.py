@@ -99,7 +99,7 @@ def select_causal_variants(loci, num_loci, causal_per_locus=1, min_distance=1000
             continue #Skipping current locus because it's too close to previously selected locus
         else:
             selected_loci.append([locus_chr, locus_min, locus_max])
-            bed_entries.append({'chrom':locus_chr, 'start':max(locus_min - padding, 0), 'end':(locus_max + padding)})
+            bed_entries.append([locus_chr, max(locus_min - padding, 0), (locus_max + padding)])
         causals = random.sample(locus, causal_per_locus)
         for causal in causals:
             selected.append({
