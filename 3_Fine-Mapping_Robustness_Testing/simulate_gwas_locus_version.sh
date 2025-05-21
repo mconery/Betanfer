@@ -2,13 +2,17 @@
 #SBATCH -A bif154
 #SBATCH -J runbiogwas 
 #SBATCH -o simulate_gwas_locus_version.log
-#SBATCH -N 400
+#SBATCH -N 2
 #SBATCH -p batch
 #SBATCH -t 1:00:00
 
 #Activate conda directory
 source ~/.bashrc
 conda activate biogwas
+
+#Check shell and conda environment 
+echo $SHELL
+which python
 
 ################################################################################################################
 ########################## Define directories and other key file/script locations ##############################
@@ -37,8 +41,6 @@ EUR_accept=$gwas_dir/EUR.grch37.acceptable_locus_ranges.bed #This file was made 
 num_loci=1000 #Number of loci to map
 max_size=500000 #Maximum distance between causal variants in a locus
 min_distance=1000000 #Minimum distance between causal variants falling into separate loci
-cores_per_node="$SLURM_CPUS_ON_NODE"
-num_nodes="$SLURM_NNODES"
 
 ################################################################################################################
 ############## Make plink files filtered to MAF > 0.01 and for a random sample of 400K individuals #############
