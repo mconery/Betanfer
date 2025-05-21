@@ -127,8 +127,13 @@ for pop in AFR EUR; do for num_var in {1..3}; do locus_file=$gwas_dir/$pop."$num
 	#Create locus-specific files
 	out_dir="$gwas_dir/$locus_prefix"
 	gencode_gtf=$gencode_chr_dir/"gencode_comprehensive_chr"$(echo $locus_prefix | grep -oP 'chr\K[0-9]+')".gtf"
+	gwas_file=$out_dir/$locus_prefix"_out_snps_sim_gwas.tsv"
 	
-	#Run the locus code
-	srun --exclusive -n1 --nodes=1 --ntasks-per-node=1 $gwas_locus_script $locus_prefix $raw_geno_dir $out_dir $image_dir $biogwas_script $dependency_file $gencode_gtf & 
+	#Run the locus code after checking whether output file exists
+	if [ ! -f "$gwas_file" ]; then
+		srun --exclusive -n1 --nodes=1 --ntasks-per-node=1 $gwas_locus_script $locus_prefix $raw_geno_dir $out_dir $image_dir $biogwas_script $dependency_file $gencode_gtf & 
+	else
+		echo "NOTE: Skipping already completed "$locus_prefix
+	fi
 done; wait; done; done
 
