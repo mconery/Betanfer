@@ -131,5 +131,5 @@ for pop in AFR EUR; do for num_var in {1..3}; do locus_file=$gwas_dir/$pop."$num
 	else
 		echo "NOTE: Skipping already completed "$locus_prefix
 	fi
-done; wait; done; done
+done; done; done
 wait
