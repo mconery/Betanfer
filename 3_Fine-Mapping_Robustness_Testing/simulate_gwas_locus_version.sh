@@ -3,7 +3,7 @@
 #SBATCH -J runbiogwas 
 #SBATCH -o simulate_gwas_locus_version.log
 #SBATCH -N 2
-#SBATCH -p batch
+#SBATCH -p debug
 #SBATCH -t 1:00:00
 
 #Activate conda directory
