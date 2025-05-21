@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -A bif154
 #SBATCH -J runbiogwas 
-#SBATCH -o prepare_gwas_locus_version.log
+#SBATCH -o simulate_gwas_locus_version.log
 #SBATCH -N 400
 #SBATCH -p batch
 #SBATCH -t 1:00:00
@@ -128,5 +128,5 @@ for pop in AFR EUR; do for num_var in {1..3}; do locus_file=$gwas_dir/$pop."$num
 	
 	#Run the locus code
 	srun --exclusive -n1 --nodes=1 --ntasks-per-node=1 $gwas_locus_script $locus_prefix $raw_geno_dir $out_dir $image_dir $biogwas_script $dependency_file $gencode_gtf & 
-done; done; done
-wait
+done; wait; done; done
+
