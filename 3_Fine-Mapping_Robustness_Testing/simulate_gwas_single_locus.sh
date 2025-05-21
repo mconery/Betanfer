@@ -18,7 +18,7 @@ source ~/.bashrc
 conda activate biogwas
 
 #Extract components of the file prefix needed for processing files
-if [[ $input =~ ^([^_]+)_([^_]+)_causal_per_locus_chr([^_]+)_([^_]+)_([^_]+)$ ]]; then
+if [[ $locus_prefix =~ ^([^_]+)_([^_]+)_causal_per_locus_chr([^_]+)_([^_]+)_([^_]+)$ ]]; then
     pop="${BASH_REMATCH[1]}"
     num_var="${BASH_REMATCH[2]}"
     chromosome="${BASH_REMATCH[3]}"
