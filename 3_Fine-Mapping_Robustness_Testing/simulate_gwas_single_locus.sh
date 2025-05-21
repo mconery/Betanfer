@@ -41,7 +41,7 @@ file_pattern=$locus_prefix
 geno_file=$file_prefix".genotypes.list"
 variant_file=$file_prefix".variants.txt"
 out_file_pattern=$locus_prefix"_out"
-gen_var=$(echo $num_var*0.0001 | bc)
+gen_var=$(echo $num_var*0.0005 | bc)
 mkdir -p $out_dir
 cd $out_dir
 python $biogwas_script -gv $gen_var --data_dir $out_dir --img_dir $image_dir -bfile --input_list $geno_file --anno_file $gencode_gtf --use_causal_snps --causal_snps $variant_file --skip_simulation -d $dependency_file --pattern $out_file_pattern
