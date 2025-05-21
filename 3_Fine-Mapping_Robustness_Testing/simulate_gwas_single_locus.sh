@@ -30,7 +30,7 @@ fi
 ####################################### Make Locus-Specific Plink Files ########################################
 ################################################################################################################
 plink2 --bfile $raw_geno_dir/$pop/$pop"_chr"$chromosome"_biogwas" --chr $chromosome --from-bp $start --to-bp $end --make-bed --out $out_dir/$locus_prefix
-echo $out_dir/$locus_prefix",chr"$chromosome > $out_dir/$locus_prefix.genotypes.list"
+echo $out_dir/$locus_prefix",chr"$chromosome > $out_dir/$locus_prefix.genotypes.list
 
 
 ################################################################################################################
