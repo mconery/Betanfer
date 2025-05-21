@@ -10,10 +10,6 @@
 source ~/.bashrc
 conda activate biogwas
 
-#Check shell and conda environment 
-echo $SHELL
-which python
-
 ################################################################################################################
 ########################## Define directories and other key file/script locations ##############################
 ################################################################################################################
@@ -136,4 +132,4 @@ for pop in AFR EUR; do for num_var in {1..3}; do locus_file=$gwas_dir/$pop."$num
 		echo "NOTE: Skipping already completed "$locus_prefix
 	fi
 done; wait; done; done
-
+wait
