@@ -2,9 +2,9 @@
 #SBATCH -A bif154
 #SBATCH -J runbiogwas 
 #SBATCH -o simulate_gwas_locus_version.log
-#SBATCH -N 400
-#SBATCH -p batch
-#SBATCH -t 1:00:00
+#SBATCH -N 2
+#SBATCH -p debug
+#SBATCH -t 20:00
 
 #Activate conda directory
 source ~/.bashrc
@@ -143,12 +143,14 @@ for pop in AFR EUR; do for num_var in {1..3}; do locus_file=$gwas_dir/$pop."$num
 	if [ ! -f "$gwas_file" ]; then
 		srun -n1 -N1 --ntasks-per-node=1 $gwas_locus_script $locus_prefix $raw_geno_dir $out_dir $image_dir $biogwas_script $dependency_file $gencode_gtf & 
 		i=$(( $i + 1 ))
+		echo "Check "$i
 	else
 		echo "NOTE: Skipping already completed "$locus_prefix
 	fi
 	
 	#Check the counter for the wait
 	if [ $i -ge $num_nodes ]; then
+		echo "Wait $i"
 		wait
 	fi
 done; done; done
