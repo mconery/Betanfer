@@ -4,7 +4,7 @@
 #SBATCH -o simulate_gwas_locus_version.log
 #SBATCH -N 2
 #SBATCH -q debug
-#SBATCH -t 30:00
+#SBATCH -t 20:00
 
 #Activate conda directory
 source ~/.bashrc
@@ -148,8 +148,9 @@ for pop in AFR EUR; do for num_var in {1..3}; do locus_file=$gwas_dir/$pop."$num
 	fi
 	
 	#Check the counter for the wait
-	if [ $(( i % $num_nodes )) == 0 ]; then
+	if [ i == $num_nodes ]; then
 		wait
+		i=0 #Reset counter
 	fi
 done; done; done
 wait
