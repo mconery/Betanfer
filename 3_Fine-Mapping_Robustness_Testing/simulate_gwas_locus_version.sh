@@ -127,31 +127,31 @@ num_nodes="$SLURM_NNODES"
 ############################ Make Locus-Specific Plink Files and Simulate the GWAS #############################
 ################################################################################################################
 #Loop over causal variant, populations, and then the loci
-i=1 #Set counter for wait command
-for pop in AFR EUR; do for num_var in {1..3}; do locus_file=$gwas_dir/$pop."$num_var"_causal_per_locus.loci.bed; cat $locus_file | while read line; do
-	
-	#Set locus file prefix
-	read -r -a array <<< "$line"
-	locus_prefix=$pop"_"$num_var"_causal_per_locus_chr"${array[0]}"_"${array[1]}"_"${array[2]}
-	
-	#Create locus-specific files
-	out_dir="$gwas_dir/$locus_prefix"
-	gencode_gtf=$gencode_chr_dir/"gencode_comprehensive_chr"$(echo $locus_prefix | grep -oP 'chr\K[0-9]+')".gtf"
-	gwas_file=$out_dir/$locus_prefix"_out_snps_sim_gwas.tsv"
-	
-	#Run the locus code after checking whether output file exists
-	if [ ! -f "$gwas_file" ]; then
-		srun -n1 -N1 --ntasks-per-node=1 $gwas_locus_script $locus_prefix $raw_geno_dir $out_dir $image_dir $biogwas_script $dependency_file $gencode_gtf & 
-		i=$(( $i + 1 ))
-		echo "Check "$i
-	else
-		echo "NOTE: Skipping already completed "$locus_prefix
-	fi
-	
-	#Check the counter for the wait
-	if [ $i -ge $num_nodes ]; then
-		echo "Wait $i"
-		wait
-	fi
-done; wait; done; done
+i=0 #Set counter for wait command
+for pop in AFR EUR; do for num_var in {1..3}; do 
+	locus_file=$gwas_dir/$pop."$num_var"_causal_per_locus.loci.bed
+	while read line; do
+		#Set locus file prefix
+		read -r -a array <<< "$line"
+		locus_prefix=$pop"_"$num_var"_causal_per_locus_chr"${array[0]}"_"${array[1]}"_"${array[2]}
+		#Create locus-specific files
+		out_dir="$gwas_dir/$locus_prefix"
+		gencode_gtf=$gencode_chr_dir/"gencode_comprehensive_chr"$(echo $locus_prefix | grep -oP 'chr\K[0-9]+')".gtf"
+		gwas_file=$out_dir/$locus_prefix"_out_snps_sim_gwas.tsv"
+		#Run the locus code after checking whether output file exists
+		if [ ! -f "$gwas_file" ]; then
+			srun -n1 -N1 --ntasks-per-node=1 $gwas_locus_script $locus_prefix $raw_geno_dir $out_dir $image_dir $biogwas_script $dependency_file $gencode_gtf & 
+			((i++))
+			echo "Check "$i
+		else
+			echo "NOTE: Skipping already completed "$locus_prefix
+		fi
+		#Check the counter for the wait
+		if [ $i -ge $num_nodes ]; then
+			echo "Wait $i"
+			wait
+			i=0 #Reset counter
+		fi
+	done < "$locus_file";
+done; done
 wait
