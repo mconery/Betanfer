@@ -2,7 +2,7 @@
 #SBATCH -A bif154
 #SBATCH -J runbiogwas 
 #SBATCH -o simulate_gwas_locus_version.log
-#SBATCH -N 10
+#SBATCH -N 400
 #SBATCH -p batch
 #SBATCH -t 1:00:00
 
@@ -102,10 +102,11 @@ num_nodes="$SLURM_NNODES"
 #	#Output the snps to the separated file
 #	out_file=$out_dir/$file_prefix.variants.txt
 #	srun -n1 -c1 -N 1 awk -v t=$top_line_num -v b=$bottom_line_num 'NR>=t && NR<b' $gwas_dir/$pop."$num_var"_causal_per_locus.variants.txt > $out_file &
-#	i=$(( $i + 1 ))
+#	((i++))
 #	#Check the counter for the wait
 #	if [ $i -ge $num_nodes ]; then
 #		wait
+#		i=0 #Reset counter
 #	fi
 #done; done; done
 #wait
