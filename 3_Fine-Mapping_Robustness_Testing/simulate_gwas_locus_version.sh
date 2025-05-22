@@ -115,7 +115,7 @@ num_nodes="$SLURM_NNODES"
 ##Loop over chromosomes and split file
 #i=0 #Set counter for wait command
 #for i in {1..22}; do
-#	srun -n1 -N1 -c1 awk -v chr="chr${i}" 'BEGIN{OFS="\t"} /^##/ {print} $1==chr {print}' $gencode_gtf > $gencode_chr_dir/gencode_comprehensive_chr${i}.gtf &
+#	srun -n1 -N1 -c1 --ntasks-per-node=1 awk -v chr="chr${i}" 'BEGIN{OFS="\t"} /^##/ {print} $1==chr {print}' $gencode_gtf > $gencode_chr_dir/gencode_comprehensive_chr${i}.gtf &
 #	#Check the counter for the wait
 #	if [ $i -ge $num_nodes ]; then
 #		wait
@@ -141,7 +141,7 @@ for pop in AFR EUR; do for num_var in {1..3}; do locus_file=$gwas_dir/$pop."$num
 	
 	#Run the locus code after checking whether output file exists
 	if [ ! -f "$gwas_file" ]; then
-		srun -n1 -N1 $gwas_locus_script $locus_prefix $raw_geno_dir $out_dir $image_dir $biogwas_script $dependency_file $gencode_gtf & 
+		srun -n1 -N1 --ntasks-per-node=1 $gwas_locus_script $locus_prefix $raw_geno_dir $out_dir $image_dir $biogwas_script $dependency_file $gencode_gtf & 
 		i=$(( $i + 1 ))
 	else
 		echo "NOTE: Skipping already completed "$locus_prefix
