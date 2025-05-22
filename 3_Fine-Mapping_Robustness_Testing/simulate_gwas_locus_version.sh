@@ -2,9 +2,9 @@
 #SBATCH -A bif154
 #SBATCH -J runbiogwas 
 #SBATCH -o simulate_gwas_locus_version.log
-#SBATCH -N 2
+#SBATCH -N 400
 #SBATCH -q debug
-#SBATCH -t 20:00
+#SBATCH -t 1:00:00
 
 #Activate conda directory
 source ~/.bashrc
