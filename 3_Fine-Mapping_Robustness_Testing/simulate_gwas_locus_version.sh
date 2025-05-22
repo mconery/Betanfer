@@ -4,7 +4,7 @@
 #SBATCH -o simulate_gwas_locus_version.log
 #SBATCH -N 2
 #SBATCH -q debug
-#SBATCH -t 1:00:00
+#SBATCH -t 30:00
 
 #Activate conda directory
 source ~/.bashrc
@@ -37,6 +37,9 @@ EUR_accept=$gwas_dir/EUR.grch37.acceptable_locus_ranges.bed #This file was made 
 num_loci=1000 #Number of loci to map
 max_size=500000 #Maximum distance between causal variants in a locus
 min_distance=1000000 #Minimum distance between causal variants falling into separate loci
+
+#Get number of nodes
+num_nodes="$SLURM_NNODES"
 
 ################################################################################################################
 ############## Make plink files filtered to MAF > 0.01 and for a random sample of 400K individuals #############
@@ -84,6 +87,7 @@ min_distance=1000000 #Minimum distance between causal variants falling into sepa
 ####################### Split the Causal Variants up into Separate Files for Each Locus ########################
 ################################################################################################################
 ##Loop over populations and # causal variants to split up the causal variants into separate files
+#i=0 #Set counter for wait command
 #for pop in AFR EUR; do for num_var in {1..3}; do 
 #	temp=$(wc -l $gwas_dir/$pop."$num_var"_causal_per_locus.loci.bed | cut -d " " -f 1); for ((i=1; i<=temp; i++)); do 
 #	#Create prefix for the locus
@@ -97,16 +101,25 @@ min_distance=1000000 #Minimum distance between causal variants falling into sepa
 #	mkdir -p $out_dir
 #	#Output the snps to the separated file
 #	out_file=$out_dir/$file_prefix.variants.txt
-#	srun -n1 -c1 -N 1 --exclusive awk -v t=$top_line_num -v b=$bottom_line_num 'NR>=t && NR<b' $gwas_dir/$pop."$num_var"_causal_per_locus.variants.txt > $out_file &
-#done; wait; done; done
-
+#	srun -n1 -c1 -N 1 awk -v t=$top_line_num -v b=$bottom_line_num 'NR>=t && NR<b' $gwas_dir/$pop."$num_var"_causal_per_locus.variants.txt > $out_file &
+#	#Check the counter for the wait
+#	if [ $(( i % $num_nodes )) == 0 ]; then
+#		wait
+#	fi
+#done; done; done
+#wait
 
 ################################################################################################################
 ###################################### Split up the GTF File by Chromsome ######################################
 ################################################################################################################
 ##Loop over chromosomes and split file
+#i=0 #Set counter for wait command
 #for i in {1..22}; do
-#	srun -n1 -N1 -c1 --exclusive --ntasks-per-node=1 awk -v chr="chr${i}" 'BEGIN{OFS="\t"} /^##/ {print} $1==chr {print}' $gencode_gtf > $gencode_chr_dir/gencode_comprehensive_chr${i}.gtf &
+#	srun -n1 -N1 -c1 --ntasks-per-node=1 awk -v chr="chr${i}" 'BEGIN{OFS="\t"} /^##/ {print} $1==chr {print}' $gencode_gtf > $gencode_chr_dir/gencode_comprehensive_chr${i}.gtf &
+#	#Check the counter for the wait
+#	if [ $(( i % $num_nodes )) == 0 ]; then
+#		wait
+#	fi
 #done
 #wait
 
@@ -114,6 +127,7 @@ min_distance=1000000 #Minimum distance between causal variants falling into sepa
 ############################ Make Locus-Specific Plink Files and Simulate the GWAS #############################
 ################################################################################################################
 #Loop over causal variant, populations, and then the loci
+i=0 #Set counter for wait command
 for pop in AFR EUR; do for num_var in {1..3}; do locus_file=$gwas_dir/$pop."$num_var"_causal_per_locus.loci.bed; cat $locus_file | while read line; do
 	
 	#Set locus file prefix
@@ -127,9 +141,15 @@ for pop in AFR EUR; do for num_var in {1..3}; do locus_file=$gwas_dir/$pop."$num
 	
 	#Run the locus code after checking whether output file exists
 	if [ ! -f "$gwas_file" ]; then
-		srun --exclusive -n1 --nodes=1 --ntasks-per-node=1 $gwas_locus_script $locus_prefix $raw_geno_dir $out_dir $image_dir $biogwas_script $dependency_file $gencode_gtf & 
+		srun -n1 --ntasks-per-node=1 $gwas_locus_script $locus_prefix $raw_geno_dir $out_dir $image_dir $biogwas_script $dependency_file $gencode_gtf & 
+		i=$(( $i + 1 ))
 	else
 		echo "NOTE: Skipping already completed "$locus_prefix
+	fi
+	
+	#Check the counter for the wait
+	if [ $(( i % $num_nodes )) == 0 ]; then
+		wait
 	fi
 done; done; done
 wait
