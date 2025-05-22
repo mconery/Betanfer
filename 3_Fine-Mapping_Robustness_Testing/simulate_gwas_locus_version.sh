@@ -103,7 +103,7 @@ num_nodes="$SLURM_NNODES"
 #	out_file=$out_dir/$file_prefix.variants.txt
 #	srun -n1 -c1 -N 1 awk -v t=$top_line_num -v b=$bottom_line_num 'NR>=t && NR<b' $gwas_dir/$pop."$num_var"_causal_per_locus.variants.txt > $out_file &
 #	#Check the counter for the wait
-#	if [ $i ge $num_nodes ]; then
+#	if [ $i -ge $num_nodes ]; then
 #		wait
 #	fi
 #done; done; done
@@ -117,7 +117,7 @@ num_nodes="$SLURM_NNODES"
 #for i in {1..22}; do
 #	srun -n1 -N1 -c1 awk -v chr="chr${i}" 'BEGIN{OFS="\t"} /^##/ {print} $1==chr {print}' $gencode_gtf > $gencode_chr_dir/gencode_comprehensive_chr${i}.gtf &
 #	#Check the counter for the wait
-#	if [ $i ge $num_nodes ]; then
+#	if [ $i -ge $num_nodes ]; then
 #		wait
 #	fi
 #done
@@ -148,7 +148,7 @@ for pop in AFR EUR; do for num_var in {1..3}; do locus_file=$gwas_dir/$pop."$num
 	fi
 	
 	#Check the counter for the wait
-	if [ $i ge $num_nodes ]; then
+	if [ $i -ge $num_nodes ]; then
 		wait
 	fi
 done; done; done
