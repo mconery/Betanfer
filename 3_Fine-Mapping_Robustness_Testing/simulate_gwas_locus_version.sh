@@ -2,9 +2,9 @@
 #SBATCH -A bif154
 #SBATCH -J runbiogwas 
 #SBATCH -o simulate_gwas_locus_version.log
-#SBATCH -N 2
-#SBATCH -q debug
-#SBATCH -t 20:00
+#SBATCH -N 10
+#SBATCH -p batch
+#SBATCH -t 1:00:00
 
 #Activate conda directory
 source ~/.bashrc
@@ -102,6 +102,7 @@ num_nodes="$SLURM_NNODES"
 #	#Output the snps to the separated file
 #	out_file=$out_dir/$file_prefix.variants.txt
 #	srun -n1 -c1 -N 1 awk -v t=$top_line_num -v b=$bottom_line_num 'NR>=t && NR<b' $gwas_dir/$pop."$num_var"_causal_per_locus.variants.txt > $out_file &
+#	i=$(( $i + 1 ))
 #	#Check the counter for the wait
 #	if [ $i -ge $num_nodes ]; then
 #		wait
@@ -113,7 +114,6 @@ num_nodes="$SLURM_NNODES"
 ###################################### Split up the GTF File by Chromsome ######################################
 ################################################################################################################
 ##Loop over chromosomes and split file
-#i=0 #Set counter for wait command
 #for i in {1..22}; do
 #	srun -n1 -N1 -c1 --ntasks-per-node=1 awk -v chr="chr${i}" 'BEGIN{OFS="\t"} /^##/ {print} $1==chr {print}' $gencode_gtf > $gencode_chr_dir/gencode_comprehensive_chr${i}.gtf &
 #	#Check the counter for the wait
@@ -153,5 +153,5 @@ for pop in AFR EUR; do for num_var in {1..3}; do locus_file=$gwas_dir/$pop."$num
 		echo "Wait $i"
 		wait
 	fi
-done; done; done
+done; wait; done; done
 wait
