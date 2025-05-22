@@ -127,7 +127,7 @@ num_nodes="$SLURM_NNODES"
 ############################ Make Locus-Specific Plink Files and Simulate the GWAS #############################
 ################################################################################################################
 #Loop over causal variant, populations, and then the loci
-i=0 #Set counter for wait command
+i=1 #Set counter for wait command
 for pop in AFR EUR; do for num_var in {1..3}; do locus_file=$gwas_dir/$pop."$num_var"_causal_per_locus.loci.bed; cat $locus_file | while read line; do
 	
 	#Set locus file prefix
