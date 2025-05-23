@@ -2,9 +2,9 @@
 #SBATCH -A bif154
 #SBATCH -J runbiogwas 
 #SBATCH -o simulate_gwas_locus_version.log
-#SBATCH -N 400
+#SBATCH -N 10
 #SBATCH -p batch
-#SBATCH -t 1:00:00
+#SBATCH -t 2:00:00
 
 #Activate conda directory
 source ~/.bashrc
@@ -153,6 +153,6 @@ for pop in AFR EUR; do for num_var in {1..3}; do
 			wait
 			i=0 #Reset counter
 		fi
-	done < "$locus_file";
+	done < "$locus_file"; wait
 done; done
 wait
