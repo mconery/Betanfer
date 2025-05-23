@@ -2,7 +2,7 @@
 #SBATCH -A bif154
 #SBATCH -J runbiogwas 
 #SBATCH -o simulate_gwas_locus_version.log
-#SBATCH -N 20
+#SBATCH -N 400
 #SBATCH -p batch
 #SBATCH -t 1:00:00
 
@@ -107,10 +107,10 @@ num_nodes="$SLURM_NNODES"
 ##Launch commands
 #echo "JOB SIZE: ${#cmds[@]}"
 #for (( i=0; i<${#cmds[@]}; i++ )); do
-#	if [ $i -ge $num_nodes ]; then 
+#	srun -n1 -c1 --job-name=$i ${cmds[$i]} &
+#	if [ $(($i % $num_nodes)) == 0 ]; then 
 #	    wait
 #        fi
-#	srun -n1 -c1 -N1 --job-name=$i ${cmds[$i]} &
 #done
 #wait
 
@@ -125,11 +125,11 @@ num_nodes="$SLURM_NNODES"
 #
 ##Launch commands
 #echo "JOB SIZE: ${#cmds[@]}"
-#for (( i=0; i<${#cmds[@]}; i++ )); do
-#	if [ $i -ge $num_nodes ]; then 
+#for (( i=1; i<=${#cmds[@]}; i++ )); do
+#	srun -n1 -N1 --ntasks-per-node=1 --job-name=$i ${cmds[$i]} &
+#	if [ $(($i % $num_nodes)) == 0 ]; then 
 #	    wait
 #        fi
-#	srun -n1 -N1 --ntasks-per-node=1 --job-name=$i ${cmds[$i]} &
 #done
 #wait
 
