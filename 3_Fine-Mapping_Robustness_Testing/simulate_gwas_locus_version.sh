@@ -138,6 +138,7 @@ num_nodes="$SLURM_NNODES"
 ################################################################################################################
 #Loop over causal variant, populations, and then the loci to collect all outstanding commands
 cmds=()
+i=0
 for pop in AFR EUR; do for num_var in {1..3}; do locus_file=$gwas_dir/$pop."$num_var"_causal_per_locus.loci.bed; while read line; do
 		#Set locus file prefix
 		read -r -a array <<< "$line"
@@ -148,7 +149,8 @@ for pop in AFR EUR; do for num_var in {1..3}; do locus_file=$gwas_dir/$pop."$num
 		gwas_file=$out_dir/$locus_prefix"_out_snps_sim_gwas.tsv"
 		#Add command for the locus after checking whether output file exists
 		if [ ! -f "$gwas_file" ]; then
-			cmds+=("$gwas_locus_script $locus_prefix $raw_geno_dir $out_dir $image_dir $biogwas_script $dependency_file $gencode_gtf") 
+			((i++))
+			cmds+=("$gwas_locus_script $locus_prefix $raw_geno_dir $out_dir $image_dir $biogwas_script $dependency_file $gencode_gtf $i") 
 		else
 			echo "NOTE: Skipping already completed "$locus_prefix
 		fi
@@ -158,7 +160,7 @@ done < "$locus_file"; done; done
 echo "JOB SIZE: ${#cmds[@]}"
 for (( i=1; i<=${#cmds[@]}; i++ )); do
 	srun -n1 -N1 --ntasks-per-node=1 --job-name=$i ${cmds[$i]} &
-	if [ $i -ge $num_nodes ]; then 
+	if [ $(($i % $num_nodes)) == 0 ]; then 
 	    wait
         fi
 done
