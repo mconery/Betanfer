@@ -156,10 +156,10 @@ done < "$locus_file"; done; done
 
 #Launch commands
 echo "JOB SIZE: ${#cmds[@]}"
-for (( i=0; i<${#cmds[@]}; i++ )); do
+for (( i=1; i<=${#cmds[@]}; i++ )); do
+	srun -n1 -N1 --ntasks-per-node=1 --job-name=$i ${cmds[$i]} &
 	if [ $i -ge $num_nodes ]; then 
 	    wait
         fi
-	srun -n1 -N1 --ntasks-per-node=1 --job-name=$i ${cmds[$i]} &
 done
 wait
