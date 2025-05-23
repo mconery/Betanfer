@@ -19,7 +19,7 @@ import pandas as pd
 def help(exit_num=1):
     print("""-----------------------------------------------------------------
     ARGUMENTS
-    -l => Input file of loci with header (chr, start, end, length) REQUIRED
+    -l => Input file of loci in .bed format REQUIRED
     -o => Output directory REQUIRED
     -p => Explicit path PLINK 2 file prefix (without .pgen/.pvar/.psam) REQUIRED
     -c => Command output file REQUIRED
@@ -90,14 +90,13 @@ def driver(locus_file, output_dir, output_prefix, command_file, plink_prefix):
     output_dir = output_dir.rstrip("/") + "/"
     
     #Read in the locus file
-    temp = pd.read_csv(locus_file, sep=",")
+    temp = pd.read_csv(locus_file, sep="\t")
     locus_raw = []  
     for _, row in temp.iterrows():
         locus_raw.append([
             row['CHR'],
             row['START'],
-            row['END'],
-            row['LENGTH']
+            row['END']
         ])
     
     #Create a list of all the matrix/map files in the output directory
