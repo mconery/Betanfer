@@ -11,6 +11,11 @@ module load flux
 source ~/.bashrc
 conda activate biogwas
 
+# Configure I/O
+lfs setstripe -c 32 -S 10M $PWD
+export FI_MR_CACHE_MONITOR=memhooks
+export FLUX_SHELL_RC_PATH=/dev/null
+
 ################################################################################################################
 ########################## Define directories and other key file/script locations ##############################
 ################################################################################################################
@@ -127,23 +132,41 @@ num_nodes="$SLURM_NNODES"
 ################################################################################################################
 ############################ Make Locus-Specific Plink Files and Simulate the GWAS #############################
 ################################################################################################################
-# Start Flux instance and export broker URL
-export FLUX_URI="local:///tmp/flux-${SLURM_JOB_ID}"
-srun --mpi=none --ntasks=$SLURM_NNODES flux start -o,-S,log-filename=out
+# Start Flux instance
+srun --mpi=none --ntasks=$SLURM_NNODES flux start -o,-S,log-filename=out --test-size=4
+until flux getattr local-uri; do sleep 1; done
+export FLUX_URI=$(flux getattr local-uri)
 
 #Loop over the locus simulations using the flux scheduler
-flux submit --nnodes=1 --cores=64 --gpus=0 --wrap="
-for pop in AFR EUR; do 
-  for num_var in {1..3}; do
-    locus_file=\"\$gwas_dir/\$pop.\"\$num_var\"_causal_per_locus.loci.bed\"
-    while read line; do
-      locus_prefix=\"\$pop_\"\$num_var\"_causal_per_locus_\$(echo \$line | tr ' ' '_')\"
-      out_dir="$gwas_dir/$locus_prefix"
-      gencode_gtf=$gencode_chr_dir/"gencode_comprehensive_chr"$(echo $locus_prefix | grep -oP 'chr\K[0-9]+')".gtf"
-      srun -n1 \$gwas_locus_script \$locus_prefix \$raw_geno_dir \$out_dir \$image_dir \$biogwas_script \$dependency_file \$gencode_gtf
-    done < \"\$locus_file\"
-  done
-done"
+for num_var in {1..3}; do
+  flux submit --nnodes=1 --cores=64 --gpus-per-task=0 --wrap="
+    source ~/.bashrc
+    conda activate biogwas
+    for pop in AFR EUR; do
+      locus_file=\"\$gwas_dir/\$pop.${num_var}_causal_per_locus.loci.bed\"
+      while read -r line; do
+        # Critical variable definitions preserved
+        locus_prefix=\"\${pop}_${num_var}_causal_per_locus_\$(echo \"\$line\" | tr ' ' '_')\"
+        out_dir=\"\$gwas_dir/\$locus_prefix\"
+        chr=\$(echo \"\$locus_prefix\" | sed 's/.*chr\([0-9]\+\).*/\1/')
+        gencode_gtf=\"\$gencode_chr_dir/gencode_comprehensive_chr\$chr.gtf\"
+        
+        # Create output directory
+        mkdir -p \"\$out_dir\"
+        
+        # Execute with proper quoting
+        srun -n1 \$gwas_locus_script \\
+          \"\$locus_prefix\" \\
+          \"\$raw_geno_dir\" \\
+          \"\$out_dir\" \\
+          \"\$image_dir\" \\
+          \"\$biogwas_script\" \\
+          \"\$dependency_file\" \\
+          \"\$gencode_gtf\"
+      done < <(sed 's/\t/ /g' \"\$locus_file\")
+    done"
+done
 
 # Wait for all jobs to complete
+flux jobs -a
 flux queue drain
