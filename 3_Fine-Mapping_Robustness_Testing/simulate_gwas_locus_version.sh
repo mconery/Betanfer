@@ -2,19 +2,13 @@
 #SBATCH -A bif154
 #SBATCH -J runbiogwas 
 #SBATCH -o simulate_gwas_locus_version.log
-#SBATCH -N 4
-#SBATCH -q debug
+#SBATCH -N 20
+#SBATCH -p batch
 #SBATCH -t 1:00:00
 
-#Activate conda directory and flux
-module load flux
+#Activate conda directory
 source ~/.bashrc
 conda activate biogwas
-
-# Configure I/O
-lfs setstripe -c 32 -S 10M $PWD
-export FI_MR_CACHE_MONITOR=memhooks
-export FLUX_SHELL_RC_PATH=/dev/null
 
 ################################################################################################################
 ########################## Define directories and other key file/script locations ##############################
@@ -93,7 +87,7 @@ num_nodes="$SLURM_NNODES"
 ####################### Split the Causal Variants up into Separate Files for Each Locus ########################
 ################################################################################################################
 ##Loop over populations and # causal variants to split up the causal variants into separate files
-#i=0 #Set counter for wait command
+#cmds=()
 #for pop in AFR EUR; do for num_var in {1..3}; do 
 #	temp=$(wc -l $gwas_dir/$pop."$num_var"_causal_per_locus.loci.bed | cut -d " " -f 1); for ((i=1; i<=temp; i++)); do 
 #	#Create prefix for the locus
@@ -107,66 +101,65 @@ num_nodes="$SLURM_NNODES"
 #	mkdir -p $out_dir
 #	#Output the snps to the separated file
 #	out_file=$out_dir/$file_prefix.variants.txt
-#	srun -n1 -c1 -N 1 awk -v t=$top_line_num -v b=$bottom_line_num 'NR>=t && NR<b' $gwas_dir/$pop."$num_var"_causal_per_locus.variants.txt > $out_file &
-#	((i++))
-#	#Check the counter for the wait
-#	if [ $i -ge $num_nodes ]; then
-#		wait
-#	fi
+#	cmds+=(awk -v t=$top_line_num -v b=$bottom_line_num 'NR>=t && NR<b' $gwas_dir/$pop."$num_var"_causal_per_locus.variants.txt > $out_file)
 #done; done; done
+#
+##Launch commands
+#echo "JOB SIZE: ${#cmds[@]}"
+#for (( i=0; i<${#cmds[@]}; i++ )); do
+#	if [ $i -ge $num_nodes ]; then 
+#	    wait
+#        fi
+#	srun -n1 -c1 -N1 --job-name=$i ${cmds[$i]} &
+#done
 #wait
 
 ################################################################################################################
 ###################################### Split up the GTF File by Chromsome ######################################
 ################################################################################################################
 ##Loop over chromosomes and split file
+#cmds=()
 #for i in {1..22}; do
-#	srun -n1 -N1 -c1 --ntasks-per-node=1 awk -v chr="chr${i}" 'BEGIN{OFS="\t"} /^##/ {print} $1==chr {print}' $gencode_gtf > $gencode_chr_dir/gencode_comprehensive_chr${i}.gtf &
-#	#Check the counter for the wait
-#	if [ $i -ge $num_nodes ]; then
-#		wait
-#	fi
+#	cmds+=(awk -v chr="chr${i}" 'BEGIN{OFS="\t"} /^##/ {print} $1==chr {print}' $gencode_gtf > $gencode_chr_dir/gencode_comprehensive_chr${i}.gtf)
+#done
+#
+##Launch commands
+#echo "JOB SIZE: ${#cmds[@]}"
+#for (( i=0; i<${#cmds[@]}; i++ )); do
+#	if [ $i -ge $num_nodes ]; then 
+#	    wait
+#        fi
+#	srun -n1 -N1 --ntasks-per-node=1 --job-name=$i ${cmds[$i]} &
 #done
 #wait
 
 ################################################################################################################
 ############################ Make Locus-Specific Plink Files and Simulate the GWAS #############################
 ################################################################################################################
-# Start Flux instance
-srun --mpi=none --ntasks=$SLURM_NNODES flux start -o,-S,log-filename=out --test-size=4
-until flux getattr local-uri; do sleep 1; done
-export FLUX_URI=$(flux getattr local-uri)
+#Loop over causal variant, populations, and then the loci to collect all outstanding commands
+cmds=()
+for pop in AFR EUR; do for num_var in {1..3}; do locus_file=$gwas_dir/$pop."$num_var"_causal_per_locus.loci.bed; while read line; do
+		#Set locus file prefix
+		read -r -a array <<< "$line"
+		locus_prefix=$pop"_"$num_var"_causal_per_locus_chr"${array[0]}"_"${array[1]}"_"${array[2]}
+		#Create locus-specific files
+		out_dir="$gwas_dir/$locus_prefix"
+		gencode_gtf=$gencode_chr_dir/"gencode_comprehensive_chr"$(echo $locus_prefix | grep -oP 'chr\K[0-9]+')".gtf"
+		gwas_file=$out_dir/$locus_prefix"_out_snps_sim_gwas.tsv"
+		#Add command for the locus after checking whether output file exists
+		if [ ! -f "$gwas_file" ]; then
+			cmds+=("$gwas_locus_script $locus_prefix $raw_geno_dir $out_dir $image_dir $biogwas_script $dependency_file $gencode_gtf") 
+		else
+			echo "NOTE: Skipping already completed "$locus_prefix
+		fi
+done < "$locus_file"; done; done
 
-#Loop over the locus simulations using the flux scheduler
-for num_var in {1..3}; do
-  flux submit --nnodes=1 --cores=64 --gpus-per-task=0 --wrap="
-    source ~/.bashrc
-    conda activate biogwas
-    for pop in AFR EUR; do
-      locus_file=\"\$gwas_dir/\$pop.${num_var}_causal_per_locus.loci.bed\"
-      while read -r line; do
-        # Critical variable definitions preserved
-        locus_prefix=\"\${pop}_${num_var}_causal_per_locus_\$(echo \"\$line\" | tr ' ' '_')\"
-        out_dir=\"\$gwas_dir/\$locus_prefix\"
-        chr=\$(echo \"\$locus_prefix\" | sed 's/.*chr\([0-9]\+\).*/\1/')
-        gencode_gtf=\"\$gencode_chr_dir/gencode_comprehensive_chr\$chr.gtf\"
-        
-        # Create output directory
-        mkdir -p \"\$out_dir\"
-        
-        # Execute with proper quoting
-        srun -n1 \$gwas_locus_script \\
-          \"\$locus_prefix\" \\
-          \"\$raw_geno_dir\" \\
-          \"\$out_dir\" \\
-          \"\$image_dir\" \\
-          \"\$biogwas_script\" \\
-          \"\$dependency_file\" \\
-          \"\$gencode_gtf\"
-      done < <(sed 's/\t/ /g' \"\$locus_file\")
-    done"
+#Launch commands
+echo "JOB SIZE: ${#cmds[@]}"
+for (( i=0; i<${#cmds[@]}; i++ )); do
+	if [ $i -ge $num_nodes ]; then 
+	    wait
+        fi
+	srun -n1 -N1 --ntasks-per-node=1 --job-name=$i ${cmds[$i]} &
 done
-
-# Wait for all jobs to complete
-flux jobs -a
-flux queue drain
+wait
