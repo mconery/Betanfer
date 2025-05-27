@@ -44,94 +44,96 @@ num_nodes="$SLURM_NNODES"
 ################################################################################################################
 ############## Make plink files filtered to MAF > 0.01 and for a random sample of 400K individuals #############
 ################################################################################################################
-##Create random samples of individuals
-#cut -f 1-2 $AFR_geno_dir/chr1.plink.tag.fam | sort -R | head -n 400000 > $AFR_geno_dir/AFR.400K_random_sample.tsv
-#cut -f 1-2 $EUR_geno_dir/chr1.plink.tag.fam | sort -R | head -n 400000 > $EUR_geno_dir/EUR.400K_random_sample.tsv
-##Filter for maf and random sample
-#for i in {1..22}; do
-#	plink2 --bfile $AFR_geno_dir/chr"$i".plink.tag --keep $AFR_geno_dir/AFR.400K_random_sample.tsv --maf 0.01 --set-all-var-ids "@:#:\$r:\$a" --make-bed --out $AFR_geno_dir/AFR.400K_random_sample.chr"$i".plink.tag.maf 
-#	plink2 --bfile $EUR_geno_dir/chr"$i".plink.tag --keep $EUR_geno_dir/EUR.400K_random_sample.tsv --maf 0.01 --set-all-var-ids "@:#:\$r:\$a" --make-bed --out $EUR_geno_dir/EUR.400K_random_sample.chr"$i".plink.tag.maf 
-#done
-##Create links for the files because they can't have periods in them
-#for i in {1..22}; do for suffix in bed bim fam; do ln $AFR_geno_dir/AFR.400K_random_sample.chr$i.plink.tag.maf.$suffix $AFR_geno_dir/AFR_chr"$i"_biogwas.$suffix; ln $EUR_geno_dir/EUR.400K_random_sample.chr$i.plink.tag.maf.$suffix $EUR_geno_dir/EUR_chr"$i"_biogwas.$suffix; done; done
+#Create random samples of individuals
+cut -f 1-2 $AFR_geno_dir/chr1.plink.tag.fam | sort -R | head -n 400000 > $AFR_geno_dir/AFR.400K_random_sample.tsv
+cut -f 1-2 $EUR_geno_dir/chr1.plink.tag.fam | sort -R | head -n 400000 > $EUR_geno_dir/EUR.400K_random_sample.tsv
+#Filter for maf and random sample
+for i in {1..22}; do
+	plink2 --bfile $AFR_geno_dir/chr"$i".plink.tag --keep $AFR_geno_dir/AFR.400K_random_sample.tsv --maf 0.01 --set-all-var-ids "@:#:\$r:\$a" --make-bed --out $AFR_geno_dir/AFR.400K_random_sample.chr"$i".plink.tag.maf 
+	plink2 --bfile $EUR_geno_dir/chr"$i".plink.tag --keep $EUR_geno_dir/EUR.400K_random_sample.tsv --maf 0.01 --set-all-var-ids "@:#:\$r:\$a" --make-bed --out $EUR_geno_dir/EUR.400K_random_sample.chr"$i".plink.tag.maf 
+done
+#Create links for the files because they can't have periods in them
+for i in {1..22}; do for suffix in bed bim fam; do ln $AFR_geno_dir/AFR.400K_random_sample.chr$i.plink.tag.maf.$suffix $AFR_geno_dir/AFR_chr"$i"_biogwas.$suffix; ln $EUR_geno_dir/EUR.400K_random_sample.chr$i.plink.tag.maf.$suffix EUR_geno_dir/EUR_chr"$i"_biogwas.$suffix; done; done
 
 
 ################################################################################################################
 ############ Prune Variants by LD to Create Variants in Approximate LD and Restrict to MAF > 0.05 ##############
 ################################################################################################################
-##Prune the variants
-#for i in {1..22}; do 
-#	plink2 --bfile $AFR_geno_dir/AFR.400K_random_sample.chr"$i".plink.tag.maf --maf 0.05 --indep-pairwise 1000 5 0.01 --out $AFR_geno_dir/AFR.400K_random_sample.chr"$i".maf_0.05.1000_step_5.r2_lt_0.01
-#	plink2 --bfile $EUR_geno_dir/EUR.400K_random_sample.chr"$i".plink.tag.maf --maf 0.05 --indep-pairwise 1000 5 0.01 --out $EUR_geno_dir/EUR.400K_random_sample.chr"$i".maf_0.05.1000_step_5.r2_lt_0.01
-#done
-##Combine lists of pruned variants into one file
-#cat $AFR_geno_dir/AFR.400K_random_sample.chr*.maf_0.05.1000_step_5.r2_lt_0.01.prune.in > $AFR_geno_dir/AFR.400K_random_sample.maf_0.05.1000_step_5.r2_lt_0.01.prune.in
-#cat $EUR_geno_dir/EUR.400K_random_sample.chr*.maf_0.05.1000_step_5.r2_lt_0.01.prune.in > $EUR_geno_dir/EUR.400K_random_sample.maf_0.05.1000_step_5.r2_lt_0.01.prune.in
+#Prune the variants
+for i in {1..22}; do 
+	plink2 --bfile $AFR_geno_dir/AFR.400K_random_sample.chr"$i".plink.tag.maf --maf 0.05 --indep-pairwise 1000 5 0.01 --out $AFR_geno_dir/AFR.400K_random_sample.chr"$i".maf_0.05.1000_step_5.r2_lt_0.01
+	plink2 --bfile $EUR_geno_dir/EUR.400K_random_sample.chr"$i".plink.tag.maf --maf 0.05 --indep-pairwise 1000 5 0.01 --out $EUR_geno_dir/EUR.400K_random_sample.chr"$i".maf_0.05.1000_step_5.r2_lt_0.01
+done
+#Combine lists of pruned variants into one file
+cat $AFR_geno_dir/AFR.400K_random_sample.chr*.maf_0.05.1000_step_5.r2_lt_0.01.prune.in > $AFR_geno_dir/AFR.400K_random_sample.maf_0.05.1000_step_5.r2_lt_0.01.prune.in
+cat $EUR_geno_dir/EUR.400K_random_sample.chr*.maf_0.05.1000_step_5.r2_lt_0.01.prune.in > $EUR_geno_dir/EUR.400K_random_sample.maf_0.05.1000_step_5.r2_lt_0.01.prune.in
 
 
 ################################################################################################################
 ################################ Define Causal Variants for Simulated Traits ###################################
 ################################################################################################################
-##Set input file paths for step
-#AFR_prune_in=$AFR_geno_dir/AFR.400K_random_sample.maf_0.05.1000_step_5.r2_lt_0.01.prune.in
-#EUR_prune_in=$EUR_geno_dir/EUR.400K_random_sample.maf_0.05.1000_step_5.r2_lt_0.01.prune.in
-##Loop over the number of causal variants per loci and select loci
-#for i in 1 2 3; do
-#	AFR_out=$gwas_dir/AFR."$i"_causal_per_locus.variants.txt
-#	EUR_out=$gwas_dir/EUR."$i"_causal_per_locus.variants.txt
-#	python $causal_script --prune-in $AFR_prune_in --filter-file $AFR_accept --num-loci $num_loci --max-size $max_size --min_distance $min_distance --var_per_locus $i --output $AFR_out
-#	python $causal_script --prune-in $EUR_prune_in --filter-file $EUR_accept --num-loci $num_loci --max-size $max_size --min_distance $min_distance --var_per_locus $i --output $EUR_out
-#done
+#Set input file paths for step
+AFR_prune_in=$AFR_geno_dir/AFR.400K_random_sample.maf_0.05.1000_step_5.r2_lt_0.01.prune.in
+EUR_prune_in=$EUR_geno_dir/EUR.400K_random_sample.maf_0.05.1000_step_5.r2_lt_0.01.prune.in
+#Loop over the number of causal variants per loci and select loci
+for i in 1 2 3; do
+	AFR_out=$gwas_dir/AFR."$i"_causal_per_locus.variants.txt
+	EUR_out=$gwas_dir/EUR."$i"_causal_per_locus.variants.txt
+	python $causal_script --prune-in $AFR_prune_in --filter-file $AFR_accept --num-loci $num_loci --max-size $max_size --min_distance $min_distance --var_per_locus $i --output $AFR_out
+	python $causal_script --prune-in $EUR_prune_in --filter-file $EUR_accept --num-loci $num_loci --max-size $max_size --min_distance $min_distance --var_per_locus $i --output $EUR_out
+done
 
 ################################################################################################################
 ####################### Split the Causal Variants up into Separate Files for Each Locus ########################
 ################################################################################################################
-##Loop over populations and # causal variants to split up the causal variants into separate files
-#cmds=()
-#for pop in AFR EUR; do for num_var in {1..3}; do 
-#	temp=$(wc -l $gwas_dir/$pop."$num_var"_causal_per_locus.loci.bed | cut -d " " -f 1); for ((i=1; i<=temp; i++)); do 
-#	#Create prefix for the locus
-#	read -r -a array <<< "$(awk -v a=$i 'NR==a' $gwas_dir/$pop."$num_var"_causal_per_locus.loci.bed)"
-#	file_prefix=$pop"_"$num_var"_causal_per_locus_chr"${array[0]}"_"${array[1]}"_"${array[2]}
-#	#Get row numbers to use for pulling the locus's causal variantss
-#	top_line_num=$(( ($i - 1) * $num_var + 1 ))
-#	bottom_line_num=$(( ($i - 1) * $num_var + 1 + num_var ))
-#	#Make the output directory for the mapping results
-#	out_dir=$gwas_dir/$file_prefix
-#	mkdir -p $out_dir
-#	#Output the snps to the separated file
-#	out_file=$out_dir/$file_prefix.variants.txt
-#	cmds+=(awk -v t=$top_line_num -v b=$bottom_line_num 'NR>=t && NR<b' $gwas_dir/$pop."$num_var"_causal_per_locus.variants.txt > $out_file)
-#done; done; done
-#
-##Launch commands
-#echo "JOB SIZE: ${#cmds[@]}"
-#for (( i=0; i<${#cmds[@]}; i++ )); do
-#	srun -n1 -c1 --job-name=$i ${cmds[$i]} &
-#	if [ $(($i % $num_nodes)) == 0 ]; then 
-#	    wait
-#        fi
-#done
-#wait
+#Loop over populations and # causal variants to split up the causal variants into separate files
+cmds=()
+for pop in AFR EUR; do for num_var in {1..3}; do 
+	temp=$(wc -l $gwas_dir/$pop."$num_var"_causal_per_locus.loci.bed | cut -d " " -f 1); for ((i=1; i<=temp; i++)); do 
+	#Create prefix for the locus
+	read -r -a array <<< "$(awk -v a=$i 'NR==a' $gwas_dir/$pop."$num_var"_causal_per_locus.loci.bed)"
+	file_prefix=$pop"_"$num_var"_causal_per_locus_chr"${array[0]}"_"${array[1]}"_"${array[2]}
+	#Get row numbers to use for pulling the locus's causal variantss
+	top_line_num=$(( ($i - 1) * $num_var + 1 ))
+	bottom_line_num=$(( ($i - 1) * $num_var + 1 + num_var ))
+	#Make the output directory for the mapping results
+	out_dir=$gwas_dir/$file_prefix
+	mkdir -p $out_dir
+	#Output the snps to the separated file
+	out_file=$out_dir/$file_prefix.variants.txt
+	cmds+=(awk -v t=$top_line_num -v b=$bottom_line_num 'NR>=t && NR<b' $gwas_dir/$pop."$num_var"_causal_per_locus.variants.txt > $out_file)
+done; done; done
+
+#Launch commands
+job_size=${#cmds[@]}
+echo "JOB SIZE: $job_size"
+for (( i=0; i<${#cmds[@]}; i++ )); do
+	srun -n1 -c1 --job-name=$i ${cmds[$i]} &
+	if [ $(($i % $num_nodes)) == 0 ] || [ $i == $job_size ]; then 
+	    wait
+        fi
+done
+wait
 
 ################################################################################################################
 ###################################### Split up the GTF File by Chromsome ######################################
 ################################################################################################################
-##Loop over chromosomes and split file
-#cmds=()
-#for i in {1..22}; do
-#	cmds+=(awk -v chr="chr${i}" 'BEGIN{OFS="\t"} /^##/ {print} $1==chr {print}' $gencode_gtf > $gencode_chr_dir/gencode_comprehensive_chr${i}.gtf)
-#done
-#
-##Launch commands
-#echo "JOB SIZE: ${#cmds[@]}"
-#for (( i=1; i<=${#cmds[@]}; i++ )); do
-#	srun -n1 -N1 --ntasks-per-node=1 --job-name=$i ${cmds[$i]} &
-#	if [ $(($i % $num_nodes)) == 0 ]; then 
-#	    wait
-#        fi
-#done
-#wait
+#Loop over chromosomes and split file
+cmds=()
+for i in {1..22}; do
+	cmds+=(awk -v chr="chr${i}" 'BEGIN{OFS="\t"} /^##/ {print} $1==chr {print}' $gencode_gtf > $gencode_chr_dir/gencode_comprehensive_chr${i}.gtf)
+done
+
+#Launch commands
+job_size=${#cmds[@]}
+echo "JOB SIZE: $job_size"
+for (( i=1; i<=${#cmds[@]}; i++ )); do
+	srun -n1 -N1 --ntasks-per-node=1 --job-name=$i ${cmds[$i]} &
+	if [ $(($i % $num_nodes)) == 0 ] || [ $i == $job_size ]; then 
+	    wait
+        fi
+done
+wait
 
 ################################################################################################################
 ############################ Make Locus-Specific Plink Files and Simulate the GWAS #############################
@@ -157,10 +159,11 @@ for pop in AFR EUR; do for num_var in {1..3}; do locus_file=$gwas_dir/$pop."$num
 done < "$locus_file"; done; done
 
 #Launch commands
-echo "JOB SIZE: ${#cmds[@]}"
+job_size=${#cmds[@]}
+echo "JOB SIZE: $job_size"
 for (( i=1; i<=${#cmds[@]}; i++ )); do
 	srun -n1 -N1 --ntasks-per-node=1 --job-name=$i ${cmds[$i]} &
-	if [ $(($i % $num_nodes)) == 0 ]; then 
+	if [ $(($i % $num_nodes)) == 0 ] || [ $i == $job_size ]; then 
 	    wait
         fi
 done
