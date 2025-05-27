@@ -10,6 +10,7 @@ both the number of traits simulated and the underlying genotype correlations
 
 import argparse
 import os
+import sys
 import numpy as np
 import pandas as pd
 
@@ -30,7 +31,7 @@ def find_bucket(corr, buckets):
     for i, (low, high) in enumerate(buckets):
         if low <= abs(corr) < high or (high == 1.0 and abs(corr) <= high):
             return i
-    raise ValueError(f"Correlation value {corr} not in any bucket")
+    raise ValueError(f"ERROR: Correlation value {corr} not in any bucket")
 
 def add_noise_to_matrix(matrix, stddevs, buckets):
     n = matrix.shape[0]
@@ -51,13 +52,18 @@ def main():
     args = parse_args()
     np.random.seed(args.seed)  # Seed set here after parsing arguments
     os.makedirs(args.outdir, exist_ok=True)
-
+    
+    #Check input files exist
+    if not os.path.exists(args.stddev_file) or not os.path.exists(args.matrix):
+        print("ERROR: Missing either matrix file or standard deviation file.")
+        sys.exit(1)
+        
     stddev_df = load_stddev_table(args.stddev_file)
     trait_levels = sorted(stddev_df['n_traits'].unique())
     bucket_ranges = stddev_df[stddev_df['n_traits'] == trait_levels[0]]['bucket_tuple'].tolist()
 
     matrix = np.loadtxt(args.matrix)
-    assert matrix.shape[0] == matrix.shape[1], "Matrix must be square"
+    assert matrix.shape[0] == matrix.shape[1], "ERROR: Matrix must be square"
 
     for n_traits in trait_levels:
         subset = stddev_df[stddev_df['n_traits'] == n_traits]
