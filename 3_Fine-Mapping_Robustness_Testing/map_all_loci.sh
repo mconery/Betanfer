@@ -29,7 +29,7 @@ num_nodes="$SLURM_NNODES"
 ################################################################################################################
 ############################################ Make Z-Files for All Loci #########################################
 ################################################################################################################
-#Change directory into ld matrices
+#Change directory intooutput directory
 cd $out_dir
 
 #Loop over the directories and make the z-score file commands
@@ -64,7 +64,7 @@ wait
 cmds=()
 shopt -s nullglob
 while read directory; do
-	gwas_file=$gwas_dir/$directory/$directory"_out_snps_sim_gwas.tsv"
+	z_file=$gwas_dir/$directory/$directory".z-scores.tsv"
 	ld_files=($ld_dir/$directory.*unphased.vcor1)
 	for ld_file in ${ld_files[@]}; do 
 		temp=$(basename $ld_file)
