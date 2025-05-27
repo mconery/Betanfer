@@ -108,8 +108,9 @@ done; done; done
 job_size=${#cmds[@]}
 echo "JOB SIZE: $job_size"
 for (( i=0; i<${#cmds[@]}; i++ )); do
-	srun -n1 -c1 --job-name=$i ${cmds[$i]} &
-	if [ $(($i % $num_nodes)) == 0 ] || [ $i == $job_size ]; then 
+	j=$(( $i + 1 ))
+	srun -n1 -c1 --job-name=$j ${cmds[$i]} &
+	if [ $(($j % $num_nodes)) == 0 ] || [ $j == $job_size ]; then 
 	    wait
         fi
 done
@@ -127,9 +128,10 @@ done
 #Launch commands
 job_size=${#cmds[@]}
 echo "JOB SIZE: $job_size"
-for (( i=1; i<=${#cmds[@]}; i++ )); do
-	srun -n1 -N1 --ntasks-per-node=1 --job-name=$i ${cmds[$i]} &
-	if [ $(($i % $num_nodes)) == 0 ] || [ $i == $job_size ]; then 
+for (( i=0; i<${#cmds[@]}; i++ )); do
+	j=$(( $i + 1 ))
+	srun -n1 -N1 --ntasks-per-node=1 --job-name=$j ${cmds[$i]} &
+	if [ $(($j % $num_nodes)) == 0 ] || [ $j == $job_size ]; then 
 	    wait
         fi
 done
@@ -161,9 +163,10 @@ done < "$locus_file"; done; done
 #Launch commands
 job_size=${#cmds[@]}
 echo "JOB SIZE: $job_size"
-for (( i=1; i<=${#cmds[@]}; i++ )); do
-	srun -n1 -N1 --ntasks-per-node=1 --job-name=$i ${cmds[$i]} &
-	if [ $(($i % $num_nodes)) == 0 ] || [ $i == $job_size ]; then 
+for (( i=0; i<${#cmds[@]}; i++ )); do
+	j=$(( $i + 1 ))
+	srun -n1 -N1 --ntasks-per-node=1 --job-name=$j ${cmds[$i]} &
+	if [ $(($j % $num_nodes)) == 0 ] || [ $j == $job_size ]; then 
 	    wait
         fi
 done
