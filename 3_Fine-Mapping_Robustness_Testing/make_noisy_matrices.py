@@ -72,7 +72,9 @@ def main():
             outname = base + insert
         outpath = os.path.join(args.outdir, outname)
 
-        np.savetxt(outpath, noisy_matrix, fmt="%.6f")
+        np.savetxt(outpath, noisy_matrix, fmt="%.6f", delimiter='\t')
+        print(f"NOTE: Wrote {n_traits}-trait file for {base}")
+    print(f"SUCCESS: wrote all files for {base}")
 
 if __name__ == "__main__":
     main()
