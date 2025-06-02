@@ -68,8 +68,8 @@ while read directory; do
 	ld_files=($ld_dir/$directory.*unphased.vcor1)
 	for ld_file in ${ld_files[@]}; do 
 		temp=$(basename $ld_file)
-		out_file=$out_dir/${temp%.unphased.vcor1}.rsparsepro.txt
-		if [ ! -f $out_file ]; then
+		out_file=$out_dir/${temp%.unphased.vcor1}
+		if [ ! -f $out_file.rsparsepro.txt ]; then
 			cmds+=("python $rsparsepro_script --z $z_file --ld $ld_file --save $out_file")
 		fi
 	done
