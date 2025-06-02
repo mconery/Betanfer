@@ -127,7 +127,7 @@ def extract_ld_mismatch_degree(file_path, locus_name):
     remaining = filename.replace(f"{locus_name}.", "").replace("rsparsepro.txt", "")
     
     # If nothing remains, it's the unmodified LD case
-    if remaining == locus_name:
+    if remaining == "":
         return "unmodified"
     else:
         return remaining
