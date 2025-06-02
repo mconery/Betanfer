@@ -124,7 +124,7 @@ def extract_ld_mismatch_degree(file_path, locus_name):
     filename = Path(file_path).name
     
     # Remove locus name and .rsparsepro.txt extension
-    remaining = filename.replace(f"{locus_name}.", "").replace("rsparsepro.txt", "")
+    remaining = filename.replace(f"{locus_name}.", "").replace("rsparsepro.txt", "").replace(".","")
     
     # If nothing remains, it's the unmodified LD case
     if remaining == "":
