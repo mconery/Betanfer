@@ -99,5 +99,5 @@ for (set in names(fitted_rss1$sets$cs)){
 out_data <- cbind.data.frame(out_data, cs=cred_sets)
 
 #Save output dataframe
-write.csv(out_data, file = out_file, col.names = TRUE, row.names = FALSE, quote = FALSE)
+write.csv(out_data, file = out_file, col.names = TRUE, row.names = FALSE, quote = FALSE, sep="\t")
 
