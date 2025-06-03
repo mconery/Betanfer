@@ -12,6 +12,7 @@ library(ggplot2)
 library(dplyr)
 library(stringr)
 library(ggnewscale)
+library(readr)
 
 #Set results file
 results_file="C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/RSparsePro_Robustness_Testing/combined_results.tsv"
@@ -140,7 +141,7 @@ create_power_coverage_plot <- function(data, point_size = 3, add_smooth = FALSE)
 ```{r}
 create_power_coverage_plot(input_df)
 ```
-# 4) Create Credible Set Size Plotting Function ====
+# 4) Create Number of Credible Sets Plotting Function ====
 ```{r}
 create_faceted_barplot <- function(data, bar_width = 0.8) {
   # Load required packages
@@ -205,7 +206,75 @@ create_faceted_barplot <- function(data, bar_width = 0.8) {
 }
 
 ```
-# 5) Call Credible Set Size Plotting Function ====
+# 5) Call Number of Credible Sets Plotting Function ====
 ```{r}
 create_faceted_barplot(input_df)
+```
+# 6) Create Credible Set Size Plotting Function ====
+```{r}
+create_faceted_size_barplot <- function(data, bar_width = 0.8) {
+  # Load required packages
+  if (!require(dplyr, quietly = TRUE)) stop("Package 'dplyr' is required")
+  if (!require(ggplot2, quietly = TRUE)) stop("Package 'ggplot2' is required")
+  if (!require(ggh4x, quietly = TRUE)) stop("Package 'ggh4x' is required")
+  
+  # Validate input data
+  required_cols <- c("population", "num_causal_variants", 
+                     "ld_mismatch_degree", "num_credible_sets", "credible_set_sizes")
+  missing_cols <- setdiff(required_cols, names(data))
+  if (length(missing_cols) > 0) {
+    stop(paste("Missing required columns:", paste(missing_cols, collapse = ", ")))
+  }
+  
+  # Process data
+  processed_data <- data %>%
+    mutate(
+      ld_mismatch_degree = factor(
+        ld_mismatch_degree,
+        levels = c("50_traits", "100_traits", "200_traits", "300_traits",
+                   "400_traits", "500_traits", "1000_traits", "unmodified"),
+        labels = c("50", "100", "200", "300", "400", "500", "1000", "∞")
+      ),
+      population = factor(population, levels = c("EUR", "AFR")),
+      num_causal_variants = factor(num_causal_variants)
+    ) %>%
+    group_by(population, num_causal_variants, ld_mismatch_degree) %>%
+    summarise(
+      mean_credible_sets = mean(as.numeric(unlist(str_split(credible_set_sizes,","))), na.rm = TRUE),
+      se_credible_sets = sd(as.numeric(unlist(str_split(credible_set_sizes,","))), na.rm = TRUE) / sqrt(n()),
+      .groups = 'drop'
+    )
+  
+  # Create base plot
+  p <- ggplot(processed_data, 
+              aes(x = ld_mismatch_degree, y = mean_credible_sets, fill = population)) +
+    geom_bar(stat = "identity", position = position_dodge(width = bar_width), 
+             color = "black", width = bar_width) +
+    geom_errorbar(aes(ymin = mean_credible_sets - se_credible_sets,
+                      ymax = mean_credible_sets + se_credible_sets),
+                  position = position_dodge(width = bar_width), 
+                  width = 0.2, color = "black") +
+    facet_grid(population ~ num_causal_variants, scales = "free_y") +
+    scale_fill_manual(values = c("EUR" = "#08306B", "AFR" = "#67000D")) +
+    labs(
+      x = "LD Mismatch Degree (Number of Traits)",
+      y = "Average Credible Set Size",
+      title = "Number of Causal Variants",
+      fill = "Population"
+    ) +
+    theme_minimal() +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      strip.background = element_rect(fill = "grey90"),
+      panel.spacing = unit(1.5, "lines"),
+      plot.title = element_text(hjust = 0.5),
+      legend.position = "none"
+    )
+  return(p)
+}
+
+```
+# 5) Call Credible Set Size Plotting Function ====
+```{r}
+create_faceted_size_barplot(input_df)
 ```
