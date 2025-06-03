@@ -54,14 +54,6 @@ if (length(args) == 6) {
   quit(save="no");
 }
 
-#Test file locations
-summary_stats_file <- "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/rsparsepro_robustness_testing/simulated_gwas/EUR_3_causal_per_locus_chr9_9801451_10731639/EUR_3_causal_per_locus_chr9_9801451_10731639_out_snps_sim_gwas.tsv"
-pheno_file <- "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/rsparsepro_robustness_testing/simulated_gwas/EUR_3_causal_per_locus_chr9_9801451_10731639/EUR_3_causal_per_locus_chr9_9801451_10731639_out_snps_sim_phenos.tsv"
-ld_file <- "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/rsparsepro_robustness_testing/ld_matrices/EUR_3_causal_per_locus_chr9_9801451_10731639.unphased.vcor1"
-out_file <- "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/rsparsepro_robustness_testing/finemapped_results/EUR_3_causal_per_locus_chr9_9801451_10731639.susie.txt"
-in_sample_flag <- TRUE
-random_seed <- 5
-
 # 2) Prep for executing SuSiE ====
 
 #Check output location
