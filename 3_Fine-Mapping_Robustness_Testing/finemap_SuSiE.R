@@ -89,7 +89,7 @@ check <- function(expression){
                     error = function(e){
                       message(paste0("ERROR: ", str_replace(basename(summary_stats_file), pattern = "_out_snps_sim_gwas.tsv", replacement = ""), " has failed prior estimation."))
                       #Write a partially empty output file and quit
-                      out_data <- cbind.data.frame(RSID=summary_stats_raw$rsid, Z=bhat/shat, PIP=fitted_rss1$pip, converged=rep(NA, nrow(summary_stats_raw)))
+                      out_data <- cbind.data.frame(RSID=summary_stats_raw$rsid, Z=bhat/shat, PIP=rep(NA, nrow(summary_stats_raw)), converged=rep(NA, nrow(summary_stats_raw)))
                       out_data <- cbind.data.frame(out_data, cs=rep(0, nrow(out_data)))
                       write.table(out_data, file = out_file, col.names = TRUE, row.names = FALSE, quote = FALSE, sep="\t")
                       quit(save="no");
