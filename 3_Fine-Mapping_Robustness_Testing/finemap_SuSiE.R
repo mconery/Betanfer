@@ -81,13 +81,30 @@ remove(pheno_raw)
 #Lastly read in correlation matrix
 R <- read.csv(ld_file, sep = "\t", header = FALSE)
 
-# 3) Execute SuSiE ====
+# 3) Create Error Handling function ====
+check <- function(expression){
+  withCallingHandlers(expression,
+                    warning = function(w){
+                    },
+                    error = function(e){
+                      message(paste0("ERROR: ", str_replace(basename(summary_stats_file), pattern = "_out_snps_sim_gwas.tsv", replacement = ""), " has failed prior estimation."))
+                      #Write a partially empty output file and quit
+                      out_data <- cbind.data.frame(RSID=summary_stats_raw$rsid, Z=bhat/shat, PIP=fitted_rss1$pip, converged=rep(NA, nrow(summary_stats_raw)))
+                      out_data <- cbind.data.frame(out_data, cs=rep(0, nrow(out_data)))
+                      write.table(out_data, file = out_file, col.names = TRUE, row.names = FALSE, quote = FALSE, sep="\t")
+                      quit(save="no");
+                    },
+                    finally = {
+                    })
+}
+
+# 4) Execute SuSiE ====
 set.seed(random_seed) #Nothing up until here has been random
 #Fit susie model
-fitted_rss1 <- susie_rss(bhat = bhat, shat = shat, n = n, R = R, var_y = var_y, L = 10,
-                         estimate_residual_variance = in_sample_flag)
+fitted_rss1 <- check(susie_rss(bhat = bhat, shat = shat, n = n, R = R, var_y = var_y, L = 10,
+                         estimate_residual_variance = in_sample_flag))
 
-# 4) Extract Needed Info and Export Output File ====
+# 5) Extract Needed Info and Export Output File ====
 
 #Extract Info
 out_data <- cbind.data.frame(RSID=summary_stats_raw$rsid, Z=bhat/shat, PIP=fitted_rss1$pip, converged=rep(fitted_rss1$converged, nrow(summary_stats_raw)))
