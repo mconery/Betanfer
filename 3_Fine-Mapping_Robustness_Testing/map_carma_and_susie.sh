@@ -2,7 +2,7 @@
 #SBATCH -A bif154
 #SBATCH -J map_carma_and_susie
 #SBATCH -o map_carma_and_susie.log
-#SBATCH -N 400
+#SBATCH -N 2000
 #SBATCH -p batch
 #SBATCH -t 1:00:00
 
