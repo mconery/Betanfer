@@ -192,6 +192,12 @@ def compute_metrics(locus_name, causal_variants, fine_mapping_df, ld_mismatch_de
         cs_id = top_variant['cs']
         cs_variants = set(fine_mapping_df[fine_mapping_df['cs'] == cs_id]['RSID'])
         top_coverage = 1 if cs_variants & causal_variants else 0
+        
+    # After existing credible set analysis
+    cs1_contains_causal = 0
+    if 1 in credible_sets:
+        cs1_variants = set(fine_mapping_df[fine_mapping_df['cs'] == 1]['RSID'])
+        cs1_contains_causal = 1 if cs1_variants & causal_variants else 0
     
     # Return statement
     return {
@@ -203,6 +209,7 @@ def compute_metrics(locus_name, causal_variants, fine_mapping_df, ld_mismatch_de
         'power': power,
         'top_power': top_power,
         'top_coverage': top_coverage,
+        'cs1_contains_causal': cs1_contains_causal,  # New column
         'credible_set_sizes': credible_set_sizes_str,
         'causal_variant_pips': causal_pips_str
     }
@@ -299,6 +306,7 @@ def main():
         'power',
         'top_power',
         'top_coverage',
+        'cs1_contains_causal', 
         'credible_set_sizes',
         'causal_variant_pips'
     ]
