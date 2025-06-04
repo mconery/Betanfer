@@ -77,19 +77,19 @@ create_power_coverage_plot <- function(data, point_size = 3, add_smooth = FALSE)
     mutate(pop_ld = factor(paste0(population, "_", ld_numeric)))
   
   # Create base plot
-  main_plot <- ggplot(plot_data, aes(x = weighted_coverage, y = weighted_power,
+  main_plot <- ggplot(plot_data, aes(x = weighted_power, y = weighted_coverage,
                              fill = pop_ld)) +
     geom_point(size = point_size, alpha = 0.8, shape=21, color="black") +
     facet_grid(population ~ factor_num_causal_variants) +
-    coord_cartesian(xlim = c(0.7, 1), ylim = c(0, 1)) +
+    coord_cartesian(ylim = c(0.7, 1), xlim = c(0, 1)) +
     scale_fill_manual(
       name = "LD Mismatch Degree (Number of Traits)",
       values = color_values,
       labels = rep(levels(plot_data$ld_numeric), 2)
     ) +
     labs(
-      x = "Coverage",
-      y = "Power",
+      x = "Power",
+      y = "Coverage",
       title = "Number of Causal Variants"
     ) +
     theme_minimal() +
