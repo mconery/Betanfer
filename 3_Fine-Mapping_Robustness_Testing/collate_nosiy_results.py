@@ -175,6 +175,25 @@ def compute_metrics(locus_name, causal_variants, fine_mapping_df, ld_mismatch_de
     credible_set_sizes_str = ','.join(map(str, credible_set_sizes)) if credible_set_sizes else ""
     causal_pips_str = ','.join([f"{pip:.6f}" for pip in causal_pips]) if causal_pips else ""
     
+    # New metrics calculation
+    # Calculate top_power (causal variant with max |Z| in credible sets)
+    top_power = 0
+    if causal_variants:
+        causal_df = fine_mapping_df[fine_mapping_df['RSID'].isin(causal_variants)]
+        if not causal_df.empty:
+            top_causal = causal_df.loc[causal_df['Z'].abs().idxmax()]
+            top_power = 1 if top_causal['cs'] != 0 else 0
+    
+    # Calculate top_coverage (credible set with max |Z| variant contains causal)
+    top_coverage = 0
+    credible_df = fine_mapping_df[fine_mapping_df['cs'] != 0]
+    if not credible_df.empty:
+        top_variant = credible_df.loc[credible_df['Z'].abs().idxmax()]
+        cs_id = top_variant['cs']
+        cs_variants = set(fine_mapping_df[fine_mapping_df['cs'] == cs_id]['RSID'])
+        top_coverage = 1 if cs_variants & causal_variants else 0
+    
+    # Return statement
     return {
         'locus': locus_name,
         'ld_mismatch_degree': ld_mismatch_degree,
@@ -182,6 +201,8 @@ def compute_metrics(locus_name, causal_variants, fine_mapping_df, ld_mismatch_de
         'num_credible_sets': num_credible_sets,
         'coverage': coverage,
         'power': power,
+        'top_power': top_power,
+        'top_coverage': top_coverage,
         'credible_set_sizes': credible_set_sizes_str,
         'causal_variant_pips': causal_pips_str
     }
@@ -270,13 +291,15 @@ def main():
     
     # Reorder columns for better readability
     column_order = [
-        'locus', 
-        'ld_mismatch_degree', 
-        'num_causal_variants', 
-        'num_credible_sets', 
-        'coverage', 
-        'power', 
-        'credible_set_sizes', 
+        'locus',
+        'ld_mismatch_degree',
+        'num_causal_variants',
+        'num_credible_sets',
+        'coverage',
+        'power',
+        'top_power',
+        'top_coverage',
+        'credible_set_sizes',
         'causal_variant_pips'
     ]
     results_df = results_df[column_order]
