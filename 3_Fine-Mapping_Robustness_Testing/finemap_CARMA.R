@@ -47,7 +47,7 @@ if (length(args) == 7) {
   lambda <- as.numeric(args[5])
   rho <- as.numeric(args[6])
   random_seed <- 5
-} else if(length(args) == 4) {
+} else if(length(args) == 3) {
   #Set variables from the arguments in this case
   summary_stats_file <- args[1]
   ld_file <- args[2]
