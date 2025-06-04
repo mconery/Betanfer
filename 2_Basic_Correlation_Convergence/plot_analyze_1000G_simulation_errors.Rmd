@@ -100,7 +100,7 @@ plot_simulation_results(full_calc_df, x_var="n_traits", y_var="mae", color_var="
 ```{r}
 
 plot_simulation_results(input_df, x_var="bucket_range", y_var="mae", color_var="n_traits", filter_bucket = "geno_corr", filter_trait_type = "continuous", 
-                        plot_title="Continuous Traits with 0 Causal Variants Split by Genotype Correlation", filter_n_causal = 0, facet_var="population")
+                        plot_title="Continuous Traits Split by Genotype Correlation", facet_var="population")
 
 ```
 # 7) Make Plot of MAF Buckets ====
