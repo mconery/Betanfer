@@ -104,11 +104,11 @@ def find_fine_mapping_files(locus_name, output_dir):
 def read_fine_mapping_results(file_path):
     """Read fine-mapping results from a file."""
     try:
-        # Expected columns: RSID, Z, PIP, z_estimated, cs
+        # Expected columns: RSID, Z, PIP, converged, cs
         df = pd.read_csv(file_path, sep='\t')
         
         # Validate required columns
-        required_cols = ['RSID', 'Z', 'PIP', 'z_estimated', 'cs']
+        required_cols = ['RSID', 'Z', 'PIP', 'converged', 'cs']
         if not all(col in df.columns for col in required_cols):
             logger.error(f"Missing required columns in {file_path}")
             logger.error(f"Expected: {required_cols}, Found: {list(df.columns)}")
