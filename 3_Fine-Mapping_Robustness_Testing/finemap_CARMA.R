@@ -151,23 +151,43 @@ if (outlier_check_toggle == FALSE){
 }
 
 # 5) Execute CARMA ====
-set.seed(random_seed) #Nothing up until here has been random
-#Fit susie model
-carma.results <- call_carma(z.list.inp = z.list, ld.list.inp = ld.list, lambda.list.inp = lambda.list, rho.index.inp = rho)
+### We're going to repeatedly try to fit the CARMA model using different random seeds in case of an error
+#Set variables needed to track progress through loop
+attempts <- 0
+max_attempts <- 10
+success <- FALSE
+# Loop until success or maximum attempts reached
+while (!success && attempts < max_attempts) {
+  tryCatch({
+    set.seed(random_seed) #Nothing up until here has been random
+    # Call the CARMA function here
+    carma.results <- call_carma(z.list.inp = z.list, ld.list.inp = ld.list, lambda.list.inp = lambda.list, rho.index.inp = rho)
+    success <- TRUE  # Mark success if no error occurred
+    break #Break the loop
+  }, error = function(e) {
+    attempts <- attempts + 1
+    random_seed <- random_seed * 2  # Double the seed
+    print(paste0("WARNING: Unable to fit ", file_prefix, " on attempt ", attempts, ". Retrying with seed: ", random_seed))
+  })
+  #Need to actually increment attempts and seed outside of error function, so that they update
+  attempts <- attempts + 1
+  random_seed <- random_seed * 2  # Double the seed
+}
+if (!success) {
+  stop("ERROR: Maximum attempts reached without success.")
+}
+cat("SUCCESS: CARMA function ran successfully after", attempts, "failed attempts.\n")
 
 # 6) Extract Needed Info and Export Output File ====
 
 #Extract Info
 out_data <- cbind.data.frame(RSID=summary_stats_raw$rsid, Z=bhat/shat, PIP=carma.results[[1]]$PIPs)
 #Get credible sets and outliers
-outliers <- rep(NA, nrow(out_data))
-outliers[carma.results[[1]]$'Outliers'[['Index']]] <- carma.results[[1]]$'Outliers'[['Z']]
 cred_sets <- rep(0, nrow(out_data))
 for (set in seq(1,length(carma.results[[1]]$'Credible set'[[2]]))){
   cred_sets[carma.results[[1]]$'Credible set'[[2]][[set]]] <- as.numeric(set)
 }
-out_data <- cbind.data.frame(out_data, outlier_est_z=outliers, cs=cred_sets)
+out_data <- cbind.data.frame(out_data, iterations_z=attempts, cs=cred_sets)
 
 #Save output dataframe
 write.table(out_data, file = out_file, col.names = TRUE, row.names = FALSE, quote = FALSE, sep="\t")
-
