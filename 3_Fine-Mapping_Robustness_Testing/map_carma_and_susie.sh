@@ -2,7 +2,7 @@
 #SBATCH -A bif154
 #SBATCH -J map_carma_and_susie
 #SBATCH -o map_carma_and_susie.log
-#SBATCH -N 2000
+#SBATCH -N 40
 #SBATCH -p batch
 #SBATCH -t 1:00:00
 
@@ -28,46 +28,46 @@ num_nodes="$SLURM_NNODES"
 ################################################################################################################
 ############################################### SuSiE Fine-Mapping #############################################
 ################################################################################################################
-#Change directory into output directory
-cd $out_dir
-
-#Activate the SuSiE Conda environment
-conda activate susie
-
-#Loop over the directories and make the mapping commands
-cmds=()
-shopt -s nullglob
-while read directory; do
-	summary_stats_file=$gwas_dir/$directory/$directory"_out_snps_sim_gwas.tsv"
-	pheno_file=$gwas_dir/$directory/$directory"_out_snps_sim_phenos.tsv"
-	ld_files=($ld_dir/$directory.*unphased.vcor1)
-	for ld_file in ${ld_files[@]}; do 
-		temp=$(basename $ld_file)
-		out_file=$out_dir/${temp%.unphased.vcor1}".susie.txt"
-		if [[ $ld_file == *"_traits"* ]]; then
-			in_sample_flag=FALSE
-		else
-			in_sample_flag=TRUE
-		fi
-		if [ ! -f $out_file ]; then
-			cmds+=("Rscript $susie_script $summary_stats_file $pheno_file $ld_file $out_file $in_sample_flag")
-		fi
-	done
-done < $locus_file
-
-#Calculate number of possible jobs
-job_size=${#cmds[@]}
-num_parallel_jobs=$((($SLURM_CPUS_ON_NODE / 2) * num_nodes))
-echo "JOB SIZE: $job_size"
-#Launch commands
-for (( i=0; i<${#cmds[@]}; i++ )); do
-	j=$(( $i + 1 ))
-	srun -n1 -c1 --exclusive --job-name=$j ${cmds[$i]} &
-	if [ $(($j % $num_parallel_jobs)) == 0 ] || [ $j == $job_size ]; then 
-	    wait
-        fi
-done
-wait
+##Change directory into output directory
+#cd $out_dir
+#
+##Activate the SuSiE Conda environment
+#conda activate susie
+#
+##Loop over the directories and make the mapping commands
+#cmds=()
+#shopt -s nullglob
+#while read directory; do
+#	summary_stats_file=$gwas_dir/$directory/$directory"_out_snps_sim_gwas.tsv"
+#	pheno_file=$gwas_dir/$directory/$directory"_out_snps_sim_phenos.tsv"
+#	ld_files=($ld_dir/$directory.*unphased.vcor1)
+#	for ld_file in ${ld_files[@]}; do 
+#		temp=$(basename $ld_file)
+#		out_file=$out_dir/${temp%.unphased.vcor1}".susie.txt"
+#		if [[ $ld_file == *"_traits"* ]]; then
+#			in_sample_flag=FALSE
+#		else
+#			in_sample_flag=TRUE
+#		fi
+#		if [ ! -f $out_file ]; then
+#			cmds+=("Rscript $susie_script $summary_stats_file $pheno_file $ld_file $out_file $in_sample_flag")
+#		fi
+#	done
+#done < $locus_file
+#
+##Calculate number of possible jobs
+#job_size=${#cmds[@]}
+#num_parallel_jobs=$((($SLURM_CPUS_ON_NODE / 2) * num_nodes))
+#echo "JOB SIZE: $job_size"
+##Launch commands
+#for (( i=0; i<${#cmds[@]}; i++ )); do
+#	j=$(( $i + 1 ))
+#	srun -n1 -c1 --exclusive --job-name=$j ${cmds[$i]} &
+#	if [ $(($j % $num_parallel_jobs)) == 0 ] || [ $j == $job_size ]; then 
+#	    wait
+#        fi
+#done
+#wait
 
 ################################################################################################################
 ############################################### CARMA Fine-Mapping #############################################
@@ -93,12 +93,12 @@ done < $locus_file
 
 #Calculate number of possible jobs
 job_size=${#cmds[@]}
-num_parallel_jobs=$((($SLURM_CPUS_ON_NODE / 2) * num_nodes))
+num_parallel_jobs=$((($SLURM_CPUS_ON_NODE / 4) * num_nodes))
 echo "JOB SIZE: $job_size"
 #Launch commands
 for (( i=0; i<${#cmds[@]}; i++ )); do
 	j=$(( $i + 1 ))
-	srun -n1 -c1 --exclusive --job-name=$j ${cmds[$i]} &
+	srun -n1 -c1 -N1 --exclusive --job-name=$j ${cmds[$i]} &
 	if [ $(($j % $num_parallel_jobs)) == 0 ] || [ $j == $job_size ]; then 
 	    wait
         fi
