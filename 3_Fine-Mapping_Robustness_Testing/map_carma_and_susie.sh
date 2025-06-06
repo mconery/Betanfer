@@ -2,9 +2,9 @@
 #SBATCH -A bif154
 #SBATCH -J map_carma_and_susie
 #SBATCH -o map_carma_and_susie.log
-#SBATCH -N 40
-#SBATCH -p batch
-#SBATCH -t 1:00:00
+#SBATCH -N 10
+#SBATCH -p extended
+#SBATCH -t 24:00:00
 
 #Activate conda directory
 source ~/.bashrc
