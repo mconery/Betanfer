@@ -27,7 +27,7 @@ def write_phenotype(i, df, output_prefix):
     """Parallelized file writing function"""
     out_df = df[['#FID', 'IID'] + [f'PC{j}' for j in range(1, 11)]].copy()
     out_df['y'] = df[f'Pheno{i}']
-    out_file = f"{output_prefix}pheno{i}.txt"
+    out_file = f"{output_prefix}.pheno{i}.txt"
     out_df.to_csv(out_file, sep='\t', index=False, float_format='%.6f')
 
 def main():
