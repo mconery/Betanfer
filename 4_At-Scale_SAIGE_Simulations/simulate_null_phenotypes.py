@@ -42,7 +42,7 @@ def main():
         raise ValueError("Standard deviation must be positive")
 
     # Read input data
-    df = pd.read_csv(args.input, sep='\s+')
+    df = pd.read_csv(args.input, sep='r\s+')
     n_jobs = args.n_jobs if args.n_jobs != 0 else 1
     if n_jobs == -1:
         n_jobs = cpu_count()
