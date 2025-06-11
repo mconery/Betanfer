@@ -25,7 +25,7 @@ simulate_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fi
 num_nodes="$SLURM_NNODES"
 
 ################################################################################################################
-################################################# Make Pruned Files ############################################
+############################## Filter for MAF and Make LD Pruning Filter #######################################
 ################################################################################################################
 #Create empty command array
 cmds=()
@@ -42,7 +42,41 @@ for pop in AFR EUR; do
 		plink_inp=$inp_dir/$pop/chr"$chromo".plink.tag
 		plink_out=$geno_dir/$pop/chr"$chromo".plink.maf
 		#Launch plink to prune variants
-		cmds+=("plink2 --bfile $plink_inp --keep $keep_file --set-all-var-ids '@:#:$r:$a' --maf 0.05 --indep-pairwise 1000 80 0.1 --make-bed --out $plink_out; plink2 --bfile $plink_out --extract $plink_out.prune.in --make-bed --out $plink_out.ld")
+		cmds+=("plink2 --bfile $plink_inp --keep $keep_file --set-all-var-ids '@:#:$r:$a' --maf 0.05 --indep-pairwise 1000 80 0.1 --make-bed --out $plink_out")
+	done
+done
+
+#Launch commands
+job_size=${#cmds[@]}
+echo "JOB SIZE: $job_size"
+for (( i=0; i<${#cmds[@]}; i++ )); do
+	j=$(( $i + 1 ))
+	srun -n1 -N1 --ntasks-per-node=1 --job-name=$j ${cmds[$i]} &
+	if [ $(($j % $num_nodes)) == 0 ] || [ $j == $job_size ]; then 
+	    wait
+        fi
+done
+wait
+
+################################################################################################################
+################################################# Prune the Variants ###########################################
+################################################################################################################
+#Create empty command array
+cmds=()
+#Loop over two populations
+for pop in AFR EUR; do 
+	#Change into population output directory
+	mkdir -p $geno_dir/$pop
+	cd $geno_dir/$pop
+	#Get keep file location
+	keep_file=$inp_dir/$pop/$pop.400K_random_sample.tsv
+	#Loop the chromosomes
+	for chromo in {1..22}; do
+		#Set plink file path
+		plink_inp=$inp_dir/$pop/chr"$chromo".plink.tag
+		plink_out=$geno_dir/$pop/chr"$chromo".plink.maf
+		#Launch plink to prune variants
+		cmds+=("plink2 --bfile $plink_out --extract $plink_out.prune.in --make-bed --out $plink_out.ld")
 	done
 done
 
@@ -93,7 +127,7 @@ for pop in AFR EUR; do
 	mkdir -p $pheno_dir/$pop
 	cd $pheno_dir/$pop
 	#Calculate PCs
-	cmds+=("plink2  --bfile $geno_dir/$pop/merged.plink.maf.ld --pca approx 10 --out $geno_dir/$pop/merged.plink.maf.ld.pcs")
+	cmds+=("plink2 --bfile $geno_dir/$pop/merged.plink.maf.ld --pca approx 10 --out $geno_dir/$pop/merged.plink.maf.ld.pcs")
 done
 
 #Launch commands
