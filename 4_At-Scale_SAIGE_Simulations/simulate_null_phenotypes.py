@@ -37,7 +37,7 @@ def simulate_phenotypes():
     
     # Read input data
     try:
-        df = pd.read_csv(args.input, sep='\s+', header=0)
+        df = pd.read_csv(args.input, sep=r'\s+', header=0)
     except FileNotFoundError:
         raise SystemExit(f"Error: Input file {args.input} not found")
     
