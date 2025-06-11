@@ -4,7 +4,7 @@
 #SBATCH -o prep_plink_for_step_one.log
 #SBATCH -N 1
 #SBATCH -p extended
-#SBATCH -t 20:00:00
+#SBATCH -t 6:00:00
 
 #Load plink tools and conda environment
 source ~/.bashrc
