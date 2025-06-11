@@ -41,18 +41,20 @@ def simulate_phenotypes():
     except FileNotFoundError:
         raise SystemExit(f"Error: Input file {args.input} not found")
     
-    # Simulate phenotypes
-    pheno_cols = []
-    for i in range(1, args.num_pheno + 1):
-        col_name = f'Pheno{i}'
-        if args.type == 'binary':
-            pheno = np.random.binomial(n=1, p=args.param, size=len(df))
-        else:
-            pheno = np.random.normal(loc=0, scale=args.param, size=len(df))
-        pheno_cols.append(pd.Series(pheno, name=col_name))
+    #Simulate phenotypes
+    if args.type == 'binary':
+        pheno_matrix = np.random.binomial(n=1, p=args.param, 
+                                        size=(len(df), args.num_pheno))
+    else:
+        pheno_matrix = np.random.normal(loc=0, scale=args.param,
+                                      size=(len(df), args.num_pheno))
     
-    # Combine with original data and save
-    result_df = pd.concat([df] + pheno_cols, axis=1)
+    # Create DataFrame with generated phenotypes
+    pheno_df = pd.DataFrame(pheno_matrix, 
+                           columns=[f'Pheno{i+1}' for i in range(args.num_pheno)])
+    
+    # Combine with original data
+    result_df = pd.concat([df, pheno_df], axis=1)
     result_df.to_csv(args.output, sep='\t', index=False, float_format='%.6f')
 
 if __name__ == '__main__':
