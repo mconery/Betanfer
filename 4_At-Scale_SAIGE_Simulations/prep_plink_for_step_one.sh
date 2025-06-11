@@ -2,7 +2,7 @@
 #SBATCH -A bif154
 #SBATCH -J prep_plink
 #SBATCH -o prep_plink_for_step_one.log
-#SBATCH -N 1
+#SBATCH -N 4
 #SBATCH -q debug
 #SBATCH -t 2:00:00
 
