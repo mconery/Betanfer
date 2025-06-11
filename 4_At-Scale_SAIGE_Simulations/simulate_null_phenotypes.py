@@ -49,7 +49,7 @@ def main():
         raise ValueError("Standard deviation must be positive")
 
     # Read input data
-    df = pd.read_csv(args.input, sep='\s+')
+    df = pd.read_csv(args.input, sep=r'\s+')
     n_jobs = cpu_count() if args.n_jobs == -1 else args.n_jobs
 
     # Parallel simulation
