@@ -25,7 +25,7 @@ simulate_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fi
 num_nodes="$SLURM_NNODES"
 
 ################################################################################################################
-############################## Filter for MAF and Make LD Pruning Filter #######################################
+############################## Filter for MAF and Make LD Pruning Filters ######################################
 ################################################################################################################
 #Create empty command array
 cmds=()
@@ -41,8 +41,11 @@ for pop in AFR EUR; do
 		#Set plink file path
 		plink_inp=$inp_dir/$pop/chr"$chromo".plink.tag
 		plink_out=$geno_dir/$pop/chr"$chromo".plink.maf
-		#Launch plink to prune variants
-		cmds+=("plink2 --bfile $plink_inp --keep $keep_file --set-all-var-ids '@:#:$r:$a' --maf 0.05 --indep-pairwise 1000 80 0.1 --make-bed --out $plink_out")
+		if [ $pop == "EUR" ]; then 
+			cmds+=("plink2 --bfile $plink_inp --keep $keep_file --set-all-var-ids '@:#:$r:$a' --maf 0.01 --indep-pairwise 1000 80 0.1 --make-bed --out $plink_out")
+		else
+			cmds+=("plink2 --bfile $plink_inp --keep $keep_file --set-all-var-ids '@:#:$r:$a' --maf 0.01 --indep-pairwise 1000 80 0.05 --make-bed --out $plink_out")
+		fi
 	done
 done
 
@@ -101,8 +104,8 @@ cmds=()
 for pop in AFR EUR; do
 	cd $geno_dir/$pop
 	#Create merge list and merge files
-	ls $geno_dir/$pop/chr*.plink.maf.ld.bim | sed 's/.bim//g' > $pop.mergelist.txt
-	cmds+=("plink2 --allow-no-sex --make-bed --pmerge-list $pop.mergelist.txt bfile --out $geno_dir/$pop/merged.plink.maf.ld")
+	ls $geno_dir/$pop/chr*.plink.maf.ld.bim | sed 's/.bim//g' > $geno_dir/$pop/$pop.mergelist.txt
+	cmds+=("plink2 --allow-no-sex --make-bed --pmerge-list $geno_dir/$pop/$pop.mergelist.txt bfile --out $geno_dir/$pop/merged.plink.maf.ld")
 done
 
 #Launch commands
@@ -151,7 +154,7 @@ cmds=()
 for pop in AFR EUR; do
 	cd $pheno_dir/$pop
 	cmds+=("python $simulate_script -i $geno_dir/$pop/merged.plink.maf.ld.pcs.eigenvec -o $pheno_dir/$pop/merged.maf.ld.continuous.txt -n 1000 -t continuous")
-	cmds+=("python $simulate_script -i $geno_dir/$pop/merged.plink.maf.ld.pcs.eigenvec -o $pheno_dir/$pop/merged.maf.ld.continuous.txt -n 1000 -t binary")
+	cmds+=("python $simulate_script -i $geno_dir/$pop/merged.plink.maf.ld.pcs.eigenvec -o $pheno_dir/$pop/merged.maf.ld.binary.txt -n 1000 -t binary")
 done
 
 #Launch commands
