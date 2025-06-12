@@ -13,17 +13,21 @@ library(dplyr)
 library(stringr)
 library(ggnewscale)
 library(readr)
+library(dplyr)
 
-#Set results file
-results_file="C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/RSparsePro_Robustness_Testing/combined_results.tsv"
-#Read in the results file
-input_df <- read.csv(results_file, sep="\t")
+#Set results files
+rsparsepro_file="C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/RSparsePro_Robustness_Testing/combined_results.rsparsepro.tsv"
+susie_file="C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/RSparsePro_Robustness_Testing/combined_results.susie.tsv"
+#Read in the results files
+rsparsepro_df <- read.csv(rsparsepro_file, sep="\t")
+susie_df <- read.csv(susie_file, sep="\t")
 
 #Split locus name up by simulation parameters
-input_df <- input_df %>% dplyr::mutate(population=str_sub(locus, start=1, end=3))
+rsparsepro_df <- rsparsepro_df %>% dplyr::mutate(population=str_sub(locus, start=1, end=3))
+susie_df <- susie_df %>% dplyr::mutate(population=str_sub(locus, start=1, end=3))
 
 ```
-# 2) Create Power vs Coverage Plotting Function ====
+# 2) Create Power vs Coverage Plotting Function for RSparsePro Only ====
 ```{r}
 create_power_coverage_plot <- function(data, point_size = 3, add_smooth = FALSE) {
 
@@ -139,7 +143,7 @@ create_power_coverage_plot <- function(data, point_size = 3, add_smooth = FALSE)
 ```
 # 3) Call Power vs. Coverage Plotting Function ====
 ```{r}
-create_power_coverage_plot(input_df)
+create_power_coverage_plot(rsparsepro_df)
 ```
 # 4) Create Number of Credible Sets Plotting Function ====
 ```{r}
@@ -208,7 +212,7 @@ create_faceted_barplot <- function(data, bar_width = 0.8) {
 ```
 # 5) Call Number of Credible Sets Plotting Function ====
 ```{r}
-create_faceted_barplot(input_df)
+create_faceted_barplot(rsparsepro_df)
 ```
 # 6) Create Credible Set Size Plotting Function ====
 ```{r}
@@ -274,7 +278,387 @@ create_faceted_size_barplot <- function(data, bar_width = 0.8) {
 }
 
 ```
-# 5) Call Credible Set Size Plotting Function ====
+# 7) Call Credible Set Size Plotting Function ====
 ```{r}
-create_faceted_size_barplot(input_df)
+create_faceted_size_barplot(rsparsepro_df)
+```
+# 8) Create Plotting Function for Top Signal Coverage and Power ====
+```{r}
+create_top_power_coverage_plot <- function(data, point_size = 3, add_smooth = FALSE) {
+
+  # Validate input data
+  required_cols <- c("population", "locus", "num_causal_variants", 
+                     "num_credible_sets", "top_coverage", "top_power", "ld_mismatch_degree")
+  missing_cols <- setdiff(required_cols, names(data))
+  if (length(missing_cols) > 0) {
+    stop(paste("Missing required columns:", paste(missing_cols, collapse = ", ")))
+  }
+  
+  # Convert LD mismatch degree to numeric traits
+  processed_data <- data %>%
+    mutate(
+      num_traits = suppressWarnings(case_when(
+        ld_mismatch_degree == "unmodified" ~ Inf,
+        .default = parse_number(str_replace(as.character(ld_mismatch_degree), "_traits", ""))
+      )),
+      # Create ordered factor for plotting
+      ld_numeric = factor(num_traits, 
+                         levels = c(50, 100, 200, 300, 400, 500, 1000, Inf),
+                         labels = c("50", "100", "200", "300", "400", "500", "1000", "∞")),
+      factor_num_causal_variants = as.factor(num_causal_variants)
+    )
+  
+  # Aggregate data with weights
+  plot_data <- processed_data %>%
+    group_by(population, ld_numeric, num_traits, factor_num_causal_variants) %>%
+    summarise(
+      average_top_coverage = mean(top_coverage, na.rm = TRUE),
+      average_top_power = mean(top_power, na.rm = TRUE),
+      .groups = 'drop'
+    )
+  
+  # Generate population-specific color palettes
+  n_ld <- length(unique(plot_data$ld_numeric))
+  
+  eur_colors <- colorRampPalette(RColorBrewer::brewer.pal(9, "Blues")[1:9])(n_ld)
+  afr_colors <- colorRampPalette(RColorBrewer::brewer.pal(9, "Reds")[1:9])(n_ld)
+  
+  # Combine colors with infinite value (black)
+  color_values <- c(
+    setNames(eur_colors[1:length(eur_colors)-1], paste0("EUR_", head(levels(plot_data$ld_numeric), -1))),
+    setNames(afr_colors[1:length(afr_colors)-1], paste0("AFR_", head(levels(plot_data$ld_numeric), -1))),
+    "EUR_∞" = eur_colors[length(eur_colors)],  # Darkest blue
+    "AFR_∞" = afr_colors[length(afr_colors)]   # Darkest red
+  )
+  
+  # Create combined population-LD factor
+  plot_data <- plot_data %>%
+    mutate(pop_ld = factor(paste0(population, "_", ld_numeric)))
+  
+  # Create base plot
+  main_plot <- ggplot(plot_data, aes(x = average_top_power, y = average_top_coverage,
+                             fill = pop_ld)) +
+    geom_point(size = point_size, alpha = 0.8, shape=21, color="black") +
+    facet_grid(population ~ factor_num_causal_variants) +
+    coord_cartesian(ylim = c(0.7, 1), xlim = c(0, 1)) +
+    scale_fill_manual(
+      name = "LD Mismatch Degree (Number of Traits)",
+      values = color_values,
+      labels = rep(levels(plot_data$ld_numeric), 2)
+    ) +
+    labs(
+      x = "Power of Top Signals",
+      y = "Coverage of Top Credible Sets",
+      title = "Number of Causal Variants"
+    ) +
+    theme_minimal() +
+    theme(
+      strip.text = element_text(size = 14),
+      axis.text = element_text(size=12),
+      axis.title = element_text(size=14),
+      panel.spacing = unit(1, "lines"),
+      legend.position = "none",
+      plot.title = element_text(hjust = 0.5),
+    ) +
+    guides(fill = guide_legend(nrow = 2, title.position = "top"))
+  
+  # Create legend grid data
+  legend_data <- expand.grid(
+    population = c("EUR", "AFR"),
+    ld_numeric = levels(processed_data$ld_numeric),
+    stringsAsFactors = TRUE
+  ) %>% dplyr::arrange(population, ld_numeric) %>% dplyr::mutate(unique_name=paste(population, ld_numeric, sep="_"))
+  
+  # Create legend plot
+  legend_plot <- ggplot(legend_data, aes(x = ld_numeric, y = population)) +
+    geom_tile(aes(fill = unique_name), color = "black") +
+    scale_fill_manual(values = color_values) +
+    scale_x_discrete(breaks = levels(legend_data$ld_numeric), labels = c(levels(legend_data$ld_numeric)[1:length(levels(legend_data$ld_numeric))-1], "Unmodified")) +
+    labs(x = "Degree of LD Mismatch (Number of Traits)", y = "") +
+    theme_minimal() +
+    theme(
+      strip.background = element_rect(fill = c("#08306B", "#67000D")),
+      strip.text = element_text(color = "white", face = "bold"),
+      panel.grid = element_blank(),
+      legend.position = "none",
+      plot.title = element_text(hjust = 0.5),
+      axis.text = element_text(size=10)
+    )
+  
+  # Combine plots
+  cowplot::plot_grid(
+    main_plot,
+    legend_plot,
+    ncol = 1,
+    rel_heights = c(4, 1)
+  )
+}
+```
+# 9) Call Top Signal Power vs. Coverage Plotting Function ====
+```{r}
+create_top_power_coverage_plot(rsparsepro_df)
+```
+# 10) Create a function that plots coverage of the first signal ====
+```{r}
+create_first_signal_barplot <- function(data, bar_width = 0.8) {
+  # Load required packages
+  if (!require(dplyr, quietly = TRUE)) stop("Package 'dplyr' is required")
+  if (!require(ggplot2, quietly = TRUE)) stop("Package 'ggplot2' is required")
+  if (!require(ggh4x, quietly = TRUE)) stop("Package 'ggh4x' is required")
+  
+  # Validate input data
+  required_cols <- c("population", "num_causal_variants", 
+                     "ld_mismatch_degree", "cs1_contains_causal")
+  missing_cols <- setdiff(required_cols, names(data))
+  if (length(missing_cols) > 0) {
+    stop(paste("Missing required columns:", paste(missing_cols, collapse = ", ")))
+  }
+  
+  # Process data
+  processed_data <- data %>%
+    mutate(
+      ld_mismatch_degree = factor(
+        ld_mismatch_degree,
+        levels = c("50_traits", "100_traits", "200_traits", "300_traits",
+                   "400_traits", "500_traits", "1000_traits", "unmodified"),
+        labels = c("50", "100", "200", "300", "400", "500", "1000", "∞")
+      ),
+      population = factor(population, levels = c("EUR", "AFR")),
+      num_causal_variants = factor(num_causal_variants)
+    ) %>%
+    group_by(population, num_causal_variants, ld_mismatch_degree) %>%
+    summarise(
+      mean_first_coverage = mean(cs1_contains_causal, na.rm = TRUE),
+      se_first_coverage = sd(cs1_contains_causal, na.rm = TRUE) / sqrt(n()),
+      .groups = 'drop'
+    )
+  
+  # Create base plot
+  p <- ggplot(processed_data, 
+              aes(x = ld_mismatch_degree, y = mean_first_coverage, fill = population)) +
+    geom_bar(stat = "identity", position = position_dodge(width = bar_width), 
+             color = "black", width = bar_width) +
+    geom_errorbar(aes(ymin = mean_first_coverage - se_first_coverage,
+                      ymax = mean_first_coverage + se_first_coverage),
+                  position = position_dodge(width = bar_width), 
+                  width = 0.2, color = "black") +
+    facet_grid(population ~ num_causal_variants, scales = "free_y") +
+    coord_cartesian(ylim = c(0, 1)) +
+    scale_fill_manual(values = c("EUR" = "#08306B", "AFR" = "#67000D")) +
+    labs(
+      x = "LD Mismatch Degree (Number of Traits)",
+      y = "Coverage of First Credible Sets",
+      title = "Number of Causal Variants",
+      fill = "Population"
+    ) +
+    theme_minimal() +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      strip.background = element_rect(fill = "grey90"),
+      panel.spacing = unit(1.5, "lines"),
+      plot.title = element_text(hjust = 0.5),
+      legend.position = "none"
+    )
+  return(p)
+}
+
+```
+# 11) Call First Signal Plotting Function ====
+```{r}
+create_first_signal_barplot(rsparsepro_df)
+```
+# 12) Create a function to plot failure rate of SuSiE ====
+```{r}
+create_susie_failure_barplot <- function(data, bar_width = 0.8) {
+  # Load required packages
+  if (!require(dplyr, quietly = TRUE)) stop("Package 'dplyr' is required")
+  if (!require(ggplot2, quietly = TRUE)) stop("Package 'ggplot2' is required")
+  if (!require(ggh4x, quietly = TRUE)) stop("Package 'ggh4x' is required")
+  
+  # Validate input data
+  required_cols <- c("population", "num_causal_variants", 
+                     "ld_mismatch_degree", "mapping_status")
+  missing_cols <- setdiff(required_cols, names(data))
+  if (length(missing_cols) > 0) {
+    stop(paste("Missing required columns:", paste(missing_cols, collapse = ", ")))
+  }
+  
+  # Process data
+  processed_data <- data %>%
+    mutate(
+      ld_mismatch_degree = factor(
+        ld_mismatch_degree,
+        levels = c("50_traits", "100_traits", "200_traits", "300_traits",
+                   "400_traits", "500_traits", "1000_traits", "unmodified"),
+        labels = c("50", "100", "200", "300", "400", "500", "1000", "Unmodified")
+      ),
+      population = factor(population, levels = c("EUR", "AFR")),
+      num_causal_variants = factor(num_causal_variants)
+    ) %>%
+    group_by(population, num_causal_variants, ld_mismatch_degree, mapping_status) %>%
+    summarise(
+      count=n(),
+      .groups = 'drop'
+    )
+  
+  # Create base plot
+  p <- ggplot(processed_data, 
+              aes(x = ld_mismatch_degree, y = count, fill = mapping_status)) +
+    geom_bar(stat = "identity", position = "fill", 
+             color = "black", width = bar_width) +
+    facet_grid(population ~ num_causal_variants, scales = "free_y") +
+    coord_cartesian(ylim = c(0, 1)) +
+    scale_fill_manual(values = c("converged" = "darkgreen", "not_converged" = "gold", "error" = "#67000D"), breaks=c("converged", "not_converged", "error"), labels=c("Converged", "Not Converged", "Prior Estimation Failed")) +
+    scale_y_continuous(breaks=seq(0,1,0.25), labels=paste0(seq(0,100,25), "%")) + 
+    labs(
+      x = "LD Mismatch Degree (Number of Traits)",
+      y = "Percent of Loci",
+      title = "Number of Causal Variants",
+      fill="Mapping Status"
+    ) +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      strip.background = element_rect(fill = "grey90"),
+      panel.spacing = unit(1.5, "lines"),
+      panel.border = element_blank(),
+      panel.background = element_blank(),
+      plot.title = element_text(hjust = 0.5),
+      legend.position = "bottom"
+    )
+  return(p)
+}
+
+```
+# 13) Call SuSiE Failure-Rate Barplot Function ====
+```{r}
+create_susie_failure_barplot(susie_df)
+```
+# 14) Create Power vs Coverage Plotting Function for All Three Methods ====
+```{r}
+create_all_power_coverage_plot <- function(data, point_size = 3, add_smooth = FALSE) {
+
+  # Validate input data
+  required_cols <- c("population", "locus", "num_causal_variants", 
+                     "num_credible_sets", "coverage", "power", "ld_mismatch_degree")
+  missing_cols <- setdiff(required_cols, names(data))
+  if (length(missing_cols) > 0) {
+    stop(paste("Missing required columns:", paste(missing_cols, collapse = ", ")))
+  }
+  
+  # Convert LD mismatch degree to numeric traits
+  processed_data <- data %>%
+    mutate(
+      num_traits = suppressWarnings(case_when(
+        ld_mismatch_degree == "unmodified" ~ Inf,
+        .default = parse_number(str_replace(as.character(ld_mismatch_degree), "_traits", ""))
+      )),
+      # Create ordered factor for plotting
+      ld_numeric = factor(num_traits, 
+                         levels = c(50, 100, 200, 300, 400, 500, 1000, Inf),
+                         labels = c("50", "100", "200", "300", "400", "500", "1000", "Unmodified")),
+      factor_num_causal_variants = as.factor(num_causal_variants)
+    )
+  
+  # Aggregate data with weights
+  plot_data <- processed_data %>%
+    group_by(population, ld_numeric, num_traits, factor_num_causal_variants, method) %>%
+    summarise(
+      weighted_coverage = weighted.mean(coverage, w = num_credible_sets, na.rm = TRUE),
+      weighted_power = weighted.mean(power, w = num_causal_variants, na.rm = TRUE),
+      .groups = 'drop'
+    )
+  
+  # Generate method-specific color palettes
+  n_ld <- length(unique(plot_data$ld_numeric))
+  susie_colors <- colorRampPalette(RColorBrewer::brewer.pal(9, "Blues")[1:9])(n_ld)
+  rsparsepro_colors <- colorRampPalette(RColorBrewer::brewer.pal(9, "Reds")[1:9])(n_ld)
+  carma_colors <- colorRampPalette(RColorBrewer::brewer.pal(9, "Greens")[1:9])(n_ld)
+  
+  # Combine colors with infinite value (black)
+  color_values <- c(
+    setNames(susie_colors[1:length(susie_colors)-1], paste0("SuSiE_", head(levels(plot_data$ld_numeric), -1))),
+    setNames(rsparsepro_colors[1:length(rsparsepro_colors)-1], paste0("RSparsePro_", head(levels(plot_data$ld_numeric), -1))),
+    setNames(carma_colors[1:length(carma_colors)-1], paste0("CARMA_", head(levels(plot_data$ld_numeric), -1))),
+    "SuSiE_Unmodified" = susie_colors[length(susie_colors)],  # Darkest blue
+    "RSparsePro_Unmodified" = rsparsepro_colors[length(rsparsepro_colors)],   # Darkest red
+    "CARMA_Unmodified" = carma_colors[length(carma_colors)] #Darkest Green
+  )
+  
+  # Create combined population-LD factor
+  plot_data <- plot_data %>%
+    mutate(method_ld = factor(paste0(method, "_", ld_numeric)))
+  
+  # Create base plot
+  main_plot <- ggplot(plot_data, aes(x = weighted_power, y = weighted_coverage,
+                             fill = method_ld)) +
+    geom_point(size = point_size, alpha = 0.8, shape=21, color="black") +
+    facet_grid(population ~ factor_num_causal_variants) +
+    coord_cartesian(ylim = c(0.7, 1), xlim = c(0, 1)) +
+    scale_fill_manual(
+      name = "LD Mismatch Degree (Number of Traits)",
+      values = color_values,
+      labels = rep(levels(plot_data$ld_numeric), 2)
+    ) +
+    labs(
+      x = "Power",
+      y = "Coverage",
+      title = "Number of Causal Variants"
+    ) +
+    theme_minimal() +
+    theme(
+      strip.text = element_text(size = 14),
+      axis.text = element_text(size=12),
+      axis.title = element_text(size=14),
+      panel.spacing = unit(1, "lines"),
+      legend.position = "none",
+      plot.title = element_text(hjust = 0.5),
+    ) +
+    guides(fill = guide_legend(nrow = 3, title.position = "top"))
+  
+  # Create legend grid data
+  legend_data <- expand.grid(
+    method = c("SuSiE", "RSparsePro", "CARMA"),
+    ld_numeric = levels(processed_data$ld_numeric),
+    stringsAsFactors = TRUE
+  ) %>% dplyr::arrange(method, ld_numeric) %>% dplyr::mutate(unique_name=paste(method, ld_numeric, sep="_"))
+  
+  # Create legend plot
+  legend_plot <- ggplot(legend_data, aes(x = ld_numeric, y = method)) +
+    geom_tile(aes(fill = unique_name), color = "black") +
+    scale_fill_manual(values = color_values) +
+    scale_x_discrete(breaks = levels(legend_data$ld_numeric), labels = c(levels(legend_data$ld_numeric)[1:length(levels(legend_data$ld_numeric))-1], "Unmodified")) +
+    labs(x = "Degree of LD Mismatch (Number of Traits)", y = "") +
+    theme_minimal() +
+    theme(
+      strip.background = element_rect(fill = c(susie_colors[length(susie_colors)], rsparsepro_colors[length(rsparsepro_colors)], carma_colors[length(carma_colors)])),
+      strip.text = element_text(color = "white", face = "bold"),
+      panel.grid = element_blank(),
+      legend.position = "none",
+      plot.title = element_text(hjust = 0.5),
+      axis.text = element_text(size=8)
+    )
+  
+  # Combine plots
+  cowplot::plot_grid(
+    main_plot,
+    legend_plot,
+    ncol = 1,
+    rel_heights = c(4, 1)
+  )
+}
+
+
+```
+# 15) Combine Dataframes together and plot results ====
+```{r}
+#Create combined dataframe 
+required_cols = c("population", "locus", "num_causal_variants", 
+                     "num_credible_sets", "coverage", "power", "ld_mismatch_degree")
+susie_thinned = susie_df %>% filter(mapping_status=="converged") %>% dplyr::select(all_of(required_cols)) %>% 
+  mutate(method="SuSiE", susie_status="Converged", unique_name=paste(locus, ld_mismatch_degree, sep = "."))
+rsparsepro_pre_merge = rsparsepro_df %>% mutate(unique_name=paste(locus, ld_mismatch_degree, sep = ".")) %>% dplyr::filter(unique_name %in% susie_thinned$unique_name) %>% dplyr::select(all_of(required_cols)) %>% mutate(method="RSparsePro")
+susie_thinned <- susie_thinned %>% dplyr::select(all_of(required_cols)) %>% mutate(method="SuSiE")
+combined_df <- rbind.data.frame(susie_thinned, rsparsepro_pre_merge)
+#Call plotting script
+create_all_power_coverage_plot(combined_df)
 ```
