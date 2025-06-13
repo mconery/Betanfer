@@ -50,37 +50,55 @@ def add_noise_to_matrix(matrix, stddevs, buckets):
 
 def main():
     args = parse_args()
-    np.random.seed(args.seed)  # Seed set here after parsing arguments
+    np.random.seed(args.seed)
     os.makedirs(args.outdir, exist_ok=True)
-    
-    #Check input files exist
+
+    # Check input files exist
     if not os.path.exists(args.stddev_file) or not os.path.exists(args.matrix):
         print("ERROR: Missing either matrix file or standard deviation file.")
         sys.exit(1)
-        
-    stddev_df = load_stddev_table(args.stddev_file)
-    trait_levels = sorted(stddev_df['n_traits'].unique())
-    bucket_ranges = stddev_df[stddev_df['n_traits'] == trait_levels[0]]['bucket_tuple'].tolist()
 
+    stddev_df = load_stddev_table(args.stddev_file)
+    first_column = stddev_df.columns[0]
+
+    # Validate input format
+    if first_column not in ['n_traits', 'sd_']:
+        print(f"ERROR: First column must be 'n_traits' or 'sd_', found '{first_column}'")
+        sys.exit(1)
+
+    # Determine processing mode
+    mode = 'traits' if first_column == 'n_traits' else 'sd'
+    levels = sorted(stddev_df[first_column].unique())
+    
+    # Get bucket ranges from first level group
+    bucket_ranges = stddev_df[stddev_df[first_column] == levels[0]]['bucket_tuple'].tolist()
     matrix = np.loadtxt(args.matrix)
     assert matrix.shape[0] == matrix.shape[1], "ERROR: Matrix must be square"
 
-    for n_traits in trait_levels:
-        subset = stddev_df[stddev_df['n_traits'] == n_traits]
+    for level in levels:
+        subset = stddev_df[stddev_df[first_column] == level]
         stddevs = subset.sort_values('bucket_tuple')['stddev_error'].values
         noisy_matrix = add_noise_to_matrix(matrix, stddevs, bucket_ranges)
 
         base = os.path.basename(args.matrix)
-        insert = f".{n_traits}_traits"
+        
+        # Generate appropriate filename insert
+        if mode == 'traits':
+            insert = f".{level}_traits"
+        else:
+            insert = f".sd_{level}"
+
         if base.endswith('.unphased.vcor1'):
             outname = base.replace('.unphased.vcor1', f"{insert}.unphased.vcor1")
         else:
             outname = base + insert
-        outpath = os.path.join(args.outdir, outname)
 
+        outpath = os.path.join(args.outdir, outname)
         np.savetxt(outpath, noisy_matrix, fmt="%.6f", delimiter='\t')
-        print(f"NOTE: Wrote {n_traits}-trait file for {base}")
+        print(f"NOTE: Wrote {mode} level {level} file for {base}")
+
     print(f"SUCCESS: wrote all files for {base}")
+
 
 if __name__ == "__main__":
     main()
