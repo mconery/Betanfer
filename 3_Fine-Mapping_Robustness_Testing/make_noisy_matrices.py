@@ -62,8 +62,8 @@ def main():
     first_column = stddev_df.columns[0]
 
     # Validate input format
-    if first_column not in ['n_traits', 'sd_']:
-        print(f"ERROR: First column must be 'n_traits' or 'sd_', found '{first_column}'")
+    if first_column not in ['n_traits', 'sd']:
+        print(f"ERROR: First column must be 'n_traits' or 'sd', found '{first_column}'")
         sys.exit(1)
 
     # Determine processing mode
