@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -A bif154
-#SBATCH -J map_loci
-#SBATCH -o map_all_loci.log
+#SBATCH -J map_rsparsepro
+#SBATCH -o map_rsparsepro.log
 #SBATCH -N 10
 #SBATCH -p batch
 #SBATCH -t 1:00:00
