@@ -87,9 +87,9 @@ def find_fine_mapping_files(locus_name, output_dir):
     output_path = Path(output_dir)
     
     # Pattern for files with LD mismatch degree
-    pattern1 = f"{locus_name}.*.susie.txt"
+    pattern1 = f"{locus_name}.*.carma.txt"
     # Pattern for files without LD mismatch degree (unmodified LD)
-    pattern2 = f"{locus_name}.susie.txt"
+    pattern2 = f"{locus_name}.carma.txt"
     
     files = []
     files.extend(glob.glob(str(output_path / pattern1)))
@@ -123,8 +123,8 @@ def extract_ld_mismatch_degree(file_path, locus_name):
     """Extract LD mismatch degree from filename."""
     filename = Path(file_path).name
     
-    # Remove locus name and .susie.txt extension
-    remaining = filename.replace(f"{locus_name}.", "").replace("susie.txt", "").replace(".","")
+    # Remove locus name and .carma.txt extension
+    remaining = filename.replace(f"{locus_name}.", "").replace("carma.txt", "").replace(".","")
     
     # If nothing remains, it's the unmodified LD case
     if remaining == "":
