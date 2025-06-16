@@ -10,8 +10,8 @@ steps of that command in sequence.
 '''
 
 #import modules that will be needed
-import sys #Taking command line parameters as inputs
 import os
+import argparse
 
 
 ###############################################################################
@@ -23,16 +23,13 @@ import os
 ## MAIN ##
 
 def main(argv): 
+    #Create argument parser
+    parser = argparse.ArgumentParser(description='Execute encoded commands.')
+    parser.add_argument('-c', '--command_string', required=True, help='Encoded command string')
+    args = parser.parse_args()
 
-    ## Required arguments
-    try:
-        command_string = sys.argv[1]
-    except KeyError:
-        print("ERROR: One of your required arguments does not exist.")
-        help()
-    print("Acceptable Inputs Given")
     #Call driver function
-    driver(command_string)
+    driver(args.command_string)
 
 ###############################################################################
 #############################  DRIVER  ########################################
@@ -54,5 +51,5 @@ def driver(command_string):
 ###############################################################################
    
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main()
 
