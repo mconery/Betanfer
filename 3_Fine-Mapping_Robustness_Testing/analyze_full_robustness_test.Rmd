@@ -18,13 +18,24 @@ library(dplyr)
 #Set results files
 rsparsepro_file="C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/RSparsePro_Robustness_Testing/combined_results.rsparsepro.tsv"
 susie_file="C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/RSparsePro_Robustness_Testing/combined_results.susie.tsv"
+carma_file="C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/RSparsePro_Robustness_Testing/combined_results.carma.tsv"
 #Read in the results files
 rsparsepro_df <- read.csv(rsparsepro_file, sep="\t")
 susie_df <- read.csv(susie_file, sep="\t")
+carma_df <- read.csv(carma_file, sep="\t")
 
 #Split locus name up by simulation parameters
 rsparsepro_df <- rsparsepro_df %>% dplyr::mutate(population=str_sub(locus, start=1, end=3))
 susie_df <- susie_df %>% dplyr::mutate(population=str_sub(locus, start=1, end=3))
+carma_df <- carma_df %>% dplyr::mutate(population=str_sub(locus, start=1, end=3))
+
+#Add rows to carma df for trials that failed to converge in given number of retries
+test = rsparsepro_df %>% left_join(carma_df, by=c("locus", "ld_mismatch_degree")) %>%
+  mutate(num_causal_variants.y = num_causal_variants.x, population.y=population.x)
+test = test[c("locus", "ld_mismatch_degree", "iterations", colnames(test)[str_ends(colnames(test), "[.]y")])]
+carma_df = test
+colnames(carma_df) <- str_replace(colnames(carma_df), "[.]y", replacement = "")
+remove(test)
 
 ```
 # 2) Create Power vs Coverage Plotting Function for RSparsePro Only ====
@@ -533,9 +544,76 @@ create_susie_failure_barplot <- function(data, bar_width = 0.8) {
 ```{r}
 create_susie_failure_barplot(susie_df)
 ```
-# 14) Create Power vs Coverage Plotting Function for All Three Methods ====
+# 14) Create a function to plot failure rate of SuSiE ====
 ```{r}
-create_all_power_coverage_plot <- function(data, point_size = 3, add_smooth = FALSE) {
+create_carma_iterations_barplot <- function(data, bar_width = 0.8) {
+  # Load required packages
+  if (!require(dplyr, quietly = TRUE)) stop("Package 'dplyr' is required")
+  if (!require(ggplot2, quietly = TRUE)) stop("Package 'ggplot2' is required")
+  if (!require(ggh4x, quietly = TRUE)) stop("Package 'ggh4x' is required")
+  
+  # Validate input data
+  required_cols <- c("population", "num_causal_variants", 
+                     "ld_mismatch_degree", "iterations")
+  missing_cols <- setdiff(required_cols, names(data))
+  if (length(missing_cols) > 0) {
+    stop(paste("Missing required columns:", paste(missing_cols, collapse = ", ")))
+  }
+  
+  # Process data
+  processed_data <- data %>%
+    mutate(
+      ld_mismatch_degree = factor(
+        ld_mismatch_degree,
+        levels = c("50_traits", "100_traits", "200_traits", "300_traits",
+                   "400_traits", "500_traits", "1000_traits", "unmodified"),
+        labels = c("50", "100", "200", "300", "400", "500", "1000", "Unmodified")
+      ),
+      population = factor(population, levels = c("EUR", "AFR")),
+      num_causal_variants = factor(num_causal_variants),
+    ) %>% replace(is.na(.), 11) %>%
+    mutate(iterations_factor=as.factor(iterations)) %>%
+    group_by(population, num_causal_variants, ld_mismatch_degree, iterations_factor) %>%
+    summarise(
+      count=n(),
+      .groups = 'drop'
+    )
+  
+  # Create base plot
+  p <- ggplot(processed_data, 
+              aes(x = ld_mismatch_degree, y = count, fill = iterations_factor)) +
+    geom_bar(stat = "identity", position = "fill", 
+             color = "black", width = bar_width) +
+    facet_grid(population ~ num_causal_variants, scales = "free_y") +
+    coord_cartesian(ylim = c(0, 1)) +
+    scale_fill_manual(values = c("#f7fcf5", "#e8f6e4", "#d3edcc", "#b8e2b1", "#98d493", "#73c375", "#4bb061", "#2e974e", "#157e3a", "#006428", "#00441b"), breaks=seq(1,11,1), labels=c(seq(1,10,1), "Failed")) +
+    scale_y_continuous(breaks=seq(0,1,0.25), labels=paste0(seq(0,100,25), "%")) + 
+    labs(
+      x = "LD Mismatch Degree (Number of Traits)",
+      y = "Percent of Loci",
+      title = "Number of Causal Variants",
+      fill="Iterations"
+    ) +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      strip.background = element_rect(fill = "grey90"),
+      panel.spacing = unit(1.5, "lines"),
+      panel.border = element_blank(),
+      panel.background = element_blank(),
+      plot.title = element_text(hjust = 0.5),
+      legend.position = "bottom"
+    )
+  return(p)
+}
+
+```
+# 15) Call SuSiE Failure-Rate Barplot Function ====
+```{r}
+create_carma_iterations_barplot(carma_df)
+```
+# 16) Create Power vs Coverage Plotting Function for All Three Methods ====
+```{r}
+create_all_power_coverage_plot <- function(data, point_size = 3, add_smooth = FALSE, xmin=0, ymin=0) {
 
   # Validate input data
   required_cols <- c("population", "locus", "num_causal_variants", 
@@ -593,7 +671,7 @@ create_all_power_coverage_plot <- function(data, point_size = 3, add_smooth = FA
                              fill = method_ld)) +
     geom_point(size = point_size, alpha = 0.8, shape=21, color="black") +
     facet_grid(population ~ factor_num_causal_variants) +
-    coord_cartesian(ylim = c(0.7, 1), xlim = c(0, 1)) +
+    coord_cartesian(ylim = c(ymin, 1), xlim = c(xmin, 1)) +
     scale_fill_manual(
       name = "LD Mismatch Degree (Number of Traits)",
       values = color_values,
@@ -649,16 +727,32 @@ create_all_power_coverage_plot <- function(data, point_size = 3, add_smooth = FA
 
 
 ```
-# 15) Combine Dataframes together and plot results ====
+# 17) Combine Dataframes together and plot 3-way results ====
 ```{r}
 #Create combined dataframe 
 required_cols = c("population", "locus", "num_causal_variants", 
                      "num_credible_sets", "coverage", "power", "ld_mismatch_degree")
+#Get list of combinations that succeeded in all methods
 susie_thinned = susie_df %>% filter(mapping_status=="converged") %>% dplyr::select(all_of(required_cols)) %>% 
   mutate(method="SuSiE", susie_status="Converged", unique_name=paste(locus, ld_mismatch_degree, sep = "."))
-rsparsepro_pre_merge = rsparsepro_df %>% mutate(unique_name=paste(locus, ld_mismatch_degree, sep = ".")) %>% dplyr::filter(unique_name %in% susie_thinned$unique_name) %>% dplyr::select(all_of(required_cols)) %>% mutate(method="RSparsePro")
-susie_thinned <- susie_thinned %>% dplyr::select(all_of(required_cols)) %>% mutate(method="SuSiE")
-combined_df <- rbind.data.frame(susie_thinned, rsparsepro_pre_merge)
+carma_thinned = carma_df %>% filter(!is.na(iterations)) %>% dplyr::select(all_of(required_cols)) %>% 
+  mutate(method="CARMA", unique_name=paste(locus, ld_mismatch_degree, sep = "."))
+three_way_intersect=intersect(susie_thinned$unique_name, carma_thinned$unique_name)
+
+#Make the 3-way plot
+rsparsepro_three_way_merge = rsparsepro_df %>% mutate(unique_name=paste(locus, ld_mismatch_degree, sep = ".")) %>% dplyr::filter(unique_name %in% three_way_intersect) %>% dplyr::select(all_of(required_cols)) %>% mutate(method="RSparsePro")
+susie_three_way_merge <- susie_thinned %>% dplyr::filter(unique_name %in% three_way_intersect) %>% dplyr::select(all_of(required_cols)) %>% mutate(method="SuSiE")
+carma_three_way_merge <- carma_thinned %>% dplyr::filter(unique_name %in% three_way_intersect) %>% dplyr::select(all_of(required_cols)) %>% mutate(method="CARMA")
+three_way_df <- rbind.data.frame(susie_three_way_merge, rsparsepro_three_way_merge, carma_three_way_merge)
 #Call plotting script
-create_all_power_coverage_plot(combined_df)
+create_all_power_coverage_plot(three_way_df, xmin=0.35, ymin=0.25)
+```
+# 17) Plot CARMA v RSparsePro results ====
+```{r}
+#Make the 3-way plot
+rsparsepro_two_way_merge = rsparsepro_df %>% mutate(unique_name=paste(locus, ld_mismatch_degree, sep = ".")) %>% dplyr::filter(unique_name %in% carma_thinned$unique_name) %>% dplyr::select(all_of(required_cols)) %>% mutate(method="RSparsePro")
+carma_two_way_merge <- carma_thinned %>% dplyr::select(all_of(required_cols)) %>% mutate(method="CARMA")
+two_way_df <- rbind.data.frame(rsparsepro_two_way_merge, carma_two_way_merge)
+#Call plotting script
+create_all_power_coverage_plot(two_way_df, ymin=0.4,xmin=0.35)
 ```
