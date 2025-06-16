@@ -52,10 +52,7 @@ def driver(command_string):
         os.system(command)
 
 ###############################################################################
-
-
-#cProfile.run('main(sys.argv[1:])')
-         
+   
 if __name__ == "__main__":
     main(sys.argv[1:])
 
