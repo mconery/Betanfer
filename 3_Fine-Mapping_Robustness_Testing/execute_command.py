@@ -1,13 +1,13 @@
-'''
-execute_command.py
-
-The purpose of this script is to make the matrix/map files determined by 
-make_matrices.py. It takes in a single command parameter and executes the 
-steps of that command in sequence. 
-
-***This needs to be run on Python/3.9 as there's an incompatability with ***
-***other versions of python.                                             ***
-'''
+#"""
+#execute_command.py
+#
+#The purpose of this script is to make the matrix/map files determined by 
+#make_matrices.py. It takes in a single command parameter and executes the 
+#steps of that command in sequence. 
+#
+#***This needs to be run on Python/3.9 as there's an incompatability with ***
+#***other versions of python.                                             ***
+#"""
 
 #import modules that will be needed
 import os
