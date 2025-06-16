@@ -22,7 +22,7 @@ import argparse
 
 ## MAIN ##
 
-def main(argv): 
+def main(): 
     #Create argument parser
     parser = argparse.ArgumentParser(description='Execute encoded commands.')
     parser.add_argument('-c', '--command_string', required=True, help='Encoded command string')
