@@ -18,8 +18,9 @@ inp_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/rsparsepro_robu
 geno_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/simulated_genotypes"
 pheno_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/simulated_phenotypes"
 
-#Set simulation script location
+#Set script locations
 simulate_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/simulate_null_phenotypes.py"
+decode_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/3_Fine-Mapping_Robustness_Testing/execute_command.py"
 
 #Get number of nodes
 num_nodes="$SLURM_NNODES"
@@ -164,6 +165,33 @@ for (( i=0; i<${#cmds[@]}; i++ )); do
 	j=$(( $i + 1 ))
 	srun -n1 -N1 --ntasks-per-node=1 --job-name=$j ${cmds[$i]} &
 	if [ $(($j % $num_nodes)) == 0 ] || [ $j == $job_size ]; then 
+	    wait
+        fi
+done
+wait
+
+################################################################################################################
+################################################# Split Phenotypes #############################################
+################################################################################################################
+#Make commands to split the files
+cmds=()
+#Loop over the populations
+for pop in AFR EUR; do for trait_type in binary continuous; do cd $pheno_dir/$pop; for i in {1..1000}; do
+		pheno_col=$(( $i + 12))
+		if [ ! -f "$pheno_dir"/"$pop"/Pheno"$i"."$trait_type".txt ]; then 
+			cmds+=("python $decode_script -c cut___-f___1-12,"$pheno_col"___"$pheno_dir"/"$pop"/merged.maf.ld."$trait_type".txt___>___"$pheno_dir"/"$pop"/Pheno"$i"."$trait_type".txt")
+		fi
+done; done; done
+
+#Calculate number of possible jobs
+job_size=${#cmds[@]}
+num_parallel_jobs=$((($SLURM_CPUS_ON_NODE / 4) * num_nodes))
+echo "JOB SIZE: $job_size"
+#Launch commands
+for (( i=0; i<${#cmds[@]}; i++ )); do
+	j=$(( $i + 1 ))
+	srun -n1 -c1 -N1 --exclusive --job-name=$j ${cmds[$i]} &
+	if [ $(($j % $num_parallel_jobs)) == 0 ] || [ $j == $job_size ]; then 
 	    wait
         fi
 done
