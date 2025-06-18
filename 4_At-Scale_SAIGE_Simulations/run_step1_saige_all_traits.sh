@@ -63,8 +63,6 @@ srun -N ${NNODES} --ntasks-per-node 1 conda-unpack
 
 #Get number of gpus
 gpus=$(( $NNODES * 8))
-#Change into output directory
-cd $out_dir
 
 #Commented out for testing
 ##Create empty vector to hold commands
@@ -81,11 +79,14 @@ cd $out_dir
 pop=AFR
 plink_file_pre=$plink_dir/$pop/merged.plink.maf.ld
 plink_file_post=/mnt/bb/${USER}/temp
-pop_out_dir=$out_dir/$pop
 #sbcast genotype files to local scratch
 sbcast -pf $plink_file_pre.bim $plink_file_post.bim
 sbcast -pf $plink_file_pre.fam $plink_file_post.fam
 sbcast -pf $plink_file_pre.bed $plink_file_post.bed
+
+#Change into output directory
+cd $out_dir
+pop_out_dir=$out_dir/$pop
 
 pheno_file="$pheno_dir/$pop/Pheno1.binary.txt"
 phenotype="Pheno1"
