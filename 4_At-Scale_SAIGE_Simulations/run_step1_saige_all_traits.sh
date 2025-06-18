@@ -91,5 +91,5 @@ pop_out_dir=$out_dir/$pop
 pheno_file="$pheno_dir/$pop/Pheno1.binary.txt"
 phenotype="Pheno1"
 
-srun -n1 -c1 -G3 -C nvme --job-name=test_step_1 $saige_step1_script $plink_file_post $pheno_file $phenotype $pop_out_dir $path_to_saige
+srun -n1 -c1 -G8 -C nvme --job-name=test_step_1 $saige_step1_script $plink_file_post $pheno_file $phenotype $pop_out_dir $path_to_saige
 
