@@ -1,3 +1,4 @@
+#!/bin/bash
 #Extract command line parameters
 plink_file=$1
 pheno_file=$2
