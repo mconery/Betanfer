@@ -27,7 +27,7 @@ if [ ! "$?" == "0" ]; then
 fi
 
 # Untar the environment file (only need 1 task per node to do this)
-srun -N ${NNODES} --ntasks-per-node 1 mkdir /mnt/bb/${USER}/${ENV_NAME}
+srun -N ${NNODES} --ntasks-per-node 1 mkdir -p /mnt/bb/${USER}/${ENV_NAME}
 echo "untaring ${ENV_NAME}"
 srun -N ${NNODES} --ntasks-per-node 1 tar -xzf /mnt/bb/${USER}/${TAR_FILE} -C /mnt/bb/${USER}/${ENV_NAME}
 
