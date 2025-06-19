@@ -65,15 +65,11 @@ srun -N ${NNODES} --ntasks-per-node 1 conda-unpack
 #Testing code
 pop=AFR
 trait_type=binary
-plink_file_pre=$plink_dir/$pop/merged.plink.maf.ld
-plink_file_post=/mnt/bb/${USER}/temp
+chromo=1
+plink_file=$plink_dir/$pop/chr"$chromo".plink.maf.ld
 #Change into output directory
 cd $out_dir
 pop_out_dir=$out_dir/$pop
-#sbcast genotype files to local scratch
-sbcast -pf $plink_file_pre.bim $plink_file_post.bim
-sbcast -pf $plink_file_pre.fam $plink_file_post.fam
-sbcast -pf $plink_file_pre.bed $plink_file_post.bed
 
 #Create manifest file
 manifest_file=$out_dir/$pop/$trait_type.manifest.txt
@@ -84,5 +80,5 @@ ls $out_dir/$pop/*.step1_output.rda | while read file; do
 	echo $file $out_dir/$pop/$pheno.step1_output.varianceRatio.txt $out_dir/$pop/$pheno.step2_output.txt | awk -F " " '{print $1"\t"$2"\t"$3}' >> $manifest_file
 done
 
-Rscript $path_to_saige/extdata/step2_SPAtests.R --bedFile=$plink_file_post.bed --bimFile=$plink_file_post.bim --famFile=$plink_file_post.fam \
---manifestFile $manifest_file --chrom=1 --AlleleOrder=ref-first --minMAF=0 --minMAC=0.5 --LOCO=TRUE --is_fastTest=TRUE --is_Firth_beta=TRUE
+Rscript $path_to_saige/extdata/step2_SPAtests.R -bgenFile=$plink_file.bgen --bgenFileIndex=$plink_file.bgen.bgi \
+--manifestFile $manifest_file --chrom=$chromo --AlleleOrder=ref-first --minMAF=0 --minMAC=0.5 --LOCO=TRUE --is_fastTest=TRUE --is_Firth_beta=TRUE
