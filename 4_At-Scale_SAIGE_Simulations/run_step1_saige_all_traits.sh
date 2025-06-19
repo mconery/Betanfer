@@ -80,17 +80,20 @@ pop=AFR
 trait_type=binary
 plink_file_pre=$plink_dir/$pop/merged.plink.maf.ld
 plink_file_post=/mnt/bb/${USER}/temp
+#Change into output directory
+cd $out_dir
+pop_out_dir=$out_dir/$pop
 #sbcast genotype files to local scratch
 sbcast -pf $plink_file_pre.bim $plink_file_post.bim
 sbcast -pf $plink_file_pre.fam $plink_file_post.fam
 sbcast -pf $plink_file_pre.bed $plink_file_post.bed
 
-#Change into output directory
-cd $out_dir
-pop_out_dir=$out_dir/$pop
-
+#Run first phenotype
 pheno_file="$pheno_dir/$pop/Pheno1.$trait_type.txt"
 phenotype="Pheno1"
-
 srun -N1 -n $gpus --gpus-per-task 1 --gpu-bind closest --exclusive -C nvme --job-name=test_step_1 $saige_step1_script $plink_file_post $pheno_file $phenotype $pop_out_dir $path_to_saige $trait_type
 
+#Run first phenotype
+pheno_file="$pheno_dir/$pop/Pheno2.$trait_type.txt"
+phenotype="Pheno2"
+srun -N1 -n $gpus --gpus-per-task 1 --gpu-bind closest --exclusive -C nvme --job-name=test_step_1 $saige_step1_script $plink_file_post $pheno_file $phenotype $pop_out_dir $path_to_saige $trait_type
