@@ -43,9 +43,9 @@ for pop in AFR EUR; do
 		plink_inp=$inp_dir/$pop/chr"$chromo".plink.tag
 		plink_out=$geno_dir/$pop/chr"$chromo".plink.maf
 		if [ $pop == "EUR" ]; then 
-			cmds+=("plink2 --bfile $plink_inp --keep $keep_file --set-all-var-ids '@:#:$r:$a' --maf 0.01 --indep-pairwise 1000 80 0.1 --make-bed --out $plink_out")
+			cmds+=("plink2 --bfile $plink_inp --keep $keep_file --set-all-var-ids "@:#:\$r:\$a" --maf 0.01 --indep-pairwise 1000 80 0.1 --make-bed --out $plink_out")
 		else
-			cmds+=("plink2 --bfile $plink_inp --keep $keep_file --set-all-var-ids '@:#:$r:$a' --maf 0.01 --indep-pairwise 1000 80 0.05 --make-bed --out $plink_out")
+			cmds+=("plink2 --bfile $plink_inp --keep $keep_file --set-all-var-ids "@:#:\$r:\$a" --maf 0.01 --indep-pairwise 1000 80 0.05 --make-bed --out $plink_out")
 		fi
 	done
 done
