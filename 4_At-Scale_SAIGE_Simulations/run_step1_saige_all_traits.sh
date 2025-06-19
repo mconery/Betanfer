@@ -62,7 +62,7 @@ srun -N ${NNODES} --ntasks-per-node 1 conda-unpack
 ##################################################################################################################
 
 #Get number of gpus
-gpus=$(( $NNODES * 8))
+gpus=$(( $NNODES * 4))
 
 #Commented out for testing
 ##Create empty vector to hold commands
