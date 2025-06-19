@@ -77,6 +77,7 @@ gpus=$(( $NNODES * 8))
 
 #Testing code
 pop=AFR
+trait_type=binary
 plink_file_pre=$plink_dir/$pop/merged.plink.maf.ld
 plink_file_post=/mnt/bb/${USER}/temp
 #sbcast genotype files to local scratch
@@ -88,8 +89,8 @@ sbcast -pf $plink_file_pre.bed $plink_file_post.bed
 cd $out_dir
 pop_out_dir=$out_dir/$pop
 
-pheno_file="$pheno_dir/$pop/Pheno1.binary.txt"
+pheno_file="$pheno_dir/$pop/Pheno1.$trait_type.txt"
 phenotype="Pheno1"
 
-srun -n1 -c1 -G $gpus --gpus-per-task=$gpus -C nvme --job-name=test_step_1 $saige_step1_script $plink_file_post $pheno_file $phenotype $pop_out_dir $path_to_saige
+srun -N1 -n $gpus --gpus-per-task 1 --gpu-bind closest --exclusive -C nvme --job-name=test_step_1 $saige_step1_script $plink_file_post $pheno_file $phenotype $pop_out_dir $path_to_saige $trait_type
 
