@@ -213,7 +213,7 @@ for pop in AFR EUR; do
     #Set output bgen prefix
     bgen_out=$geno_dir/$pop/chr"$chromo".plink.maf.ld.bgen
     #Command to convert to BGEN v1.2 with 8-bit compression
-    cmds+=("plink2 --bfile $plink_inp --export bgen-1.2 --out $plink_inp")
+    cmds+=("plink2 --bfile $plink_inp --export bgen-1.2 bits=8 --out $plink_inp")
   done
 done
 
