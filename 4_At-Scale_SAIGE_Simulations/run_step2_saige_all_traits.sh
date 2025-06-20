@@ -80,5 +80,6 @@ ls $out_dir/$pop/*.step1_output.rda | while read file; do
 	echo $file $out_dir/$pop/$pheno.step1_output.varianceRatio.txt $out_dir/$pop/$pheno.step2_output.txt | awk -F " " '{print $1"\t"$2"\t"$3}' >> $manifest_file
 done
 
-Rscript $path_to_saige/extdata/step2_SPAtests.R -bgenFile=$plink_file.bgen --bgenFileIndex=$plink_file.bgen.bgi \
---manifestFile $manifest_file --chrom=$chromo --AlleleOrder=ref-first --minMAF=0 --minMAC=0.5 --LOCO=TRUE --is_fastTest=TRUE --is_Firth_beta=TRUE
+Rscript $path_to_saige/extdata/step2_SPAtests.R --bgenFile=$plink_file.bgen --bgenFileIndex=$plink_file.bgen.bgi \
+--manifestFile $manifest_file --sampleFile=$plink_dir/$pop/sample_list.txt \
+--chrom=$chromo --AlleleOrder=ref-first --minMAF=0 --minMAC=0.5 --LOCO=TRUE --is_fastTest=TRUE --is_Firth_beta=TRUE
