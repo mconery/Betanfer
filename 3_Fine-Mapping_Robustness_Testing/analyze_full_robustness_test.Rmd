@@ -38,7 +38,19 @@ colnames(carma_df) <- str_replace(colnames(carma_df), "[.]y", replacement = "")
 remove(test)
 
 ```
-# 2) Create Power vs Coverage Plotting Function for RSparsePro Only ====
+# 2) Split Tables into SD and Trait-Level LD Mismatch ====
+```{r}
+#Create tables for trait-level LD Mismatch 
+rsparsepro_trait_df <- rsparsepro_df %>% filter(str_detect(ld_mismatch_degree, pattern = "_traits") | str_detect(ld_mismatch_degree, pattern = "unmodified"))
+susie_trait_df <- susie_df %>% filter(str_detect(ld_mismatch_degree, pattern = "_traits") | str_detect(ld_mismatch_degree, pattern = "unmodified"))
+carma_trait_df <- carma_df %>% filter(str_detect(ld_mismatch_degree, pattern = "_traits") | str_detect(ld_mismatch_degree, pattern = "unmodified"))
+
+#Create tables for trait-level LD Mismatch 
+rsparsepro_sd_df <- rsparsepro_df %>% filter(str_detect(ld_mismatch_degree, pattern = "sd_") | str_detect(ld_mismatch_degree, pattern = "unmodified"))
+susie_sd_df <- susie_df %>% filter(str_detect(ld_mismatch_degree, pattern = "sd_") | str_detect(ld_mismatch_degree, pattern = "unmodified"))
+carma_sd_df <- carma_df %>% filter(str_detect(ld_mismatch_degree, pattern = "sd_") | str_detect(ld_mismatch_degree, pattern = "unmodified"))
+```
+# 3) Create Power vs Coverage Plotting Function for RSparsePro Only ====
 ```{r}
 create_power_coverage_plot <- function(data, point_size = 3, add_smooth = FALSE) {
 
@@ -152,11 +164,11 @@ create_power_coverage_plot <- function(data, point_size = 3, add_smooth = FALSE)
 
 
 ```
-# 3) Call Power vs. Coverage Plotting Function ====
+# 4) Call Power vs. Coverage Plotting Function for Trait-Level DFs ====
 ```{r}
-create_power_coverage_plot(rsparsepro_df)
+create_power_coverage_plot(rsparsepro_trait_df)
 ```
-# 4) Create Number of Credible Sets Plotting Function ====
+# 5) Create Number of Credible Sets Plotting Function ====
 ```{r}
 create_faceted_barplot <- function(data, bar_width = 0.8) {
   # Load required packages
@@ -221,11 +233,11 @@ create_faceted_barplot <- function(data, bar_width = 0.8) {
 }
 
 ```
-# 5) Call Number of Credible Sets Plotting Function ====
+# 6) Call Number of Credible Sets Plotting Function for Trait-Level DFs ====
 ```{r}
-create_faceted_barplot(rsparsepro_df)
+create_faceted_barplot(rsparsepro_trait_df)
 ```
-# 6) Create Credible Set Size Plotting Function ====
+# 7) Create Credible Set Size Plotting Function ====
 ```{r}
 create_faceted_size_barplot <- function(data, bar_width = 0.8) {
   # Load required packages
@@ -289,11 +301,11 @@ create_faceted_size_barplot <- function(data, bar_width = 0.8) {
 }
 
 ```
-# 7) Call Credible Set Size Plotting Function ====
+# 8) Call Credible Set Size Plotting Function for Trait-Level DFs ====
 ```{r}
-create_faceted_size_barplot(rsparsepro_df)
+create_faceted_size_barplot(rsparsepro_trait_df)
 ```
-# 8) Create Plotting Function for Top Signal Coverage and Power ====
+# 9) Create Plotting Function for Top Signal Coverage and Power ====
 ```{r}
 create_top_power_coverage_plot <- function(data, point_size = 3, add_smooth = FALSE) {
 
@@ -405,11 +417,11 @@ create_top_power_coverage_plot <- function(data, point_size = 3, add_smooth = FA
   )
 }
 ```
-# 9) Call Top Signal Power vs. Coverage Plotting Function ====
+# 10) Call Top Signal Power vs. Coverage Plotting Function for Trait-Level DFs ====
 ```{r}
-create_top_power_coverage_plot(rsparsepro_df)
+create_top_power_coverage_plot(rsparsepro_trait_df)
 ```
-# 10) Create a function that plots coverage of the first signal ====
+# 11) Create a function that plots coverage of the first signal ====
 ```{r}
 create_first_signal_barplot <- function(data, bar_width = 0.8) {
   # Load required packages
@@ -474,11 +486,11 @@ create_first_signal_barplot <- function(data, bar_width = 0.8) {
 }
 
 ```
-# 11) Call First Signal Plotting Function ====
+# 12) Call First Signal Plotting Function for Trait-Level DFs ====
 ```{r}
-create_first_signal_barplot(rsparsepro_df)
+create_first_signal_barplot(rsparsepro_trait_df)
 ```
-# 12) Create a function to plot failure rate of SuSiE ====
+# 13) Create a function to plot failure rate of SuSiE ====
 ```{r}
 create_susie_failure_barplot <- function(data, bar_width = 0.8) {
   # Load required packages
@@ -538,13 +550,12 @@ create_susie_failure_barplot <- function(data, bar_width = 0.8) {
     )
   return(p)
 }
-
 ```
-# 13) Call SuSiE Failure-Rate Barplot Function ====
+# 14) Call SuSiE Failure-Rate Barplot Function for Trait-Level DFs ====
 ```{r}
-create_susie_failure_barplot(susie_df)
+create_susie_failure_barplot(susie_trait_df)
 ```
-# 14) Create a function to plot failure rate of SuSiE ====
+# 15) Create a function to plot failure rate of CARMA ====
 ```{r}
 create_carma_iterations_barplot <- function(data, bar_width = 0.8) {
   # Load required packages
@@ -607,11 +618,11 @@ create_carma_iterations_barplot <- function(data, bar_width = 0.8) {
 }
 
 ```
-# 15) Call SuSiE Failure-Rate Barplot Function ====
+# 16) Call CARMA Failure-Rate Barplot Function for Trait-Level DFs ====
 ```{r}
-create_carma_iterations_barplot(carma_df)
+create_carma_iterations_barplot(carma_trait_df)
 ```
-# 16) Create Power vs Coverage Plotting Function for All Three Methods ====
+# 17) Create Power vs Coverage Plotting Function for All Three Methods ====
 ```{r}
 create_all_power_coverage_plot <- function(data, point_size = 3, add_smooth = FALSE, xmin=0, ymin=0) {
 
@@ -724,35 +735,307 @@ create_all_power_coverage_plot <- function(data, point_size = 3, add_smooth = FA
     rel_heights = c(4, 1)
   )
 }
-
-
 ```
-# 17) Combine Dataframes together and plot 3-way results ====
+# 18) Combine Dataframes together and plot 3-way results for Trait-Level DFs ====
 ```{r}
 #Create combined dataframe 
 required_cols = c("population", "locus", "num_causal_variants", 
                      "num_credible_sets", "coverage", "power", "ld_mismatch_degree")
 #Get list of combinations that succeeded in all methods
-susie_thinned = susie_df %>% filter(mapping_status=="converged") %>% dplyr::select(all_of(required_cols)) %>% 
+susie_thinned = susie_trait_df %>% filter(mapping_status=="converged") %>% dplyr::select(all_of(required_cols)) %>% 
   mutate(method="SuSiE", susie_status="Converged", unique_name=paste(locus, ld_mismatch_degree, sep = "."))
-carma_thinned = carma_df %>% filter(!is.na(iterations)) %>% dplyr::select(all_of(required_cols)) %>% 
+carma_thinned = carma_trait_df %>% filter(!is.na(iterations)) %>% dplyr::select(all_of(required_cols)) %>% 
   mutate(method="CARMA", unique_name=paste(locus, ld_mismatch_degree, sep = "."))
 three_way_intersect=intersect(susie_thinned$unique_name, carma_thinned$unique_name)
 
 #Make the 3-way plot
-rsparsepro_three_way_merge = rsparsepro_df %>% mutate(unique_name=paste(locus, ld_mismatch_degree, sep = ".")) %>% dplyr::filter(unique_name %in% three_way_intersect) %>% dplyr::select(all_of(required_cols)) %>% mutate(method="RSparsePro")
+rsparsepro_three_way_merge = rsparsepro_trait_df %>% mutate(unique_name=paste(locus, ld_mismatch_degree, sep = ".")) %>% dplyr::filter(unique_name %in% three_way_intersect) %>% dplyr::select(all_of(required_cols)) %>% mutate(method="RSparsePro")
 susie_three_way_merge <- susie_thinned %>% dplyr::filter(unique_name %in% three_way_intersect) %>% dplyr::select(all_of(required_cols)) %>% mutate(method="SuSiE")
 carma_three_way_merge <- carma_thinned %>% dplyr::filter(unique_name %in% three_way_intersect) %>% dplyr::select(all_of(required_cols)) %>% mutate(method="CARMA")
 three_way_df <- rbind.data.frame(susie_three_way_merge, rsparsepro_three_way_merge, carma_three_way_merge)
 #Call plotting script
 create_all_power_coverage_plot(three_way_df, xmin=0.35, ymin=0.25)
 ```
-# 17) Plot CARMA v RSparsePro results ====
+# 19) Plot CARMA v RSparsePro results for Trait-Level DFs ====
 ```{r}
-#Make the 3-way plot
-rsparsepro_two_way_merge = rsparsepro_df %>% mutate(unique_name=paste(locus, ld_mismatch_degree, sep = ".")) %>% dplyr::filter(unique_name %in% carma_thinned$unique_name) %>% dplyr::select(all_of(required_cols)) %>% mutate(method="RSparsePro")
+#Make the 2-way plot
+rsparsepro_two_way_merge = rsparsepro_trait_df %>% mutate(unique_name=paste(locus, ld_mismatch_degree, sep = ".")) %>% dplyr::filter(unique_name %in% carma_thinned$unique_name) %>% dplyr::select(all_of(required_cols)) %>% mutate(method="RSparsePro")
 carma_two_way_merge <- carma_thinned %>% dplyr::select(all_of(required_cols)) %>% mutate(method="CARMA")
 two_way_df <- rbind.data.frame(rsparsepro_two_way_merge, carma_two_way_merge)
 #Call plotting script
 create_all_power_coverage_plot(two_way_df, ymin=0.4,xmin=0.35)
+```
+# 20) Create a function to plot failure rate of SuSiE ====
+```{r}
+create_susie_failure_barplot <- function(data, bar_width = 0.8) {
+  # Load required packages
+  if (!require(dplyr, quietly = TRUE)) stop("Package 'dplyr' is required")
+  if (!require(ggplot2, quietly = TRUE)) stop("Package 'ggplot2' is required")
+  if (!require(ggh4x, quietly = TRUE)) stop("Package 'ggh4x' is required")
+  
+  # Validate input data
+  required_cols <- c("population", "num_causal_variants", 
+                     "ld_mismatch_degree", "mapping_status")
+  missing_cols <- setdiff(required_cols, names(data))
+  if (length(missing_cols) > 0) {
+    stop(paste("Missing required columns:", paste(missing_cols, collapse = ", ")))
+  }
+  
+  # Process data
+  processed_data <- data %>%
+    mutate(
+      ld_mismatch_degree = factor(
+        ld_mismatch_degree,
+        levels = c("sd_015", "sd_01", "sd_005", "sd_001", "sd_0005", "unmodified"),
+        labels = c("0.15", "0.1", "0.05", "0.01", "0.005", "Unmodified")
+      ),
+      population = factor(population, levels = c("EUR", "AFR")),
+      num_causal_variants = factor(num_causal_variants)
+    ) %>%
+    group_by(population, num_causal_variants, ld_mismatch_degree, mapping_status) %>%
+    summarise(
+      count=n(),
+      .groups = 'drop'
+    )
+  
+  # Create base plot
+  p <- ggplot(processed_data, 
+              aes(x = ld_mismatch_degree, y = count, fill = mapping_status)) +
+    geom_bar(stat = "identity", position = "fill", 
+             color = "black", width = bar_width) +
+    facet_grid(population ~ num_causal_variants, scales = "free_y") +
+    coord_cartesian(ylim = c(0, 1)) +
+    scale_fill_manual(values = c("converged" = "darkgreen", "not_converged" = "gold", "error" = "#67000D"), breaks=c("converged", "not_converged", "error"), labels=c("Converged", "Not Converged", "Prior Estimation Failed")) +
+    scale_y_continuous(breaks=seq(0,1,0.25), labels=paste0(seq(0,100,25), "%")) + 
+    labs(
+      x = "LD Mismatch Degree (Noise Standard Deviation)",
+      y = "Percent of Loci",
+      title = "Number of Causal Variants",
+      fill="Mapping Status"
+    ) +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      strip.background = element_rect(fill = "grey90"),
+      panel.spacing = unit(1.5, "lines"),
+      panel.border = element_blank(),
+      panel.background = element_blank(),
+      plot.title = element_text(hjust = 0.5),
+      legend.position = "bottom"
+    )
+  return(p)
+}
+```
+# 21) Call SuSiE Failure-Rate Barplot Function for SD DFs ====
+```{r}
+create_susie_failure_barplot(susie_sd_df)
+```
+# 22) Create a function to plot failure rate of CARMA ====
+```{r}
+create_carma_iterations_barplot <- function(data, bar_width = 0.8) {
+  # Load required packages
+  if (!require(dplyr, quietly = TRUE)) stop("Package 'dplyr' is required")
+  if (!require(ggplot2, quietly = TRUE)) stop("Package 'ggplot2' is required")
+  if (!require(ggh4x, quietly = TRUE)) stop("Package 'ggh4x' is required")
+  
+  # Validate input data
+  required_cols <- c("population", "num_causal_variants", 
+                     "ld_mismatch_degree", "iterations")
+  missing_cols <- setdiff(required_cols, names(data))
+  if (length(missing_cols) > 0) {
+    stop(paste("Missing required columns:", paste(missing_cols, collapse = ", ")))
+  }
+  
+  # Process data
+  processed_data <- data %>%
+    mutate(
+      ld_mismatch_degree = factor(
+        ld_mismatch_degree,
+        levels = c("sd_015", "sd_01", "sd_005", "sd_001", "sd_0005", "unmodified"),
+        labels = c("0.15", "0.1", "0.05", "0.01", "0.005", "Unmodified")
+      ),
+      population = factor(population, levels = c("EUR", "AFR")),
+      num_causal_variants = factor(num_causal_variants),
+    ) %>% replace(is.na(.), 11) %>%
+    mutate(iterations_factor=as.factor(iterations)) %>%
+    group_by(population, num_causal_variants, ld_mismatch_degree, iterations_factor) %>%
+    summarise(
+      count=n(),
+      .groups = 'drop'
+    )
+  
+  # Create base plot
+  p <- ggplot(processed_data, 
+              aes(x = ld_mismatch_degree, y = count, fill = iterations_factor)) +
+    geom_bar(stat = "identity", position = "fill", 
+             color = "black", width = bar_width) +
+    facet_grid(population ~ num_causal_variants, scales = "free_y") +
+    coord_cartesian(ylim = c(0, 1)) +
+    scale_fill_manual(values = c("#f7fcf5", "#e8f6e4", "#d3edcc", "#b8e2b1", "#98d493", "#73c375", "#4bb061", "#2e974e", "#157e3a", "#006428", "#00441b"), breaks=seq(1,11,1), labels=c(seq(1,10,1), "Failed")) +
+    scale_y_continuous(breaks=seq(0,1,0.25), labels=paste0(seq(0,100,25), "%")) + 
+    labs(
+      x = "LD Mismatch Degree (Noise Standard Deviation)",
+      y = "Percent of Loci",
+      title = "Number of Causal Variants",
+      fill="Iterations"
+    ) +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      strip.background = element_rect(fill = "grey90"),
+      panel.spacing = unit(1.5, "lines"),
+      panel.border = element_blank(),
+      panel.background = element_blank(),
+      plot.title = element_text(hjust = 0.5),
+      legend.position = "bottom"
+    )
+  return(p)
+}
+
+```
+# 23) Call CARMA Failure-Rate Barplot Function for Trait-Level DFs ====
+```{r}
+create_carma_iterations_barplot(carma_sd_df)
+```
+# 24) Create Power vs Coverage Plotting Function for All Three Methods ====
+```{r}
+create_all_power_coverage_plot <- function(data, point_size = 3, add_smooth = FALSE, xmin=0, ymin=0) {
+
+  # Validate input data
+  required_cols <- c("population", "locus", "num_causal_variants", 
+                     "num_credible_sets", "coverage", "power", "ld_mismatch_degree")
+  missing_cols <- setdiff(required_cols, names(data))
+  if (length(missing_cols) > 0) {
+    stop(paste("Missing required columns:", paste(missing_cols, collapse = ", ")))
+  }
+  
+  # Convert LD mismatch degree to numeric sd level
+  processed_data <- data %>%
+    mutate(ld_mismatch_degree = str_replace(ld_mismatch_degree, "sd_0", "sd_0.")) %>%
+    mutate(
+      num_traits = suppressWarnings(case_when(
+        ld_mismatch_degree == "unmodified" ~ 0,
+        .default = parse_number(str_replace(as.character(ld_mismatch_degree), "sd_", ""))
+      )),
+      # Create ordered factor for plotting
+      ld_numeric = factor(num_traits, 
+                         levels = c(0.15, 0.1, 0.05, 0.01, 0.005, 0),
+                         labels = c("0.15", "0.1", "0.05", "0.01", "0.005", "Unmodified")),
+      factor_num_causal_variants = as.factor(num_causal_variants)
+    )
+  
+  # Aggregate data with weights
+  plot_data <- processed_data %>%
+    group_by(population, ld_numeric, num_traits, factor_num_causal_variants, method) %>%
+    summarise(
+      weighted_coverage = weighted.mean(coverage, w = num_credible_sets, na.rm = TRUE),
+      weighted_power = weighted.mean(power, w = num_causal_variants, na.rm = TRUE),
+      .groups = 'drop'
+    )
+  
+  # Generate method-specific color palettes
+  n_ld <- length(unique(plot_data$ld_numeric))
+  susie_colors <- colorRampPalette(RColorBrewer::brewer.pal(9, "Blues")[1:9])(n_ld)
+  rsparsepro_colors <- colorRampPalette(RColorBrewer::brewer.pal(9, "Reds")[1:9])(n_ld)
+  carma_colors <- colorRampPalette(RColorBrewer::brewer.pal(9, "Greens")[1:9])(n_ld)
+  
+  # Combine colors with infinite value (black)
+  color_values <- c(
+    setNames(susie_colors[1:length(susie_colors)-1], paste0("SuSiE_", head(levels(plot_data$ld_numeric), -1))),
+    setNames(rsparsepro_colors[1:length(rsparsepro_colors)-1], paste0("RSparsePro_", head(levels(plot_data$ld_numeric), -1))),
+    setNames(carma_colors[1:length(carma_colors)-1], paste0("CARMA_", head(levels(plot_data$ld_numeric), -1))),
+    "SuSiE_Unmodified" = susie_colors[length(susie_colors)],  # Darkest blue
+    "RSparsePro_Unmodified" = rsparsepro_colors[length(rsparsepro_colors)],   # Darkest red
+    "CARMA_Unmodified" = carma_colors[length(carma_colors)] #Darkest Green
+  )
+  
+  # Create combined population-LD factor
+  plot_data <- plot_data %>%
+    mutate(method_ld = factor(paste0(method, "_", ld_numeric)))
+  
+  # Create base plot
+  main_plot <- ggplot(plot_data, aes(x = weighted_power, y = weighted_coverage,
+                             fill = method_ld)) +
+    geom_point(size = point_size, alpha = 0.8, shape=21, color="black") +
+    facet_grid(population ~ factor_num_causal_variants) +
+    coord_cartesian(ylim = c(ymin, 1), xlim = c(xmin, 1)) +
+    scale_fill_manual(
+      name = "LD Mismatch Degree (Noise Standard Deviation)",
+      values = color_values,
+      labels = rep(levels(plot_data$ld_numeric), 2)
+    ) +
+    labs(
+      x = "Power",
+      y = "Coverage",
+      title = "Number of Causal Variants"
+    ) +
+    theme_minimal() +
+    theme(
+      strip.text = element_text(size = 14),
+      axis.text = element_text(size=12),
+      axis.title = element_text(size=14),
+      panel.spacing = unit(1, "lines"),
+      legend.position = "none",
+      plot.title = element_text(hjust = 0.5),
+    ) +
+    guides(fill = guide_legend(nrow = 3, title.position = "top"))
+  
+  # Create legend grid data
+  legend_data <- expand.grid(
+    method = c("SuSiE", "RSparsePro", "CARMA"),
+    ld_numeric = levels(processed_data$ld_numeric),
+    stringsAsFactors = TRUE
+  ) %>% dplyr::arrange(method, ld_numeric) %>% dplyr::mutate(unique_name=paste(method, ld_numeric, sep="_"))
+  
+  # Create legend plot
+  legend_plot <- ggplot(legend_data, aes(x = ld_numeric, y = method)) +
+    geom_tile(aes(fill = unique_name), color = "black") +
+    scale_fill_manual(values = color_values) +
+    scale_x_discrete(breaks = levels(legend_data$ld_numeric), labels = c(levels(legend_data$ld_numeric)[1:length(levels(legend_data$ld_numeric))-1], "Unmodified")) +
+    labs(x = "Degree of LD Mismatch (Noise Standard Deviation)", y = "") +
+    theme_minimal() +
+    theme(
+      strip.background = element_rect(fill = c(susie_colors[length(susie_colors)], rsparsepro_colors[length(rsparsepro_colors)], carma_colors[length(carma_colors)])),
+      strip.text = element_text(color = "white", face = "bold"),
+      panel.grid = element_blank(),
+      legend.position = "none",
+      plot.title = element_text(hjust = 0.5),
+      axis.text = element_text(size=8)
+    )
+  
+  # Combine plots
+  cowplot::plot_grid(
+    main_plot,
+    legend_plot,
+    ncol = 1,
+    rel_heights = c(4, 1)
+  )
+}
+```
+# 25) Combine Dataframes together and plot 3-way results for Trait-Level DFs ====
+```{r}
+#Create combined dataframe 
+required_cols = c("population", "locus", "num_causal_variants", 
+                     "num_credible_sets", "coverage", "power", "ld_mismatch_degree")
+#Get list of combinations that succeeded in all methods
+susie_sd_thinned = susie_sd_df %>% filter(mapping_status=="converged") %>% dplyr::select(all_of(required_cols)) %>% 
+  mutate(method="SuSiE", susie_status="Converged", unique_name=paste(locus, ld_mismatch_degree, sep = "."))
+carma_sd_thinned = carma_sd_df %>% filter(!is.na(iterations)) %>% dplyr::select(all_of(required_cols)) %>% 
+  mutate(method="CARMA", unique_name=paste(locus, ld_mismatch_degree, sep = "."))
+three_way_sd_intersect=intersect(susie_sd_thinned$unique_name, carma_sd_thinned$unique_name)
+
+#Make the 3-way plot
+rsparsepro_three_way_sd_merge = rsparsepro_sd_df %>% mutate(unique_name=paste(locus, ld_mismatch_degree, sep = ".")) %>% dplyr::filter(unique_name %in% three_way_sd_intersect) %>% dplyr::select(all_of(required_cols)) %>% mutate(method="RSparsePro")
+susie_three_way_sd_merge <- susie_sd_thinned %>% dplyr::filter(unique_name %in% three_way_sd_intersect) %>% dplyr::select(all_of(required_cols)) %>% mutate(method="SuSiE")
+carma_three_way_sd_merge <- carma_sd_thinned %>% dplyr::filter(unique_name %in% three_way_sd_intersect) %>% dplyr::select(all_of(required_cols)) %>% mutate(method="CARMA")
+three_way_sd_df <- rbind.data.frame(susie_three_way_sd_merge, rsparsepro_three_way_sd_merge, carma_three_way_sd_merge)
+#Call plotting script
+create_all_power_coverage_plot(three_way_sd_df, xmin=0.35, ymin=0.25)
+```
+# 26) Plot CARMA v RSparsePro results for Trait-Level DFs ====
+```{r}
+#Make the 2-way plot
+rsparsepro_two_way_sd_merge = rsparsepro_sd_df %>% mutate(unique_name=paste(locus, ld_mismatch_degree, sep = ".")) %>% dplyr::filter(unique_name %in% carma_sd_thinned$unique_name) %>% dplyr::select(all_of(required_cols)) %>% mutate(method="RSparsePro")
+carma_two_way_sd_merge <- carma_sd_thinned %>% dplyr::select(all_of(required_cols)) %>% mutate(method="CARMA")
+two_way_sd_df <- rbind.data.frame(rsparsepro_two_way_sd_merge, carma_two_way_sd_merge)
+#Call plotting script
+create_all_power_coverage_plot(two_way_sd_df, ymin=0.4,xmin=0.35)
 ```
