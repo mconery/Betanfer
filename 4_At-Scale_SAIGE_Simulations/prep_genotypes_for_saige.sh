@@ -2,7 +2,7 @@
 #SBATCH -A bif154
 #SBATCH -J prep_geno
 #SBATCH -o prep_genotypes_for_saige.log
-#SBATCH -N 4
+#SBATCH -N 8
 #SBATCH -q debug
 #SBATCH -t 2:00:00
 
@@ -203,7 +203,7 @@ num_nodes="$SLURM_NNODES"
 #Create empty command array
 cmds=()
 #Loop over two populations
-for pop in AFR EUR; do
+for pop in EUR; do
   #Change into population output directory
   cd $geno_dir/$pop
   #Loop the chromosomes
