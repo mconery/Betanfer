@@ -3,7 +3,7 @@
 #SBATCH -J prep_geno
 #SBATCH -o prep_genotypes_for_saige.log
 #SBATCH -N 8
-#SBATCH -q debug
+#SBATCH -p batch
 #SBATCH -t 2:00:00
 
 #Load plink tools and conda environment
