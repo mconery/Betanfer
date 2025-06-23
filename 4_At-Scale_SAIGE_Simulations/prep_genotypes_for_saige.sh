@@ -235,7 +235,7 @@ wait
 
 cmds=()
 #Loop over two populations
-for pop in AFR EUR; do
+for pop in EUR; do
   cd $geno_dir/$pop
   #Loop the chromosomes
   for chromo in {1..22}; do
