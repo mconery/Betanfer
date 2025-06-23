@@ -66,7 +66,7 @@ srun -N ${NNODES} --ntasks-per-node 1 conda-unpack
 pop=AFR
 trait_type=binary
 chromo=1
-plink_file=$plink_dir/$pop/chr"$chromo".plink.maf.ld
+plink_file=$plink_dir/$pop/chr"$chromo".plink.maf
 #Change into output directory
 cd $out_dir
 pop_out_dir=$out_dir/$pop
