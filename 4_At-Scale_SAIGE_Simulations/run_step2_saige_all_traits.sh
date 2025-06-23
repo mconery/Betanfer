@@ -74,7 +74,7 @@ pop_out_dir=$out_dir/$pop
 #Create manifest file
 manifest_file=$out_dir/$pop/$trait_type.manifest.txt
 >$manifest_file
-ls $out_dir/$pop/*.step1_output.rda | while read file; do
+ls $out_dir/$pop/*step1_output.rda | while read file; do
 	temp=${file%.step1_output.rda}
 	pheno=$(basename $temp)
 	echo $file $out_dir/$pop/$pheno.step1_output.varianceRatio.txt $out_dir/$pop/$pheno.step2_output.txt | awk -F " " '{print $1"\t"$2"\t"$3}' >> $manifest_file

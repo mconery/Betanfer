@@ -209,9 +209,9 @@ for pop in AFR EUR; do
   #Loop the chromosomes
   for chromo in {1..22}; do
     #Set input plink file prefix (without extension)
-    plink_inp=$geno_dir/$pop/chr"$chromo".plink.maf.ld
+    plink_inp=$geno_dir/$pop/chr"$chromo".plink.maf
     #Set output bgen prefix
-    bgen_out=$geno_dir/$pop/chr"$chromo".plink.maf.ld.bgen
+    bgen_out=$geno_dir/$pop/chr"$chromo".plink.maf.bgen
     #Command to convert to BGEN v1.2 with 8-bit compression
     cmds+=("plink2 --bfile $plink_inp --export bgen-1.2 bits=8 --out $plink_inp")
   done
@@ -239,7 +239,7 @@ for pop in AFR EUR; do
   cd $geno_dir/$pop
   #Loop the chromosomes
   for chromo in {1..22}; do
-    bgen_file=$geno_dir/$pop/chr"$chromo".plink.maf.ld.bgen
+    bgen_file=$geno_dir/$pop/chr"$chromo".plink.maf.bgen
     #Command to create index for each BGEN file
     cmds+=("bgenix -g $bgen_file -index")
   done
