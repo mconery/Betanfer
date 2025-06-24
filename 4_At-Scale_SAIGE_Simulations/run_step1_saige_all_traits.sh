@@ -4,7 +4,7 @@
 #SBATCH -o run_step1_saige_all_traits.log
 #SBATCH -N 750
 #SBATCH -p batch
-#SBATCH -t 1:00:00
+#SBATCH -t 1:30:00
 #SBATCH -C nvme
 
 ##################################################################################################################
@@ -21,8 +21,7 @@ path_to_saige="/lustre/orion/bif154/proj-shared/arodriguez/tools/SAIGE-GPU/src/S
 saige_step1_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/run_step1_saige_single_trait.sh"
 
 #Set population names
-#populations=("AFR" "EUR")
-populations=("AFR")
+populations=("AFR" "EUR")
 trait_types=("binary" "continuous")
 
 #Set number of gpus needed per phenotype
