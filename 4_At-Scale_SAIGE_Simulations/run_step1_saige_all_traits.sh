@@ -2,9 +2,9 @@
 #SBATCH -A bif154
 #SBATCH -J saige_step1
 #SBATCH -o run_step1_saige_all_traits.log
-#SBATCH -N 750
-#SBATCH -p batch
-#SBATCH -t 1:30:00
+#SBATCH -N 1500
+#SBATCH -q debug
+#SBATCH -t 1:00:00
 #SBATCH -C nvme
 
 ##################################################################################################################
@@ -13,7 +13,7 @@
 #Input directories
 plink_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/simulated_genotypes"
 pheno_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/simulated_phenotypes"
-out_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/null_saige_results"
+out_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step1_results"
 
 #Set up SAIGE-GPU variables
 R_LIB=/lustre/orion/bif154/proj-shared/arodriguez/tools/conda_envs/RSAIGE_1.3.3_amd_gpu/lib/R/library
@@ -73,14 +73,16 @@ max_parallel=$(($total_gpus / $gpus))
 #Loop over the populations, create the mapping commands for all phenotypes, and launch them
 for pop in ${populations[@]}; do
 	plink_file_pre=$plink_dir/$pop/merged.plink.maf.ld
-	plink_file_post=/mnt/bb/${USER}/temp
+	plink_file_post=/mnt/bb/${USER}/$pop
 	#sbcast genotype files to local scratch
 	sbcast -pf $plink_file_pre.bim $plink_file_post.bim
 	sbcast -pf $plink_file_pre.fam $plink_file_post.fam
 	sbcast -pf $plink_file_pre.bed $plink_file_post.bed
 	#Change into output directory
 	pop_out_dir=$out_dir/$pop
+	mkdir -p $pop_out_dir
 	cd $pop_out_dir
+	touch $pop_out_dir/timing.csv  # Create timing file
 	#Create commands to process step 1 for all phenotypes of the population
 	cmds=()
 	#Loop over the trait types
@@ -95,12 +97,13 @@ for pop in ${populations[@]}; do
 			cmds+=("$saige_step1_script $plink_file_post $file $phenotype $pop_out_dir $path_to_saige $trait_type")
 		done < $pheno_dir/$pop/$trait_type.phenotype_files.txt
 	done
-	#Run all the commands for the population
-	for (( i=0; i<${#cmds[@]}; i++ )); do
-		j=$(( $i + 1 ))
-		srun -N1 -n $gpus --gpus-per-task 1 --gpu-bind closest --exclusive -C nvme --job-name=$j ${cmds[$i]} &
-		if [ $(($j % $max_parallel)) == 0 ] || [ $j == $job_size ]; then 
-	    		wait
-        	fi
-	done
+done
+
+#Run all the commands for the population
+for (( i=0; i<${#cmds[@]}; i++ )); do
+	j=$(( $i + 1 ))
+	srun -N1 -n $gpus --gpus-per-task 1 --gpu-bind closest --exclusive -C nvme --job-name=$j ${cmds[$i]} &
+	if [ $(($j % $max_parallel)) == 0 ] || [ $j == $job_size ]; then 
+	    	wait
+        fi
 done
