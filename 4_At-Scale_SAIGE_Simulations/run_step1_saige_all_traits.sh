@@ -100,6 +100,7 @@ for pop in ${populations[@]}; do
 done
 
 #Run all the commands for the population
+job_size=${#cmds[@]}
 for (( i=0; i<${#cmds[@]}; i++ )); do
 	j=$(( $i + 1 ))
 	srun -N1 -n $gpus --gpus-per-task 1 --gpu-bind closest --exclusive -C nvme --job-name=$j ${cmds[$i]} &
