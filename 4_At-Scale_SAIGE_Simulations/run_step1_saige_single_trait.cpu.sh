@@ -4,8 +4,7 @@ plink_file=$1
 pheno_file=$2
 phenotype=$3
 out_dir=$4
-path_to_saige=$5
-trait_type=$6
+trait_type=$5
 
 # Start timing
 start_time=$(date +%s.%N)
