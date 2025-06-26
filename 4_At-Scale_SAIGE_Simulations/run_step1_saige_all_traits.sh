@@ -2,7 +2,7 @@
 #SBATCH -A bif154
 #SBATCH -J saige_step1
 #SBATCH -o run_step1_saige_all_traits.log
-#SBATCH -N 1500
+#SBATCH -N 100
 #SBATCH -p batch
 #SBATCH -t 45:00
 #SBATCH -C nvme
@@ -70,6 +70,7 @@ total_gpus=$(($NNODES * 8))
 #Get maximum number of parallel jobs
 max_parallel=$(($total_gpus / $gpus))
 
+cmds=()
 #Loop over the populations, create the mapping commands for all phenotypes, and launch them
 for pop in ${populations[@]}; do
 	plink_file_pre=$plink_dir/$pop/merged.plink.maf.ld
@@ -84,7 +85,6 @@ for pop in ${populations[@]}; do
 	cd $pop_out_dir
 	touch $pop_out_dir/timing.csv  # Create timing file
 	#Create commands to process step 1 for all phenotypes of the population
-	cmds=()
 	#Loop over the trait types
 	for trait_type in ${trait_types[@]}; do
 		#Make a list of the phenotype files for the given trait type and population
@@ -99,7 +99,7 @@ for pop in ${populations[@]}; do
 	done
 done
 
-#Run all the commands for the population
+#Run all the commands for the populations
 job_size=${#cmds[@]}
 for (( i=0; i<${#cmds[@]}; i++ )); do
 	j=$(( $i + 1 ))

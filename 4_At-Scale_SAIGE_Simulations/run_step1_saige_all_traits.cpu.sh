@@ -2,9 +2,9 @@
 #SBATCH -A bif154
 #SBATCH -J saige_step1_cpu
 #SBATCH -o run_step1_saige_all_traits.cpu.log
-#SBATCH -N 10
+#SBATCH -N 100
 #SBATCH -p batch
-#SBATCH -t 40:00
+#SBATCH -t 1:00:00
 #SBATCH -C nvme
 
 ##################################################################################################################
@@ -31,11 +31,11 @@ NNODES=${SLURM_NNODES}
 #Get maximum number of parallel jobs
 max_parallel=$NNODES
 
+cmds=() #Create empty commands vector
 #Loop over the populations, create the mapping commands for all phenotypes, and launch them
 for pop in ${populations[@]}; do
 	plink_file_pre=$plink_dir/$pop/merged.plink.maf.ld
 	plink_file_post=/mnt/bb/${USER}/$pop
-	mkdir -p 
 	#sbcast genotype files to local scratch
 	sbcast -pf $plink_file_pre.bim $plink_file_post.bim
 	sbcast -pf $plink_file_pre.fam $plink_file_post.fam
@@ -46,7 +46,6 @@ for pop in ${populations[@]}; do
 	cd $pop_out_dir
 	touch $pop_out_dir/timing.csv  # Create timing file
 	#Create commands to process step 1 for all phenotypes of the population
-	cmds=()
 	#Loop over the trait types
 	for trait_type in ${trait_types[@]}; do
 		#Make a list of the phenotype files for the given trait type and population
@@ -61,10 +60,11 @@ for pop in ${populations[@]}; do
 	done
 done
 
-#Run all the commands for the population
+#Run all the commands for the populations
+job_size=${#cmds[@]}
 for (( i=0; i<${#cmds[@]}; i++ )); do
 	j=$(( $i + 1 ))
-	srun -N1 --exclusive -C nvme --job-name=$j ${cmds[$i]} & 
+	srun -N1 -n1 --exclusive -C nvme --job-name=$j ${cmds[$i]} & 
 	if [ $(($j % $max_parallel)) == 0 ] || [ $j == $job_size ]; then 
 	    	wait
         fi
