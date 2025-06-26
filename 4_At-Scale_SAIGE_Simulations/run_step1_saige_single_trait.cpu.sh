@@ -33,4 +33,4 @@ end_time=$(date +%s.%N)
 duration=$(echo "$end_time - $start_time" | bc -l)
 
 # Save timing results
-echo "$phenotype,$trait_type,$duration" #>> $out_dir/timing.csv
+echo "$phenotype,$trait_type,$duration" >> $out_dir/timing.csv
