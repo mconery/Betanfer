@@ -29,7 +29,7 @@ trait_types=("binary")
 #Get total number of nodes
 NNODES=${SLURM_NNODES}
 #Get maximum number of parallel jobs
-max_parallel=$(($total_gpus / $gpus))
+max_parallel=$NNODES
 
 #Loop over the populations, create the mapping commands for all phenotypes, and launch them
 for pop in ${populations[@]}; do
