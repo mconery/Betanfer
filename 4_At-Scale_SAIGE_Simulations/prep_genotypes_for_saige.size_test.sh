@@ -47,11 +47,11 @@ for pop in AFR EUR; do for prune_mult in ${prune_mults[@]}; do
 		if [ $pop == "EUR" ]; then 
 			prune_degree=$(echo "0.1 * $prune_mult" | bc)
 			plink_out=$geno_dir/$pop/chr"$chromo".plink.prune_mult_"$prune_mult".maf
-			cmds+=("plink2 --bfile $plink_inp --keep $keep_file --set-all-var-ids "@:#:\$r:\$a" --maf 0.01 --indep-pairwise 1000 80 $prune_degree --make-bed --out $plink_out")
+			cmds+=("plink2 --bfile $plink_inp --keep $keep_file --set-all-var-ids "@:#:\$r:\$a" --rm-dup --maf 0.01 --indep-pairwise 1000 80 $prune_degree --make-bed --out $plink_out")
 		else
 			prune_degree=$(echo "0.05 * $prune_mult" | bc)
 			plink_out=$geno_dir/$pop/chr"$chromo".plink.prune_mult_"$prune_mult".maf
-			cmds+=("plink2 --bfile $plink_inp --keep $keep_file --set-all-var-ids "@:#:\$r:\$a" --maf 0.01 --indep-pairwise 1000 80 $prune_degree --make-bed --out $plink_out")
+			cmds+=("plink2 --bfile $plink_inp --keep $keep_file --set-all-var-ids "@:#:\$r:\$a" --rm-dup --maf 0.01 --indep-pairwise 1000 80 $prune_degree --make-bed --out $plink_out")
 		fi
 	done
 done; done
@@ -122,7 +122,7 @@ for pop in AFR EUR; do
 	#Create merge list and merge files
 	ls $geno_dir/$pop/chr*.plink.maf.bim | sed 's/.bim//g' > $geno_dir/$pop/$pop.no_ld_prune.mergelist.txt
 	cmds+=("plink2 --allow-no-sex --make-bed --pmerge-list $geno_dir/$pop/$pop.no_ld_prune.mergelist.txt bfile --out $geno_dir/$pop/merged.plink.no_ld_prune.maf")
-done; done
+done;
 
 #Launch commands
 job_size=${#cmds[@]}
