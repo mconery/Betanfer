@@ -2,7 +2,7 @@
 #SBATCH -A bif154
 #SBATCH -J saige_step1.prune_mult_2.AFR
 #SBATCH -o run_step1_saige.prune_mult_2.AFR.log
-#SBATCH -N 8
+#SBATCH -N 9
 #SBATCH -p extended
 #SBATCH -t 24:00:00
 #SBATCH -C nvme
@@ -27,7 +27,7 @@ prune_level="prune_mult_2"
 num_traits=10
 
 #Set number of gpus needed per phenotype
-gpus=6
+gpus=7
 
 ##################################################################################################################
 ############################################## Load Modules and Conda Env ########################################
