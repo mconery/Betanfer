@@ -3,8 +3,8 @@
 #SBATCH -J saige_step1.prune_mult_2.AFR
 #SBATCH -o run_step1_saige.prune_mult_2.AFR.log
 #SBATCH -N 8
-#SBATCH -p batch
-#SBATCH -t 2:00:00
+#SBATCH -p extended
+#SBATCH -t 24:00:00
 #SBATCH -C nvme
 
 ##################################################################################################################
