@@ -1,0 +1,80 @@
+'''
+simulate_phenotype.py
+
+The purpose of this script is to simulate phenotypes given a set of input files
+and some simulation parameters.
+
+***This needs to be run on Python/3.9 as there's an incompatability with ***
+***other versions of python.                                             ***
+'''
+
+import argparse
+import numpy as np
+import pandas as pd
+from pysnptools.snpreader import Bed
+
+def main():
+    parser = argparse.ArgumentParser(description='Simulate phenotypes from PLINK files')
+    parser.add_argument('--plink', required=True, help='PLINK file prefix (without .bed/.bim/.fam extension)')
+    parser.add_argument('--output', required=True, help='Output phenotype file path')
+    parser.add_argument('--effects', required=True, help='File with causal variants and effect sizes (format: variant_id effect_size)')
+    parser.add_argument('--trait-type', choices=['binary', 'continuous'], required=True, help='Trait type')
+    parser.add_argument('--heritability', type=float, default=0.5, help='Heritability (0-1, default=0.5)')
+    parser.add_argument('--prevalence', type=float, default=0.3, help='Case prevalence for binary traits (0-1, default=0.3)')
+    
+    args = parser.parse_args()
+
+    # Load genotypes and metadata
+    bed_reader = Bed(args.plink, count_A1=False)
+    genotypes = bed_reader.read().val
+    iids = bed_reader.iid  # Individual IDs
+    snp_ids = bed_reader.sid  # Variant IDs
+
+    # Load causal effects
+    causal_effects = {}
+    with open(args.effects) as f:
+        for line in f:
+            if line.strip():
+                variant, effect = line.split()
+                causal_effects[variant] = float(effect)
+
+    # Validate causal variants
+    missing = [v for v in causal_effects if v not in snp_ids]
+    if missing:
+        raise ValueError(f"Causal variants not found: {', '.join(missing)}")
+    
+    # Get genotype indices for causal variants
+    causal_indices = [np.where(snp_ids == v)[0][0] for v in causal_effects]
+    effect_sizes = [causal_effects[v] for v in causal_effects]
+    
+    # Calculate genetic scores
+    causal_genotypes = genotypes[:, causal_indices]
+    genetic_score = causal_genotypes @ np.array(effect_sizes)
+    
+    # Simulate phenotype
+    if args.trait_type == 'continuous':
+        # Scale genetic component to desired heritability
+        genetic_var = np.var(genetic_score)
+        noise_var = genetic_var * (1/args.heritability - 1) if args.heritability > 0 else 1
+        noise = np.random.normal(0, np.sqrt(noise_var), len(genetic_score))
+        phenotype = genetic_score + noise
+    
+    elif args.trait_type == 'binary':
+        # Standardize genetic score
+        genetic_score_std = (genetic_score - np.mean(genetic_score)) / np.std(genetic_score)
+        # Liability threshold model
+        liability = np.sqrt(args.heritability) * genetic_score_std + \
+                   np.sqrt(1 - args.heritability) * np.random.normal(0, 1, len(genetic_score))
+        threshold = np.percentile(liability, 100 * (1 - args.prevalence))
+        phenotype = (liability > threshold).astype(int)
+    
+    # Save results
+    df = pd.DataFrame({
+        'FID': iids[:, 0],
+        'IID': iids[:, 1],
+        'PHENO': phenotype
+    })
+    df.to_csv(args.output, sep='\t', index=False, header=False)
+
+if __name__ == '__main__':
+    main()
