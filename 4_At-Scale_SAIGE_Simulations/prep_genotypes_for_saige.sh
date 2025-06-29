@@ -147,7 +147,7 @@ num_nodes="$SLURM_NNODES"
 #wait
 #
 ################################################################################################################
-############################################## Simulate Phenotypes #############################################
+############################################ Simulate Null Phenotypes ##########################################
 ################################################################################################################
 ##Create empty command array
 #cmds=()
@@ -181,6 +181,30 @@ num_nodes="$SLURM_NNODES"
 #		if [ ! -f "$pheno_dir"/"$pop"/Pheno"$i"."$trait_type".txt ]; then 
 #			cmds+=("python $decode_script -c cut___-f___1-12,"$pheno_col"___"$pheno_dir"/"$pop"/merged.maf.ld."$trait_type".txt___>___"$pheno_dir"/"$pop"/Pheno"$i"."$trait_type".txt")
 #		fi
+#done; done; done
+#
+##Calculate number of possible jobs
+#job_size=${#cmds[@]}
+#num_parallel_jobs=$((($SLURM_CPUS_ON_NODE / 4) * num_nodes))
+#echo "JOB SIZE: $job_size"
+##Launch commands
+#for (( i=0; i<${#cmds[@]}; i++ )); do
+#	j=$(( $i + 1 ))
+#	srun -n1 -c1 -N1 --exclusive --job-name=$j ${cmds[$i]} &
+#	if [ $(($j % $num_parallel_jobs)) == 0 ] || [ $j == $job_size ]; then 
+#	    wait
+#        fi
+#done
+#wait
+
+################################################################################################################
+################################## Replace the Phenotype Name in the Split File ################################
+################################################################################################################
+##Make commands to split the files
+#cmds=()
+##Loop over the populations
+#for pop in AFR EUR; do for trait_type in binary continuous; do cd $pheno_dir/$pop; for i in {1..1000}; do
+#			cmds+=("python $decode_script -c sed___-i___'s/Pheno$i/Pheno/g'___"$pheno_dir"/"$pop"/Pheno"$i"."$trait_type".txt")
 #done; done; done
 #
 ##Calculate number of possible jobs
