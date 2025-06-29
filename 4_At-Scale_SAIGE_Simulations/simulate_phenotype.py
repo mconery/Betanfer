@@ -8,19 +8,21 @@ and some simulation parameters.
 ***other versions of python.                                             ***
 '''
 
+#!/usr/bin/env python3
 import argparse
 import numpy as np
 import pandas as pd
 from pysnptools.snpreader import Bed
 
 def main():
-    parser = argparse.ArgumentParser(description='Simulate phenotypes from PLINK files')
+    parser = argparse.ArgumentParser(description='Simulate phenotypes from PLINK files and include principal components')
     parser.add_argument('--plink', required=True, help='PLINK file prefix (without .bed/.bim/.fam extension)')
     parser.add_argument('--output', required=True, help='Output phenotype file path')
     parser.add_argument('--effects', required=True, help='File with causal variants and effect sizes (format: variant_id effect_size)')
     parser.add_argument('--trait-type', choices=['binary', 'continuous'], required=True, help='Trait type')
     parser.add_argument('--heritability', type=float, default=0.5, help='Heritability (0-1, default=0.5)')
     parser.add_argument('--prevalence', type=float, default=0.3, help='Case prevalence for binary traits (0-1, default=0.3)')
+    parser.add_argument('--pc-file', required=True, help='File with principal component vectors (format: FID IID PC1 ... PC10)')
     
     args = parser.parse_args()
 
@@ -53,28 +55,31 @@ def main():
     
     # Simulate phenotype
     if args.trait_type == 'continuous':
-        # Scale genetic component to desired heritability
         genetic_var = np.var(genetic_score)
         noise_var = genetic_var * (1/args.heritability - 1) if args.heritability > 0 else 1
         noise = np.random.normal(0, np.sqrt(noise_var), len(genetic_score))
         phenotype = genetic_score + noise
-    
     elif args.trait_type == 'binary':
-        # Standardize genetic score
         genetic_score_std = (genetic_score - np.mean(genetic_score)) / np.std(genetic_score)
-        # Liability threshold model
         liability = np.sqrt(args.heritability) * genetic_score_std + \
                    np.sqrt(1 - args.heritability) * np.random.normal(0, 1, len(genetic_score))
         threshold = np.percentile(liability, 100 * (1 - args.prevalence))
         phenotype = (liability > threshold).astype(int)
     
     # Save results
-    df = pd.DataFrame({
+    df_pheno = pd.DataFrame({
         'FID': iids[:, 0],
         'IID': iids[:, 1],
         'PHENO': phenotype
     })
-    df.to_csv(args.output, sep='\t', index=False, header=False)
+
+    # Load principal components
+    df_pcs = pd.read_csv(args.pc_file, sep='\t')
+    # Merge phenotype and PCs by FID and IID
+    df_out = pd.merge(df_pheno, df_pcs, on=['FID', 'IID'])
+
+    # Save final output
+    df_out.to_csv(args.output, sep='\t', index=False)
 
 if __name__ == '__main__':
     main()
