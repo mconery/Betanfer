@@ -94,7 +94,9 @@ for pop in ${populations[@]}; do
 			temp=$(basename $file)
 			phenotype=${temp%.$trait_type.txt}
 			#Check if output files exist and add command if they do not
-			cmds+=("$saige_step1_script $plink_file_post $file $phenotype $pop_out_dir $path_to_saige $trait_type")
+			if [ ! -f $pop_out_dir/$phenotype.$trait_type.step1_output.rda ] || [ ! -f $pop_out_dir/$phenotype.$trait_type.step1_output.varianceRatio.txt ]; then
+				cmds+=("$saige_step1_script $plink_file_post $file $phenotype $pop_out_dir $path_to_saige $trait_type")
+			fi
 		done < $pheno_dir/$pop/$trait_type.phenotype_files.txt
 	done
 done
