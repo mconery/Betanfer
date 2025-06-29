@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -A bif154
 #SBATCH -J prep_geno
-#SBATCH -o prep_genotypes_for_saige.log
+#SBATCH -o prep_genotypes_and_null_phenotypes_for_saige.log
 #SBATCH -N 8
 #SBATCH -p batch
 #SBATCH -t 2:00:00
@@ -19,7 +19,8 @@ geno_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulati
 pheno_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/simulated_phenotypes"
 
 #Set script locations
-simulate_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/simulate_null_phenotypes.py"
+null_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/simulate_null_phenotypes.py"
+simulate_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/simulate_phenotype.py"
 decode_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/3_Fine-Mapping_Robustness_Testing/execute_command.py"
 
 #Get number of nodes
@@ -154,8 +155,8 @@ num_nodes="$SLURM_NNODES"
 ##Loop over the populations
 #for pop in AFR EUR; do
 #	cd $pheno_dir/$pop
-#	cmds+=("python $simulate_script -i $geno_dir/$pop/merged.plink.maf.ld.pcs.eigenvec -o $pheno_dir/$pop/merged.maf.ld.continuous.txt -n 1000 -t continuous")
-#	cmds+=("python $simulate_script -i $geno_dir/$pop/merged.plink.maf.ld.pcs.eigenvec -o $pheno_dir/$pop/merged.maf.ld.binary.txt -n 1000 -t binary")
+#	cmds+=("python $null_script -i $geno_dir/$pop/merged.plink.maf.ld.pcs.eigenvec -o $pheno_dir/$pop/merged.maf.ld.continuous.txt -n 1000 -t continuous")
+#	cmds+=("python $null_script -i $geno_dir/$pop/merged.plink.maf.ld.pcs.eigenvec -o $pheno_dir/$pop/merged.maf.ld.binary.txt -n 1000 -t binary")
 #done
 #
 ##Launch commands
