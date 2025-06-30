@@ -210,7 +210,7 @@ def main() -> None:
     parser.add_argument(
         "--seed",
         type=int,
-        default=None,
+        default=5,
         help="Random seed for reproducibility.",
     )
 
