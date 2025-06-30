@@ -5,7 +5,7 @@ Pick user-defined sets of causal variants from chromosome-specific PLINK BIM
 files while enforcing distance constraints.  Each set is written to a
 tab-delimited file suitable for downstream GWAS simulation.
 
-***Run in Conda finemap environment***
+***Run in Conda simulate_pheno environment***
 '''
 
 import argparse
