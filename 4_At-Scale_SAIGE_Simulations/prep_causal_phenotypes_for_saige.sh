@@ -2,9 +2,9 @@
 #SBATCH -A bif154
 #SBATCH -J prep_geno
 #SBATCH -o prep_causal_phenotypes_for_saige.log
-#SBATCH -N 8
+#SBATCH -N 40
 #SBATCH -p batch
-#SBATCH -t 2:00:00
+#SBATCH -t 1:00:00
 #SBATCH -C nvme
 
 #Load plink tools and conda environment
@@ -93,6 +93,15 @@ num_nodes="$SLURM_NNODES"
 ################################################################################################################
 ############################################## Simulate Phenotypes #############################################
 ################################################################################################################
+#Loop over the populations and cast the plink files and pcs to the burst buffer
+for pop in AFR EUR; do
+		#Cast the plink files and the pcs
+		sbcast -pf $geno_dir/$pop/chr"$chromo".plink.maf.bim /mnt/bb/${USER}/$pop.bim
+		sbcast -pf $geno_dir/$pop/chr"$chromo".plink.maf.fam /mnt/bb/${USER}/$pop.fam
+		sbcast -pf $geno_dir/$pop/chr"$chromo".plink.maf.bed /mnt/bb/${USER}/$pop.bed
+		sbcast -pf $geno_dir/$pop/merged.plink.maf.ld.pcs.eigenvec /mnt/bb/${USER}/$pop.eigenvec
+done
+
 #Loop over the phenotype traits and create commands
 cmds=()
 while read file; do 
@@ -103,31 +112,32 @@ while read file; do
 	gen_var=$(echo $num_var*0.0002 | bc)
 	#Get chromosome
 	chromo=$(cut -f 1 -d : $file)
-	for pop in AFR EUR; do
-		sbcast -pf $geno_dir/$pop/chr"$chromo".plink.maf.bim /mnt/bb/${USER}/$pop.bim
-		sbcast -pf $geno_dir/$pop/chr"$chromo".plink.maf.fam /mnt/bb/${USER}/$pop.fam
-		sbcast -pf $geno_dir/$pop/chr"$chromo".plink.maf.bed /mnt/bb/${USER}/$pop.bed
-
+	#Loop over the trait types and create commands
 	for trait_type in ${trait_types[@]}; do 
 		if [ trait_type == "binary" ]; then
 			for proportion in ${prevalences[@]}; do
 				out_file=$pheno."$num_var"_causal."$trait_type"_"$proportion".txt
-				cmds+=("python $simulate_script --plink $geno_dir/$pop/chr"$chromo".plink.maf --effects $file --trait-type $trait_type --heritability $gen_var --prevalence $proportion --pc-file $geno_dir/$pop/merged.plink.maf.ld.pcs.eigenvec --output $out_file")
+				cmds+=("python $simulate_script --plink /mnt/bb/${USER}/$pop --effects $file --trait-type $trait_type --heritability $gen_var --prevalence $proportion --pc-file /mnt/bb/${USER}/$pop.eigenvec --output $out_file")
 			done
 		else
 			out_file=$pheno."$num_var"_causal."$trait_type".txt
-			cmds+=("python $simulate_script --plink $geno_dir/$pop/chr"$chromo".plink.maf --effects $file --trait-type $trait_type --heritability $gen_var --pc-file $geno_dir/$pop/merged.plink.maf.ld.pcs.eigenvec --output $out_file")
+			cmds+=("python $simulate_script --plink /mnt/bb/${USER}/$pop --effects $file --trait-type $trait_type --heritability $gen_var --pc-file /mnt/bb/${USER}/$pop.eigenvec --output $out_file")
 		fi 
 	done; done
 done < $pheno_dir/causal_variants/master_casual_list.txt
+
+#Get total number of cpus
+total_cpus=$(($NNODES * 56))
+#Get maximum number of parallel jobs
+max_parallel=$(($total_cpus / 7))
 
 #Launch commands
 job_size=${#cmds[@]}
 echo "JOB SIZE: $job_size"
 for (( i=0; i<${#cmds[@]}; i++ )); do
 	j=$(( $i + 1 ))
-	srun -n1 -N1 --ntasks-per-node=1 --job-name=$j ${cmds[$i]} &
-	if [ $(($j % $num_nodes)) == 0 ] || [ $j == $job_size ]; then 
+	srun -c7 --job-name=$j ${cmds[$i]} &
+	if [ $(($j % $max_parallel)) == 0 ] || [ $j == $job_size ]; then 
 	    wait
         fi
 done
