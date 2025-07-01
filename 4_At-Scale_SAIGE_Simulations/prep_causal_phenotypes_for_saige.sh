@@ -94,9 +94,9 @@ num_nodes="$SLURM_NNODES"
 ############################################## Simulate Phenotypes #############################################
 ################################################################################################################
 #Loop over the populations and cast the plink files and pcs to the burst buffer
-for pop in AFR EUR; 
+for pop in AFR EUR; do
 	sbcast -pf $geno_dir/$pop/merged.plink.maf.ld.pcs.eigenvec /mnt/bb/${USER}/$pop.eigenvec
-	do for chromo in {1..22}; do
+	for chromo in {1..22}; do
 		#Cast the plink files and the pcs
 		sbcast -pf $geno_dir/$pop/chr"$chromo".plink.maf.bim /mnt/bb/${USER}/$pop.$chromo.bim
 		sbcast -pf $geno_dir/$pop/chr"$chromo".plink.maf.fam /mnt/bb/${USER}/$pop.$chromo.fam
