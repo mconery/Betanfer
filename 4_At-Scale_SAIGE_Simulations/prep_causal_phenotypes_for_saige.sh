@@ -2,7 +2,7 @@
 #SBATCH -A bif154
 #SBATCH -J prep_geno
 #SBATCH -o prep_causal_phenotypes_for_saige.log
-#SBATCH -N 40
+#SBATCH -N 10
 #SBATCH -p batch
 #SBATCH -t 1:00:00
 #SBATCH -C nvme
@@ -119,7 +119,7 @@ while read file; do
 			out_file=$pheno."$num_var"_causal."$trait_type".txt
 			cmds+=("python $simulate_script --plink $geno_dir/$pop/chr"$chromo".plink.maf --effects $file --trait-type $trait_type --heritability $gen_var --pc-file /mnt/bb/${USER}/$pop.eigenvec --output $out_file")
 		fi 
-	done; done
+	done
 done < $pheno_dir/causal_variants/master_casual_list.txt
 
 #Get total number of cpus
