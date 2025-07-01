@@ -128,7 +128,7 @@ while read file; do
 done < $pheno_dir/causal_variants/master_casual_list.txt
 
 #Get total number of cpus
-total_cpus=$(($NNODES * 56))
+total_cpus=$(($num_nodes * 56))
 #Get maximum number of parallel jobs
 max_parallel=$(($total_cpus / 7))
 
