@@ -2,7 +2,7 @@
 #SBATCH -A bif154
 #SBATCH -J saige_step1.prune_mult_2.AFR
 #SBATCH -o run_step1_saige.prune_mult_2.AFR.log
-#SBATCH -N 9
+#SBATCH -N 10
 #SBATCH -p batch
 #SBATCH -t 1:00:00
 
