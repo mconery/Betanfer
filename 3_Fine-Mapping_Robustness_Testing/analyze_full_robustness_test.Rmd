@@ -876,7 +876,7 @@ create_carma_iterations_barplot <- function(data, bar_width = 0.8) {
       x = "LD Mismatch Degree (Noise Standard Deviation)",
       y = "Percent of Loci",
       title = "Number of Causal Variants",
-      fill="Iterations"
+      fill="Seeds Needed to Fit"
     ) +
     theme(
       axis.text.x = element_text(angle = 45, hjust = 1),
