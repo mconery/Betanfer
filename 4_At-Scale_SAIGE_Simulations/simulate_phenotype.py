@@ -68,7 +68,7 @@ def main():
     
     # Save results
     df_pheno = pd.DataFrame({
-        'FID': iids[:, 0],
+        '#FID': iids[:, 0],
         'IID': iids[:, 1],
         'PHENO': phenotype
     })
@@ -76,7 +76,7 @@ def main():
     # Load principal components
     df_pcs = pd.read_csv(args.pc_file, sep='\t')
     # Merge phenotype and PCs by FID and IID
-    df_out = pd.merge(df_pheno, df_pcs, on=['FID', 'IID'])
+    df_out = pd.merge(df_pheno, df_pcs, on=['#FID', 'IID'])
 
     # Save final output
     df_out.to_csv(args.output, sep='\t', index=False)
