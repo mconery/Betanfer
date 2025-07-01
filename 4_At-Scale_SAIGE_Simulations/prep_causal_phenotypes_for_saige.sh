@@ -96,12 +96,6 @@ num_nodes="$SLURM_NNODES"
 #Loop over the populations and cast the plink files and pcs to the burst buffer
 for pop in AFR EUR; do
 	sbcast -pf $geno_dir/$pop/merged.plink.maf.ld.pcs.eigenvec /mnt/bb/${USER}/$pop.eigenvec
-	for chromo in {1..22}; do
-		#Cast the plink files and the pcs
-		sbcast -pf $geno_dir/$pop/chr"$chromo".plink.maf.bim /mnt/bb/${USER}/$pop.$chromo.bim
-		sbcast -pf $geno_dir/$pop/chr"$chromo".plink.maf.fam /mnt/bb/${USER}/$pop.$chromo.fam
-		sbcast -pf $geno_dir/$pop/chr"$chromo".plink.maf.bed /mnt/bb/${USER}/$pop.$chromo.bed
-	done
 done
 
 #Loop over the phenotype traits and create commands
@@ -119,11 +113,11 @@ while read file; do
 		if [ trait_type == "binary" ]; then
 			for proportion in ${prevalences[@]}; do
 				out_file=$pheno."$num_var"_causal."$trait_type"_"$proportion".txt
-				cmds+=("python $simulate_script --plink /mnt/bb/${USER}/$pop.$chromo --effects $file --trait-type $trait_type --heritability $gen_var --prevalence $proportion --pc-file /mnt/bb/${USER}/$pop.eigenvec --output $out_file")
+				cmds+=("python $simulate_script --plink $geno_dir/$pop/chr"$chromo".plink.maf --effects $file --trait-type $trait_type --heritability $gen_var --prevalence $proportion --pc-file /mnt/bb/${USER}/$pop.eigenvec --output $out_file")
 			done
 		else
 			out_file=$pheno."$num_var"_causal."$trait_type".txt
-			cmds+=("python $simulate_script --plink /mnt/bb/${USER}/$pop.$chromo --effects $file --trait-type $trait_type --heritability $gen_var --pc-file /mnt/bb/${USER}/$pop.eigenvec --output $out_file")
+			cmds+=("python $simulate_script --plink $geno_dir/$pop/chr"$chromo".plink.maf --effects $file --trait-type $trait_type --heritability $gen_var --pc-file /mnt/bb/${USER}/$pop.eigenvec --output $out_file")
 		fi 
 	done; done
 done < $pheno_dir/causal_variants/master_casual_list.txt
