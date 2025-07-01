@@ -2,7 +2,7 @@
 #SBATCH -A bif154
 #SBATCH -J saige_step1_cpu
 #SBATCH -o run_step1_saige_all_traits.cpu.log
-#SBATCH -N 100
+#SBATCH -N 10
 #SBATCH -p batch
 #SBATCH -t 1:00:00
 #SBATCH -C nvme
@@ -62,7 +62,7 @@ done
 
 #Run all the commands for the populations
 job_size=${#cmds[@]}
-for (( i=0; i<100; i++ )); do
+for (( i=0; i<10; i++ )); do
 	j=$(( $i + 1 ))
 	srun -N1 -n56 --exclusive -C nvme --job-name=$j ${cmds[$i]} & 
 	if [ $(($j % $max_parallel)) == 0 ] || [ $j == $job_size ]; then 
