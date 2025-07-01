@@ -80,6 +80,7 @@ def main():
 
     # Save final output
     df_out.to_csv(args.output, sep='\t', index=False)
+    print(f"NOTE: Wrote {args.output} to file.")
 
 if __name__ == '__main__':
     main()
