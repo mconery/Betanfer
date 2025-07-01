@@ -64,7 +64,7 @@ done
 job_size=${#cmds[@]}
 for (( i=0; i<10; i++ )); do
 	j=$(( $i + 1 ))
-	srun -N1 -n56 --exclusive -C nvme --job-name=$j ${cmds[$i]} & 
+	srun -N1 -n1 -c56 --exclusive -C nvme --job-name=$j ${cmds[$i]} & 
 	if [ $(($j % $max_parallel)) == 0 ] || [ $j == $job_size ]; then 
 	    	wait
         fi
