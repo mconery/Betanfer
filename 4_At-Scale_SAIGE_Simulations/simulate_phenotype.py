@@ -25,10 +25,7 @@ def main():
     parser.add_argument('--pc-file', required=True, help='File with principal component vectors (format: FID IID PC1 ... PC10)')
     
     args = parser.parse_args()
-    
-    # Load genotypes and metadata
-    bed_reader = Bed(args.plink, count_A1=False)
-    
+        
     # Load causal effects
     causal_effects = {}
     with open(args.effects) as f:
@@ -40,7 +37,7 @@ def main():
     # Get list of causal variant IDs
     causal_sids = list(causal_effects.keys())
     # Read only causal SNPs into memory
-    causal_genotypes = bed_reader.read(sid=causal_sids).val
+    causal_genotypes = Bed(args.plink, count_A1=False)[:,causal_sids].read().val
     
     # Calculate genetic scores
     effect_sizes = [causal_effects[v] for v in causal_effects]
