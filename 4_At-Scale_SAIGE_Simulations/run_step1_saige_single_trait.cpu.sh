@@ -22,9 +22,9 @@ plink_name=$(basename $plink_file)
 
 #Check for trait type and then execute step 1
 if [ $trait_type == "binary" ]; then
-	singularity exec --bind $inp_dir:/data /lustre/orion/bif154/proj-shared/mconery/tools/saige_1.4.4.1.sif step1_fitNULLGLMM.R --plinkFile=/data/$plink_name --phenoFile=/data/$phenotype.$trait_type.txt --invNormalize=FALSE --phenoCol=Pheno --covarColList=PC1,PC2,PC3,PC4,PC5,PC6,PC7,PC8,PC9,PC10 --sampleIDColinphenoFile=IID --traitType=$trait_type --outputPrefix=$phenotype.binary.step1_output --minMAFforGRM=0.01 --LOCO=T --IsOverwriteVarianceRatioFile=TRUE
+	singularity exec --bind $inp_dir:/data /lustre/orion/bif154/proj-shared/mconery/tools/saige_1.4.4.1.sif step1_fitNULLGLMM.R --plinkFile=/data/$plink_name --phenoFile=/data/$phenotype.$trait_type.txt --invNormalize=FALSE --phenoCol=PHENO --covarColList=PC1,PC2,PC3,PC4,PC5,PC6,PC7,PC8,PC9,PC10 --sampleIDColinphenoFile=IID --traitType=$trait_type --outputPrefix=$phenotype.binary.step1_output --minMAFforGRM=0.01 --LOCO=T --IsOverwriteVarianceRatioFile=TRUE
 else
-	singularity exec --bind $inp_dir:/data /lustre/orion/bif154/proj-shared/mconery/tools/saige_1.4.4.1.sif step1_fitNULLGLMM.R --plinkFile=/data/merged.plink.maf.ld --phenoFile=/data/$phenotype.$trait_type.txt --invNormalize=TRUE --phenoCol=Pheno --covarColList=PC1,PC2,PC3,PC4,PC5,PC6,PC7,PC8,PC9,PC10 --sampleIDColinphenoFile=IID --traitType=$trait_type --outputPrefix=$phenotype.binary.step1_output --minMAFforGRM=0.01 --LOCO=T --IsOverwriteVarianceRatioFile=TRUE
+	singularity exec --bind $inp_dir:/data /lustre/orion/bif154/proj-shared/mconery/tools/saige_1.4.4.1.sif step1_fitNULLGLMM.R --plinkFile=/data/merged.plink.maf.ld --phenoFile=/data/$phenotype.$trait_type.txt --invNormalize=TRUE --phenoCol=PHENO --covarColList=PC1,PC2,PC3,PC4,PC5,PC6,PC7,PC8,PC9,PC10 --sampleIDColinphenoFile=IID --traitType=$trait_type --outputPrefix=$phenotype.binary.step1_output --minMAFforGRM=0.01 --LOCO=T --IsOverwriteVarianceRatioFile=TRUE
 fi
 
 
