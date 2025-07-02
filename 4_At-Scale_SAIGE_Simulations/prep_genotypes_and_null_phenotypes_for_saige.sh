@@ -4,7 +4,7 @@
 #SBATCH -o prep_genotypes_and_null_phenotypes_for_saige.log
 #SBATCH -N 8
 #SBATCH -p batch
-#SBATCH -t 2:00:00
+#SBATCH -t 1:00:00
 
 #Load plink tools and conda environment
 source ~/.bashrc
@@ -201,91 +201,90 @@ num_nodes="$SLURM_NNODES"
 ################################################################################################################
 ################################## Replace the Phenotype Name in the Split File ################################
 ################################################################################################################
-##Make commands to split the files
-#cmds=()
-##Loop over the populations
-#for pop in AFR EUR; do for trait_type in binary continuous; do cd $pheno_dir/$pop; for i in {1..1000}; do
-#			cmds+=("python $decode_script -c sed___-i___'s/Pheno$i/PHENO/g'___"$pheno_dir"/"$pop"/Pheno"$i"."$trait_type".txt")
-#done; done; done
-#
-##Calculate number of possible jobs
-#job_size=${#cmds[@]}
-#num_parallel_jobs=$((($SLURM_CPUS_ON_NODE / 4) * num_nodes))
-#echo "JOB SIZE: $job_size"
-##Launch commands
-#for (( i=0; i<${#cmds[@]}; i++ )); do
-#	j=$(( $i + 1 ))
-#	srun -n1 -c1 -N1 --exclusive --job-name=$j ${cmds[$i]} &
-#	if [ $(($j % $num_parallel_jobs)) == 0 ] || [ $j == $job_size ]; then 
-#	    wait
-#        fi
-#done
-#wait
-
-################################################################################################################
-############################################## Make Step-2 BGEN Files ##########################################
-################################################################################################################
-#Create empty command array
+#Make commands to split the files
 cmds=()
-#Loop over two populations
-for pop in EUR; do
-  #Change into population output directory
-  cd $geno_dir/$pop
-  #Loop the chromosomes
-  for chromo in {1..22}; do
-    #Set input plink file prefix (without extension)
-    plink_inp=$geno_dir/$pop/chr"$chromo".plink.maf
-    #Set output bgen prefix
-    bgen_out=$geno_dir/$pop/chr"$chromo".plink.maf.bgen
-    #Command to convert to BGEN v1.2 with 8-bit compression
-    cmds+=("plink2 --bfile $plink_inp --export bgen-1.2 bits=8 --out $plink_inp")
-  done
-done
+#Loop over the populations
+for pop in AFR EUR; do for trait_type in binary continuous; do cd $pheno_dir/$pop; for i in {1..1000}; do
+			cmds+=("python $decode_script -c sed___-i___'s/Pheno$i/PHENO/g'___"$pheno_dir"/"$pop"/Pheno"$i"."$trait_type".txt")
+done; done; done
 
-#Launch commands
+#Calculate number of possible jobs
 job_size=${#cmds[@]}
+num_parallel_jobs=$((($SLURM_CPUS_ON_NODE / 4) * num_nodes))
 echo "JOB SIZE: $job_size"
+#Launch commands
 for (( i=0; i<${#cmds[@]}; i++ )); do
 	j=$(( $i + 1 ))
-	srun -n1 -N1 --ntasks-per-node=1 --job-name=$j ${cmds[$i]} &
-	if [ $(($j % $num_nodes)) == 0 ] || [ $j == $job_size ]; then 
+	srun -n1 -c1 -N1 --exclusive --job-name=$j ${cmds[$i]} &
+	if [ $(($j % $num_parallel_jobs)) == 0 ] || [ $j == $job_size ]; then 
 	    wait
         fi
 done
 wait
 
 ################################################################################################################
+############################################## Make Step-2 BGEN Files ##########################################
+################################################################################################################
+##Create empty command array
+#cmds=()
+##Loop over two populations
+#for pop in EUR; do
+#  #Change into population output directory
+#  cd $geno_dir/$pop
+#  #Loop the chromosomes
+#  for chromo in {1..22}; do
+#    #Set input plink file prefix (without extension)
+#    plink_inp=$geno_dir/$pop/chr"$chromo".plink.maf
+#    #Set output bgen prefix
+#    bgen_out=$geno_dir/$pop/chr"$chromo".plink.maf.bgen
+#    #Command to convert to BGEN v1.2 with 8-bit compression
+#    cmds+=("plink2 --bfile $plink_inp --export bgen-1.2 bits=8 --out $plink_inp")
+#  done
+#done
+#
+##Launch commands
+#job_size=${#cmds[@]}
+#echo "JOB SIZE: $job_size"
+#for (( i=0; i<${#cmds[@]}; i++ )); do
+#	j=$(( $i + 1 ))
+#	srun -n1 -N1 --ntasks-per-node=1 --job-name=$j ${cmds[$i]} &
+#	if [ $(($j % $num_nodes)) == 0 ] || [ $j == $job_size ]; then 
+#	    wait
+#       fi
+#done
+#wait
+
+################################################################################################################
 ######################################### Make BGEN Index Files (.bgen.bgi) ####################################
 ################################################################################################################
-
-cmds=()
-#Loop over two populations
-for pop in EUR; do
-  cd $geno_dir/$pop
-  #Loop the chromosomes
-  for chromo in {1..22}; do
-    bgen_file=$geno_dir/$pop/chr"$chromo".plink.maf.bgen
-    #Command to create index for each BGEN file
-    cmds+=("bgenix -g $bgen_file -index")
-  done
-done
-
-#Launch index commands
-job_size=${#cmds[@]}
-echo "JOB SIZE: $job_size"
-for (( i=0; i<${#cmds[@]}; i++ )); do
-  j=$(( $i + 1 ))
-  srun -n1 -N1 --ntasks-per-node=1 --job-name=$j ${cmds[$i]} &
-  if [ $(($j % $num_nodes)) == 0 ] || [ $j == $job_size ]; then
-    wait
-  fi
-done
-wait
+#cmds=()
+##Loop over two populations
+#for pop in EUR; do
+#  cd $geno_dir/$pop
+#  #Loop the chromosomes
+#  for chromo in {1..22}; do
+#    bgen_file=$geno_dir/$pop/chr"$chromo".plink.maf.bgen
+#    #Command to create index for each BGEN file
+#    cmds+=("bgenix -g $bgen_file -index")
+#  done
+#done
+#
+##Launch index commands
+#job_size=${#cmds[@]}
+#echo "JOB SIZE: $job_size"
+#for (( i=0; i<${#cmds[@]}; i++ )); do
+#  j=$(( $i + 1 ))
+#  srun -n1 -N1 --ntasks-per-node=1 --job-name=$j ${cmds[$i]} &
+#  if [ $(($j % $num_nodes)) == 0 ] || [ $j == $job_size ]; then
+#    wait
+#  fi
+#done
+#wait
 
 ################################################################################################################
 ############################################### Make Sample Lists ##############################################
 ################################################################################################################
-#Make the sample lists needed for step 2
-for pop in AFR EUR; do
-	awk 'NR > 1{print $2}' $geno_dir/$pop/merged.plink.maf.ld.psam > $geno_dir/$pop/sample_list.txt
-done
+##Make the sample lists needed for step 2
+#for pop in AFR EUR; do
+#	awk 'NR > 1{print $2}' $geno_dir/$pop/merged.plink.maf.ld.psam > $geno_dir/$pop/sample_list.txt
+#done
