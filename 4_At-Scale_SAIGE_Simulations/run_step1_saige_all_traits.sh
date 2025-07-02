@@ -2,9 +2,9 @@
 #SBATCH -A bif154
 #SBATCH -J saige_step1
 #SBATCH -o run_step1_saige_all_traits.log
-#SBATCH -N 250
+#SBATCH -N 10
 #SBATCH -p batch
-#SBATCH -t 2:00:00
+#SBATCH -t 1:00:00
 #SBATCH -C nvme
 
 ##################################################################################################################
@@ -88,7 +88,7 @@ for pop in ${populations[@]}; do
 	#Loop over the trait types
 	for trait_type in ${trait_types[@]}; do
 		#Make a list of the phenotype files for the given trait type and population
-		ls $pheno_dir/$pop/Pheno*.$trait_type.txt > $pheno_dir/$pop/$trait_type.phenotype_files.txt
+		ls $pheno_dir/$pop/Pheno*.$trait_type*txt > $pheno_dir/$pop/$trait_type.phenotype_files.txt
 		#Loop over the files and create the commands
 		while read file; do
 			temp=$(basename $file)
