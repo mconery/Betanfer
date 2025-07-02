@@ -2,9 +2,9 @@
 #SBATCH -A bif154
 #SBATCH -J prep_geno
 #SBATCH -o prep_causal_phenotypes_for_saige.log
-#SBATCH -N 10
+#SBATCH -N 1882
 #SBATCH -p batch
-#SBATCH -t 1:00:00
+#SBATCH -t 20:00
 #SBATCH -C nvme
 
 #Load plink tools and conda environment
@@ -108,9 +108,9 @@ while read file; do
 	pheno=${temp2#$pheno_dir/causal_variants/}
 	gen_var=$(echo $num_var*0.0002 | bc)
 	#Get chromosome
-	chromo=$(cut -f 1 -d : $file)
-	#Loop over the trait types and create commands
-	for trait_type in ${trait_types[@]}; do 
+	chromo=$(cut -f 1 -d : $file | head -n 1)
+	#Loop over the trait types and populations to create commands
+	for trait_type in ${trait_types[@]}; do for pop in AFR EUR; do
 		if [ trait_type == "binary" ]; then
 			for proportion in ${prevalences[@]}; do
 				out_file=$pheno_dir/$pop/$pheno."$num_var"_causal."$trait_type"_"$proportion".txt
@@ -124,7 +124,7 @@ while read file; do
 				cmds+=("python $simulate_script --plink $geno_dir/$pop/chr"$chromo".plink.maf --effects $file --trait-type $trait_type --heritability $gen_var --pc-file /mnt/bb/${USER}/$pop.eigenvec --output $out_file")
 			fi
 		fi 
-	done
+	done; done
 done < $pheno_dir/causal_variants/master_casual_list.txt
 
 #Get total number of cpus
