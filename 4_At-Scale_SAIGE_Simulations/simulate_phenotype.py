@@ -40,6 +40,9 @@ def main():
     temp = Bed(args.plink, count_A1=False)
     causal_genotypes = temp[:,[x for x in range(len(temp.sid)) if temp.sid[x] in causal_sids]].read().val
     
+    #Extract sample ids
+    iids = temp.iid
+    
     # Calculate genetic scores
     effect_sizes = [causal_effects[v] for v in causal_effects]
     genetic_score = causal_genotypes @ np.array(effect_sizes)
