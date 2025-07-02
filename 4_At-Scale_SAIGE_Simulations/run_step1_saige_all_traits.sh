@@ -18,7 +18,7 @@ out_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulatio
 #Set up SAIGE-GPU variables
 R_LIB=/lustre/orion/bif154/proj-shared/arodriguez/tools/conda_envs/RSAIGE_1.3.3_amd_gpu/lib/R/library
 path_to_saige="/lustre/orion/bif154/proj-shared/arodriguez/tools/SAIGE-GPU/src/SAIGE"
-saige_step1_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/run_step1_saige_single_trait.sh"
+saige_step1_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/run_step1_saige_single_trait.new_naming_conv.sh"
 
 #Set population names
 populations=("AFR" "EUR")
@@ -92,10 +92,10 @@ for pop in ${populations[@]}; do
 		#Loop over the files and create the commands
 		while read file; do
 			temp=$(basename $file)
-			phenotype=${temp%.$trait_type.txt}
+			prefix=${temp%.txt}
 			#Check if output files exist and add command if they do not
-			if [ ! -f $pop_out_dir/$phenotype.$trait_type.step1_output.rda ] || [ ! -f $pop_out_dir/$phenotype.$trait_type.step1_output.varianceRatio.txt ]; then
-				cmds+=("$saige_step1_script $plink_file_post $file $phenotype $pop_out_dir $path_to_saige $trait_type")
+			if [ ! -f $pop_out_dir/$prefix.step1_output.rda ] || [ ! -f $pop_out_dir/$prefix.step1_output.varianceRatio.txt ]; then
+				cmds+=("$saige_step1_script $plink_file_post $file $prefix $pop_out_dir $path_to_saige $trait_type")
 			fi
 		done < $pheno_dir/$pop/$trait_type.phenotype_files.txt
 	done
