@@ -205,7 +205,7 @@ num_nodes="$SLURM_NNODES"
 #cmds=()
 ##Loop over the populations
 #for pop in AFR EUR; do for trait_type in binary continuous; do cd $pheno_dir/$pop; for i in {1..1000}; do
-#			cmds+=("python $decode_script -c sed___-i___'s/Pheno$i/Pheno/g'___"$pheno_dir"/"$pop"/Pheno"$i"."$trait_type".txt")
+#			cmds+=("python $decode_script -c sed___-i___'s/Pheno$i/PHENO/g'___"$pheno_dir"/"$pop"/Pheno"$i"."$trait_type".txt")
 #done; done; done
 #
 ##Calculate number of possible jobs
