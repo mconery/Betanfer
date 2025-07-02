@@ -2,7 +2,7 @@
 #SBATCH -A bif154
 #SBATCH -J prep_geno
 #SBATCH -o prep_causal_phenotypes_for_saige.log
-#SBATCH -N 1882
+#SBATCH -N 10
 #SBATCH -p batch
 #SBATCH -t 20:00
 #SBATCH -C nvme
