@@ -111,7 +111,7 @@ while read file; do
 	chromo=$(cut -f 1 -d : $file | head -n 1)
 	#Loop over the trait types and populations to create commands
 	for trait_type in ${trait_types[@]}; do for pop in AFR EUR; do
-		if [ trait_type == "binary" ]; then
+		if [ $trait_type == "binary" ]; then
 			for proportion in ${prevalences[@]}; do
 				out_file=$pheno_dir/$pop/$pheno."$num_var"_causal."$trait_type"_"$proportion".txt
 				if [ ! -f $out_file ]; then 
