@@ -2,9 +2,9 @@
 #SBATCH -A bif154
 #SBATCH -J prep_geno
 #SBATCH -o prep_causal_phenotypes_for_saige.log
-#SBATCH -N 10
+#SBATCH -N 20
 #SBATCH -p batch
-#SBATCH -t 20:00
+#SBATCH -t 1:00:00
 #SBATCH -C nvme
 
 #Load plink tools and conda environment
