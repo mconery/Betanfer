@@ -1,12 +1,13 @@
 #!/bin/bash
 # Parse arguments
 bgen_file=$1
-sample_file=$2
-model_file=$3
-variance_ratio_file=$4
-chrom=$5
-output_prefix=$6
-out_dir=$7
+var_list=$2
+sample_file=$3
+model_file=$4
+variance_ratio_file=$5
+chrom=$6
+output_prefix=$7
+out_dir=$8
 
 # Start timing
 start_time=$(date +%s.%N)
@@ -15,6 +16,7 @@ start_time=$(date +%s.%N)
 inp_dir=$(dirname $sample_file)
 cp $bgen_file $inp_dir
 cp $bgen_file.bgi $inp_dir
+cp $var_list $inp_dir
 cp $model_file $inp_dir
 cp $variance_ratio_file $inp_dir
 
@@ -35,6 +37,7 @@ LOCO=TRUE
 is_Firth_beta=TRUE
 allele_order="ref-first"
 is_fastTest=TRUE
+n_Threads=$(($SLURM_CPUS_ON_NODE  / 2))
 
 # Run SAIGE Step 2 with Singularity
 singularity exec --bind $inp_dir:/input $saige_sif $saige_script \
@@ -50,7 +53,12 @@ singularity exec --bind $inp_dir:/input $saige_sif $saige_script \
     --minMAC=$minMAC \
     --is_Firth_beta=$is_Firth_beta \
     --pCutoffforFirth=$pCutoffforFirth \
-    --LOCO=$LOCO 
+    --LOCO=$LOCO \
+    --idstoIncludeFile=/input/$(basename $var_list) \
+    --nThreads=$n_Threads
+
+#Clean temp files
+rm $output_prefix.chr"$chrom".step2.txt[0-9]*
 
 echo "SUCCESS: SAIGE step 2 completed for $saige_output"
 
