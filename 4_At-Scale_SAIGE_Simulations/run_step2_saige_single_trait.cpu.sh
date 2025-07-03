@@ -11,6 +11,11 @@ out_dir=$7
 # Start timing
 start_time=$(date +%s.%N)
 
+#Report number of threads
+echo "CPUs per task: $SLURM_CPUS_PER_TASK"
+echo "Tasks: $SLURM_NTASKS"
+echo "CPUs on node: $SLURM_CPUS_ON_NODE"
+
 #Copy over the files to the burst buffer
 inp_dir=$(dirname $sample_file)
 cp $bgen_file $inp_dir
