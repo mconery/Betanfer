@@ -201,26 +201,26 @@ num_nodes="$SLURM_NNODES"
 ################################################################################################################
 ################################## Replace the Phenotype Name in the Split File ################################
 ################################################################################################################
-#Make commands to split the files
-cmds=()
-#Loop over the populations
-for pop in AFR EUR; do for trait_type in binary continuous; do cd $pheno_dir/$pop; for i in {1..1000}; do
-			cmds+=("python $decode_script -c sed___-i___'s/Pheno$i/PHENO/g'___"$pheno_dir"/"$pop"/Pheno"$i"."$trait_type".txt")
-done; done; done
-
-#Calculate number of possible jobs
-job_size=${#cmds[@]}
-num_parallel_jobs=$((($SLURM_CPUS_ON_NODE / 4) * num_nodes))
-echo "JOB SIZE: $job_size"
-#Launch commands
-for (( i=0; i<${#cmds[@]}; i++ )); do
-	j=$(( $i + 1 ))
-	srun -n1 -c1 -N1 --exclusive --job-name=$j ${cmds[$i]} &
-	if [ $(($j % $num_parallel_jobs)) == 0 ] || [ $j == $job_size ]; then 
-	    wait
-        fi
-done
-wait
+##Make commands to split the files
+#cmds=()
+##Loop over the populations
+#for pop in AFR EUR; do for trait_type in binary continuous; do cd $pheno_dir/$pop; for i in {1..1000}; do
+#			cmds+=("python $decode_script -c sed___-i___'s/Pheno$i/PHENO/g'___"$pheno_dir"/"$pop"/Pheno"$i"."$trait_type".txt")
+#done; done; done
+#
+##Calculate number of possible jobs
+#job_size=${#cmds[@]}
+#num_parallel_jobs=$((($SLURM_CPUS_ON_NODE / 4) * num_nodes))
+#echo "JOB SIZE: $job_size"
+##Launch commands
+#for (( i=0; i<${#cmds[@]}; i++ )); do
+#	j=$(( $i + 1 ))
+#	srun -n1 -c1 -N1 --exclusive --job-name=$j ${cmds[$i]} &
+#	if [ $(($j % $num_parallel_jobs)) == 0 ] || [ $j == $job_size ]; then 
+#	    wait
+#        fi
+#done
+#wait
 
 ################################################################################################################
 ############################################## Make Step-2 BGEN Files ##########################################
@@ -280,6 +280,34 @@ wait
 #  fi
 #done
 #wait
+
+################################################################################################################
+############################ Make BGEN Variant Lists (for Multi-Threading SAIGE Step 2) ########################
+################################################################################################################
+cmds=()
+#Loop over two populations
+for pop in AFR EUR; do
+  cd $geno_dir/$pop
+  #Loop the chromosomes
+  for chromo in {1..22}; do
+    bim_file=$geno_dir/$pop/chr"$chromo".plink.maf.bim
+    var_file=$geno_dir/$pop/chr"$chromo".plink.maf.var_list.txt
+    #Command to create index for each BIM file
+    awk '{print $2}' $bim_file > $var_file
+  done
+done
+
+#Launch index commands
+job_size=${#cmds[@]}
+echo "JOB SIZE: $job_size"
+for (( i=0; i<${#cmds[@]}; i++ )); do
+  j=$(( $i + 1 ))
+  srun -n1 -N1 --ntasks-per-node=1 --job-name=$j ${cmds[$i]} &
+  if [ $(($j % $num_nodes)) == 0 ] || [ $j == $job_size ]; then
+    wait
+  fi
+done
+wait
 
 ################################################################################################################
 ############################################### Make Sample Lists ##############################################
