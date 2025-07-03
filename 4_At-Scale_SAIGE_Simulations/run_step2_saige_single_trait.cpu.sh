@@ -50,8 +50,7 @@ singularity exec --bind $inp_dir:/input $saige_sif $saige_script \
     --minMAC=$minMAC \
     --is_Firth_beta=$is_Firth_beta \
     --pCutoffforFirth=$pCutoffforFirth \
-    --LOCO=$LOCO \
-    --nThreads=56
+    --LOCO=$LOCO 
 
 echo "SUCCESS: SAIGE step 2 completed for $saige_output"
 
