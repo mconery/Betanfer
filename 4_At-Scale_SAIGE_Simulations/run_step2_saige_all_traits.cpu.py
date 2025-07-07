@@ -42,8 +42,8 @@ var_files = glob.glob(f"{plink_dir}/{pop}/chr*.plink.maf.var_list.txt")
 chromosomes_bgen = [int(os.path.basename(x).rstrip(".plink.maf.bgen").lstrip("chr")) for x in bgen_files]
 chromosomes_var = [int(os.path.basename(x).rstrip(".plink.maf.var_list.txt").lstrip("chr")) for x in var_files]
 chromosomes= list(set(chromosomes_bgen) & set(chromosomes_var))
-bgen_files = {chromosomes[x]:f"chr{chromosomes[x]}.plink.maf.bgen" for x in range(len(chromosomes))}
-var_files = {chromosomes[x]:f"chr{chromosomes[x]}.plink.maf.var_list.txt" for x in range(len(chromosomes))}
+bgen_files = {chromosomes[x]:f"{plink_dir}/{pop}/chr{chromosomes[x]}.plink.maf.bgen" for x in range(len(chromosomes))}
+var_files = {chromosomes[x]:f"{plink_dir}/{pop}/chr{chromosomes[x]}.plink.maf.var_list.txt" for x in range(len(chromosomes))}
 
 #Cast the sample file to the burst buffer (Consider making this more robust in future)
 sample_file=f"/mnt/bb/mconery/{pop}.txt"
