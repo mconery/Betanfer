@@ -3,8 +3,8 @@
 #SBATCH -J saige_step2_cpu
 #SBATCH -o run_step2_saige_all_traits.cpu.log
 #SBATCH -N 10
-#SBATCH -p batch
-#SBATCH -t 2:00:00
+#SBATCH -p extended
+#SBATCH -t 24:00:00
 #SBATCH -C nvme
 
 #Source bashrc and activate the conda environment
