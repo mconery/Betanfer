@@ -39,6 +39,8 @@ allele_order="ref-first"
 is_fastTest=TRUE
 n_Threads=$(($SLURM_CPUS_ON_NODE  / 2))
 
+echo "NOTE: RUNNING on $n_threads cores"
+
 # Run SAIGE Step 2 with Singularity
 singularity exec --bind $inp_dir:/input $saige_sif $saige_script \
     --bgenFile=/input/$(basename $bgen_file) \
