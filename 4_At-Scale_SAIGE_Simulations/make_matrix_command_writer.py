@@ -35,15 +35,26 @@ def parse_args():
                         help="Path to write the list of plink2 commands.")
     parser.add_argument("--matrix_dir", required=True,
                         help="Directory where LD matrices should be stored.")
-    parser.add_argument("--plink_roots", required=True,
-                        help="Comma-delimited roots of plink files (omit .bed/.bim/.fam).")
+    parser.add_argument("--plink_dirs", required=True,
+                        help="Comma-delimited directories for each population’s PLINK files.")
     parser.add_argument("--populations", required=True,
                         help="Comma-delimited population names in the same order as plink_roots.")
     parser.add_argument("--variant_lists_file", required=True,
                         help="File containing paths to variant text files, one per line.")
+    parser.add_argument("--naming_conventions", type=str, default="chr*.plink.maf",
+                        help="Comma-delimited patterns for each population’s PLINK files.")
     parser.add_argument("--padding", type=int, default=250_000,
                         help="Padding (bp) added upstream & downstream of each locus (default 250 kb).")
     return parser.parse_args()
+
+def find_plink_root(plink_dir, naming_convention, chrom):
+    # Replace * in naming convention with the chromosome number
+    pattern = naming_convention.replace("*", str(chrom))
+    bed_files = list(Path(plink_dir).glob(pattern + ".bed"))
+    if not bed_files:
+        raise FileNotFoundError(f"No .bed file found for chromosome {chrom} in {plink_dir} with pattern {pattern}")
+    # Remove .bed extension to get the root
+    return str(bed_files[0])[:-4]
 
 def get_window(variant_file, padding):
     chrom = None
@@ -71,12 +82,21 @@ def main():
     
     #Parse arguments
     args = parse_args()
-    plink_roots = [p.strip() for p in args.plink_roots.split(",") if p.strip()]
+    plink_dirs = [p.strip() for p in args.plink_dirs.split(",") if p.strip()]
     populations = [p.strip() for p in args.populations.split(",") if p.strip()]
-
-    if len(plink_roots) != len(populations):
+    
+    if len(plink_dirs) != len(populations):
         raise ValueError("plink_roots and populations must have the same length")
-
+    
+    #Parse naming conventions
+    temp = [p.strip() for p in args.naming_conventions.split(",") if p.strip()]
+    if len(populations) != len(temp) and len(temp) == 1:
+        naming_conventions = [temp[0] for x in populations]
+    elif len(populations) != len(temp) and len(temp) != 1:
+        raise ValueError("There must be either 1 naming convention or 1 per population.")
+    else:
+        naming_conventions = temp[:]
+        
     # Ensure output dirs exist
     matrix_root = Path(args.matrix_dir)
     for pop in populations:
@@ -91,11 +111,11 @@ def main():
             chrom, start, end = get_window(variant_path, args.padding)
             locus_name = variant_path.stem  # base filename without extension
 
-            for plink_root, pop in zip(plink_roots, populations):
+            for plink_dir, pop, naming_conv in zip(plink_dirs, populations, naming_conventions):
+                plink_root = find_plink_root(plink_dir, naming_conv, chrom)
                 out_prefix = matrix_root / pop / locus_name
                 cmd = dedent(f"""{plink2} --bfile {plink_root} --chr {chrom} --from-bp {start} --to-bp {end} --r square --unphased --out {out_prefix}""")
                 commands.append(cmd)
-
     # Write all commands to file
     with open(args.cmd_out, "w") as out_fh:
         for cmd in commands:
