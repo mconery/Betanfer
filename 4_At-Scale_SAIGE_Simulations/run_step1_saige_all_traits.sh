@@ -2,9 +2,9 @@
 #SBATCH -A bif154
 #SBATCH -J saige_step1
 #SBATCH -o run_step1_saige_all_traits.log
-#SBATCH -N 1882
+#SBATCH -N 3059
 #SBATCH -p batch
-#SBATCH -t 25:00
+#SBATCH -t 35:00
 #SBATCH -C nvme
 
 ##################################################################################################################
@@ -19,6 +19,7 @@ out_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulatio
 R_LIB=/lustre/orion/bif154/proj-shared/arodriguez/tools/conda_envs/RSAIGE_1.3.3_amd_gpu/lib/R/library
 path_to_saige="/lustre/orion/bif154/proj-shared/arodriguez/tools/SAIGE-GPU/src/SAIGE"
 saige_step1_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/run_step1_saige_single_trait.sh"
+cmd_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/make_step1_commands.py"
 
 #Set population names
 populations=("AFR" "EUR")
@@ -70,39 +71,13 @@ total_gpus=$(($NNODES * 8))
 #Get maximum number of parallel jobs
 max_parallel=$(($total_gpus / $gpus))
 
-cmds=()
-#Loop over the populations, create the mapping commands for all phenotypes, and launch them
-for pop in ${populations[@]}; do
-	plink_file_pre=$plink_dir/$pop/merged.plink.maf.ld
-	plink_file_post=/mnt/bb/${USER}/$pop
-	#sbcast genotype files to local scratch
-	sbcast -pf $plink_file_pre.bim $plink_file_post.bim
-	sbcast -pf $plink_file_pre.fam $plink_file_post.fam
-	sbcast -pf $plink_file_pre.bed $plink_file_post.bed
-	#Change into output directory
-	pop_out_dir=$out_dir/$pop
-	mkdir -p $pop_out_dir
-	cd $pop_out_dir
-	touch $pop_out_dir/timing.csv  # Create timing file
-	#Create commands to process step 1 for all phenotypes of the population
-	#Loop over the trait types
-	for trait_type in ${trait_types[@]}; do
-		#Make a list of the phenotype files for the given trait type and population
-		ls $pheno_dir/$pop/Pheno*.$trait_type*txt > $pheno_dir/$pop/$trait_type.phenotype_files.txt
-		#Loop over the files and create the commands
-		while read file; do
-			temp=$(basename $file)
-			prefix=${temp%.txt}
-			#Check if output files exist and add command if they do not
-			if [ ! -f $pop_out_dir/$prefix.step1_output.rda ] || [ ! -f $pop_out_dir/$prefix.step1_output.varianceRatio.txt ]; then
-				cmds+=("$saige_step1_script $plink_file_post $file $prefix $pop_out_dir $path_to_saige $trait_type")
-			fi
-		done < $pheno_dir/$pop/$trait_type.phenotype_files.txt
-	done
-done
+##Create the file of commands (Commented out since previously ran)
+#python $cmd_script
+#Read in the command file
+mapfile -t cmds < /lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step1_results/step1_commands.txt
+job_size=${#cmds[@]}
 
 #Run all the commands for the populations
-job_size=${#cmds[@]}
 for (( i=0; i<${#cmds[@]}; i++ )); do
 	j=$(( $i + 1 ))
 	srun -N1 -n $gpus --gpus-per-task 1 --gpu-bind closest --exclusive -C nvme --job-name=$j ${cmds[$i]} &
