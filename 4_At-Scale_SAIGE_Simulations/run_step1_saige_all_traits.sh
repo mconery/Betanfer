@@ -2,7 +2,7 @@
 #SBATCH -A bif154
 #SBATCH -J saige_step1
 #SBATCH -o run_step1_saige_all_traits.log
-#SBATCH -N 3059
+#SBATCH -N 10
 #SBATCH -p batch
 #SBATCH -t 35:00
 #SBATCH -C nvme
