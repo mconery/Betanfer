@@ -17,7 +17,7 @@ trait_types = ["binary", "continuous"]
 cmds = []
 
 for pop in populations:
-    plink_file_post = f"/mnt/bb/$USER/{pop}"
+    plink_file_post = f"/mnt/bb/mconery/{pop}"
     pop_out_dir = os.path.join(out_dir, pop)
 
     for trait_type in trait_types:
