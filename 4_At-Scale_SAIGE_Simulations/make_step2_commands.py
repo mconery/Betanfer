@@ -136,6 +136,8 @@ for pop in populations:
                         --idstoIncludeFile={var_list} \
                         --AlleleOrder={allele_order} --pCutoffforFirth={pCutoffforFirth} --nThreads={num_cores/2}"
             cmds.append(chunk_command)
+            #Increment the counter
+            chunk_count = chunk_counter + 1
                         
 #Write to file 
 with open(output_path, 'w') as f:
