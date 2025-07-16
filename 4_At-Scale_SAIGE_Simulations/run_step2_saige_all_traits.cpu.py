@@ -16,6 +16,7 @@ from parsl.executors import HighThroughputExecutor
 from parsl.launchers import SrunLauncher
 from parsl.addresses import address_by_interface
 import glob
+import zmq
 import os
 
 # Directories (adjust as needed)
