@@ -21,7 +21,7 @@ minMAC=0.5
 LOCO="TRUE"
 is_Firth_beta="TRUE"
 allele_order="ref-first"
-is_fastTest="TRUE"
+is_fastTest="FALSE"
 pCutoffforFirth=0.05
 num_cores = os.cpu_count()
 
