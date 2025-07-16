@@ -2,27 +2,22 @@
 #SBATCH -A bif154
 #SBATCH -J saige_step2
 #SBATCH -o run_step2_saige_all_traits.log
-#SBATCH -N 1
+#SBATCH -N 10
 #SBATCH -q debug
-#SBATCH -t 1:00:00
+#SBATCH -t 2:00:00
 #SBATCH -C nvme
 
 ##################################################################################################################
 ################################################### Set Needed Variables #########################################
 ##################################################################################################################
-#Input directories
-plink_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/simulated_genotypes"
-pheno_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/simulated_phenotypes"
-out_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/null_saige_results"
+#Set script locations
+make_cmd_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/make_step2_commands.py"
+execute_cmd_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/parsl_run_1_command_per_node.py"
+#Set command file
+cmd_file="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step2_results/step2_commands.txt"
 
-#Set up SAIGE-GPU variables
-R_LIB=/lustre/orion/bif154/proj-shared/arodriguez/tools/conda_envs/RSAIGE_1.3.3_amd_gpu/lib/R/library
-path_to_saige="/lustre/orion/bif154/proj-shared/arodriguez/tools/SAIGE-GPU/src/SAIGE"
-saige_step1_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/run_step1_saige_single_trait.sh"
-
-#Set population names
-populations=("AFR" "EUR")
-trait_types=("binary" "continuous")
+#Call command making script
+python $make_cmd_script
 
 ##################################################################################################################
 ############################################## Load Modules and Conda Env ########################################
@@ -62,24 +57,5 @@ srun -N ${NNODES} --ntasks-per-node 1 conda-unpack
 ################################################## Execute SAIGE Step 2 ##########################################
 ##################################################################################################################
 
-#Testing code
-pop=AFR
-trait_type=binary
-chromo=1
-plink_file=$plink_dir/$pop/chr"$chromo".plink.maf
-#Change into output directory
-cd $out_dir
-pop_out_dir=$out_dir/$pop
-
-#Create manifest file
-manifest_file=$out_dir/$pop/$trait_type.manifest.txt
->$manifest_file
-ls $out_dir/$pop/*step1_output.rda | while read file; do
-	temp=${file%.step1_output.rda}
-	pheno=$(basename $temp)
-	echo $file $out_dir/$pop/$pheno.step1_output.varianceRatio.txt $out_dir/$pop/$pheno.step2_output.txt | awk -F " " '{print $1"\t"$2"\t"$3}' >> $manifest_file
-done
-
-Rscript $path_to_saige/extdata/step2_SPAtests.R --bgenFile=$plink_file.bgen --bgenFileIndex=$plink_file.bgen.bgi \
---manifestFile $manifest_file --sampleFile=$plink_dir/$pop/sample_list.txt \
---chrom=$chromo --AlleleOrder=ref-first --minMAF=0 --minMAC=0.5 --LOCO=TRUE --is_fastTest=TRUE --is_Firth_beta=TRUE
+#Call command to run step 2
+python $execute_cmd_script $cmd_file
