@@ -37,6 +37,7 @@ LOCO=TRUE
 is_Firth_beta=TRUE
 allele_order="ref-first"
 is_fastTest=TRUE
+pCutoffforFirth=0.05
 n_Threads=$(($SLURM_CPUS_ON_NODE  / 2))
 
 echo "NOTE: RUNNING on $n_Threads cores"
