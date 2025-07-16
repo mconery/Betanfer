@@ -4,7 +4,7 @@
 #SBATCH -o run_step1_saige_all_traits.log
 #SBATCH -N 24
 #SBATCH -p batch
-#SBATCH -t 1:00:00
+#SBATCH -t 2:00:00
 #SBATCH -C nvme
 
 ##################################################################################################################
