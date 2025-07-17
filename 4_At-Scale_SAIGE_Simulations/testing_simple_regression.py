@@ -37,6 +37,7 @@ def extract_genotypes(plink_prefix, snps, tmp_dir):
     ]
     subprocess.run(cmd, check=True)
     geno = pd.read_csv(out_pref + ".raw", delim_whitespace=True)
+    print(geno.columns())
     return geno
 
 def run_regressions(merged, snp_list, trait_type):
