@@ -14,6 +14,7 @@ import numpy as np
 import subprocess
 import tempfile
 import os
+import re
 from statsmodels.api import Logit, OLS, add_constant
 
 def load_variants(variants_file):
@@ -37,6 +38,15 @@ def extract_genotypes(plink_prefix, snps, tmp_dir):
     ]
     subprocess.run(cmd, check=True)
     geno = pd.read_csv(out_pref + ".raw", delim_whitespace=True)
+    #Fix genotype column names
+    def normalize_snp_col(col):
+        if ":" in col:
+            return re.sub(r"_[ACGT]+$", "", col)
+        else:
+            return col
+    baseline_cols = geno.columns[:6]
+    snp_cols = [normalize_snp_col(c) for c in geno.columns[6:]]
+    geno.columns = list(baseline_cols) + snp_cols
     return geno
 
 def run_regressions(merged, snp_list, trait_type):
