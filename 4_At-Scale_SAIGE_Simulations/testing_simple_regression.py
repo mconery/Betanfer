@@ -17,7 +17,7 @@ import os
 from statsmodels.api import Logit, OLS, add_constant
 
 def load_variants(variants_file):
-    return pd.read_csv(variants_file, delim_whitespace=True, header=None, names=["SNP", "Other"])
+    return pd.read_csv(variants_file, delimiter="\t", header=None, names=["SNP", "Other"])
 
 def load_phenos(pheno_file):
     pheno = pd.read_csv(pheno_file, delim_whitespace=True)
