@@ -29,7 +29,7 @@ def extract_genotypes(plink_prefix, snps, tmp_dir):
     snps["SNP"].to_csv(snp_file, index=False, header=False)
     out_pref = os.path.join(tmp_dir, "extract")
     cmd = [
-        "plink",
+        "plink2",
         "--bfile", plink_prefix,
         "--extract", snp_file,
         "--recodeA",
