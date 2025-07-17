@@ -20,6 +20,14 @@ from statsmodels.api import Logit, OLS, add_constant
 def load_variants(variants_file):
     return pd.read_csv(variants_file, delimiter="\t", header=None, names=["SNP", "Other"])
 
+def extract_chr_from_variant(snp_id):
+    # Handles formats like "1:12345:A:G"
+    match = re.match(r"^(\d+)[^:]*:", snp_id)
+    if match:
+        return match.group(1)
+    else:
+        raise ValueError("Could not parse chromosome from SNP ID: {}".format(snp_id))
+
 def load_phenos(pheno_file):
     pheno = pd.read_csv(pheno_file, delim_whitespace=True)
     covars = ["PC{}".format(i) for i in range(1, 11)]
@@ -69,22 +77,32 @@ def run_regressions(merged, snp_list, trait_type):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--plink_prefix', required=True)
+    parser.add_argument('--plink_dir', required=True)
+    parser.add_argument('--plink_pattern', default='chr*.plink.maf')
     parser.add_argument('--pheno_file', required=True)
     parser.add_argument('--variants_file', required=True)
     parser.add_argument('--trait_type', choices=["binary", "continuous"], required=True)
     args = parser.parse_args()
 
     snps = load_variants(args.variants_file)
-    pheno = load_phenos(args.pheno_file)
+    # Extract chromosome from the first variant
+    first_snp = snps.iloc[0]['SNP']
+    chr_num = extract_chr_from_variant(first_snp)
+    # Build plink file prefix
+    plink_basename = args.plink_pattern.replace('*', chr_num)
+    plink_prefix = os.path.join(args.plink_dir, plink_basename)
+
+    pheno = pd.read_csv(args.pheno_file, delim_whitespace=True)
+    covars = ["PC{}".format(i) for i in range(1, 11)]
+    pheno = pheno[["#FID", "IID", "PHENO"] + covars]
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        geno = extract_genotypes(args.plink_prefix, snps, tmpdir)
+        geno = extract_genotypes(plink_prefix, snps, tmpdir)
 
     pheno.rename(columns={"#FID": "FID"}, inplace=True)
     merged = pd.merge(pheno, geno, on=["FID", "IID"])
+
     results = run_regressions(merged, snps, args.trait_type)
-    
     print(results.to_string(index=False))
 
 if __name__ == "__main__":
