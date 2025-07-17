@@ -74,7 +74,6 @@ config = Config(
     executors=[
         HighThroughputExecutor(
             label="frontier_htex",
-            address=address_by_interface('hsn0'),
             cores_per_worker=1.0,  # One worker per task
             max_workers_per_node=1,  # One worker per node
             provider=LocalProvider(
