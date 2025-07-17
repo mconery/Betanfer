@@ -72,7 +72,8 @@ def main():
     with tempfile.TemporaryDirectory() as tmpdir:
         geno = extract_genotypes(args.plink_prefix, snps, tmpdir)
 
-    merged = pd.merge(pheno, geno, on=["#FID", "IID"])
+    pheno.rename(columns={"#FID": "FID"}, inplace=True)
+    merged = pd.merge(pheno, geno, on=["FID", "IID"])
     results = run_regressions(merged, snps, args.trait_type)
     
     print(results.to_string(index=False))
