@@ -4,7 +4,7 @@
 #SBATCH -o run_step2_saige_all_traits.cpu.log
 #SBATCH -N 15
 #SBATCH -p batch
-#SBATCH -t 2:00:00
+#SBATCH -t 1:00:00
 #SBATCH -C nvme
 
 ##################################################################################################################
