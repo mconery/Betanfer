@@ -32,7 +32,7 @@ def extract_genotypes(plink_prefix, snps, tmp_dir):
         "plink2",
         "--bfile", plink_prefix,
         "--extract", snp_file,
-        "--recodeA",
+        "--recode A",
         "--out", out_pref
     ]
     subprocess.run(cmd, check=True)
