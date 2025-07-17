@@ -18,7 +18,7 @@ out_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulatio
 #Set up SAIGE-GPU variables
 R_LIB=/lustre/orion/bif154/proj-shared/arodriguez/tools/conda_envs/RSAIGE_1.3.3_amd_gpu/lib/R/library
 path_to_saige="/lustre/orion/bif154/proj-shared/arodriguez/tools/SAIGE-GPU/src/SAIGE"
-saige_step1_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/run_step1_saige_single_trait.sh"
+saige_step1_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/1_Step1_Size_Test/run_step1_saige_single_trait.prune_mult.sh"
 
 #Set key variables
 pop="AFR"
@@ -27,7 +27,7 @@ prune_level="prune_mult_2"
 num_traits=10
 
 #Set number of gpus needed per phenotype
-gpus=7
+gpus=8
 
 ##################################################################################################################
 ############################################## Load Modules and Conda Env ########################################
@@ -89,14 +89,14 @@ touch $pop_out_dir/timing.csv  # Create timing file
 #Create commands to process step 1 for all phenotypes of the population
 cmds=()
 #Make a list of the phenotype files for the given trait type and population
-ls $pheno_dir/$pop/Pheno*.$trait_type.txt > $pheno_dir/$pop/$trait_type.phenotype_files.txt
+ls $pheno_dir/$pop/Pheno*.$trait_type.txt > $pheno_dir/$pop/$trait_type.prune_mult.phenotype_files.txt
 #Loop over the files and create the commands
 while read file; do
 	temp=$(basename $file)
 	phenotype=${temp%.$trait_type.txt}
 	#Check if output files exist and add command if they do not
 	cmds+=("$saige_step1_script $plink_file_post $file $phenotype $pop_out_dir $path_to_saige $trait_type")
-done < $pheno_dir/$pop/$trait_type.phenotype_files.txt
+done < $pheno_dir/$pop/$trait_type.prune_mult.phenotype_files.txt
 
 #Run all the commands for the populations
 job_size=${#cmds[@]}
