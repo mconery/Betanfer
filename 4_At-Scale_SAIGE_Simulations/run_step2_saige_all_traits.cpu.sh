@@ -2,7 +2,7 @@
 #SBATCH -A bif154
 #SBATCH -J saige_step2_cpu
 #SBATCH -o run_step2_saige_all_traits.cpu.log
-#SBATCH -N 20
+#SBATCH -N 15
 #SBATCH -p batch
 #SBATCH -t 2:00:00
 #SBATCH -C nvme
