@@ -83,7 +83,6 @@ def main():
 
     pheno.rename(columns={"#FID": "FID"}, inplace=True)
     merged = pd.merge(pheno, geno, on=["FID", "IID"])
-    print(merged.columns)
     results = run_regressions(merged, snps, args.trait_type)
     
     print(results.to_string(index=False))
