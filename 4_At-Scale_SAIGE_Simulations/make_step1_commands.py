@@ -16,6 +16,8 @@ trait_types = ["binary", "continuous"]
 
 cmds = []
 
+causal_flag = False #Flag to turn off making commands for causal phenotypes
+
 for pop in populations:
     plink_file_post = f"/mnt/bb/mconery/{pop}"
     pop_out_dir = os.path.join(out_dir, pop)
@@ -23,6 +25,8 @@ for pop in populations:
     for trait_type in trait_types:
         pattern = os.path.join(pheno_dir, pop, f"Pheno*.{trait_type}*txt")
         phenotype_files = glob.glob(pattern)
+        if causal_flag == False:
+            phenotype_files = [x for x in phenotype_files if 'causal' not in x]
 
         for file in phenotype_files:
             temp = os.path.basename(file)
