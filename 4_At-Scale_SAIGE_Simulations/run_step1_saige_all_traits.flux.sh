@@ -66,9 +66,6 @@ srun -N ${NNODES} --ntasks-per-node 1 conda-unpack
 #################################################### Run SAIGE Step 1 ############################################
 ##################################################################################################################
 
-#Get numbers of cpus per gpu
-cpus_per_gpu=$(($gpus * 8))
-
 #Cast the plink files
 for pop in ${populations[@]}; do
 	plink_file_pre=$plink_dir/$pop/merged.plink.maf.ld
@@ -86,4 +83,4 @@ mapfile -t cmds < /lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_
 job_size=${#cmds[@]}
 
 #Start flux
-srun -N $NNODES -n $NNODES -c 56 --gpus-per-node=8 flux start "for (( i=0; i<${#cmds[@]}; i++ )); do flux submit -N1 -n1 -c $cpus_per_gpu ${cmds[$i]}; done; flux queue drain;"
+srun -N $NNODES -n $NNODES -c 56 --gpus-per-node=8 flux start "for (( i=0; i<${#cmds[@]}; i++ )); do flux submit -N1 -n3 -c56 --gpus-per-task=1 ${cmds[$i]}; done; flux queue drain;"
