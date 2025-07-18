@@ -3,7 +3,7 @@
 #SBATCH -J saige_step2_cpu
 #SBATCH -o run_step2_saige_all_traits.cpu.log
 #SBATCH -N 15
-#SBATCH -p batch
+#SBATCH -q debug
 #SBATCH -t 30:00
 #SBATCH -C nvme
 
