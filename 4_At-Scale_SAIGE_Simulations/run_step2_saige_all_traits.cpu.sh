@@ -44,4 +44,4 @@ srun -N ${NNODES} --ntasks-per-node 1 conda-unpack
 
 #Run the script
 saige_step2_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/run_step2_saige_all_traits.cpu.py"
-python $saige_step2_script
+python srun -N ${NNODES} $saige_step2_script
