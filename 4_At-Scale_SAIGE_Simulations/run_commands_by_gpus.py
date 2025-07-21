@@ -44,8 +44,8 @@ def main():
     print(f"Comm: {comm}, Rank: {rank}, Size: {size}")
     
     def myfunction(command):
+        print("banana")
         try:
-            print("banana")
             output = subprocess.check_output(command.split(" "))
             print(output)
         except Exception as e:
