@@ -40,6 +40,7 @@ def main():
     
     def myfunction(command):
         try:
+            print("banana")
             output = os.system(command)
             print(output)
         except Exception as e:
