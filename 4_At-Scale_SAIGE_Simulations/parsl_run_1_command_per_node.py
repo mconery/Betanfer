@@ -33,7 +33,7 @@ config = Config(
             provider=LocalProvider(
                 # Number of nodes job
                 nodes_per_block=num_nodes,
-                launcher=SrunLauncher(overrides='-c 64'),
+                launcher=SrunLauncher(overrides='-c 56'),
                 init_blocks=1,
                 max_blocks=1,
             ),
