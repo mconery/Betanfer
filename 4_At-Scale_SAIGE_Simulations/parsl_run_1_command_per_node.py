@@ -18,9 +18,10 @@ from parsl.addresses import address_by_hostname
 import os
 
 import sys
-print(sys.executable)
-import zmq
-print(zmq.__file__)
+print("Python Executable:", sys.executable)
+print("Python Path:", sys.path)
+print("LD_LIBRARY_PATH:", os.environ.get('LD_LIBRARY_PATH'))
+print("PYTHONPATH:", os.environ.get('PYTHONPATH'))
 
 
 # Get the number of nodes:
