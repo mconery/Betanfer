@@ -41,7 +41,7 @@ def main():
     def myfunction(command):
         try:
             print("banana")
-            output = os.system(command)
+            output = subprocess.check_output(command.split(" "))
             print(output)
         except Exception as e:
             print(e)
