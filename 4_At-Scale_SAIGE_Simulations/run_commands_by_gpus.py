@@ -38,7 +38,8 @@ def main():
     with open(args.commands_file, 'r') as f:
         commands = [line.strip() for line in f if line.strip()]
     
-    print(MPI.COMM_WORLD)
+    comm = print(MPI.COMM_WORLD)
+    local_rank = comm.rank
     
     def myfunction(command):
         try:
