@@ -33,7 +33,7 @@ def main():
     print(f"GPUs per command: {args.gpus}")
     
     # Read commands from file
-    with open(args.command_file, 'r') as f:
+    with open(args.commands_file, 'r') as f:
         commands = [line.strip() for line in f if line.strip()]
     
     def myfunction(command):
