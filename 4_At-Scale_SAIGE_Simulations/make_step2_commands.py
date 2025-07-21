@@ -13,8 +13,9 @@ causal_var_dir = "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_
 inp_dir  = "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step1_results"
 out_dir  = "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step2_results"
 saige_step2_script = "/lustre/orion/bif154/proj-shared/arodriguez/tools/SAIGE-GPU/src/SAIGE/extdata/step2_SPAtests.R"
+timing_file = "timing2.csv"
 populations = ["AFR", "EUR"]
-number_traits_per_job = 5
+number_traits_per_job = 15
 causal_var_suffix = ".effect_size_0.05.500000_space100000.txt"
 minMAF=0
 minMAC=0.5
@@ -58,12 +59,14 @@ def create_commands_for_chromosome(chromo, chromo_file_prefixes, bgen_file, var_
             writer = csv.writer(f, delimiter='\t')
             writer.writerows(manifest_list)
         chunk_command = (
-            f"Rscript {saige_step2_script} --bgenFile={bgen_file} --bgenFileIndex={bgen_file}.bgi "
+            f"start_time=$(date +%s.%N); Rscript {saige_step2_script} --bgenFile={bgen_file} --bgenFileIndex={bgen_file}.bgi "
             f"--manifestFile={manifest_file} --sampleFile={sample_file} --chrom={chromo} --AlleleOrder=ref-first "
             f"--minMAF={minMAF} --minMAC={minMAC} --LOCO={LOCO} --is_fastTest={is_fastTest} --is_Firth_beta={is_Firth_beta} "
             f"--idstoIncludeFile={var_list} "
-            f"--AlleleOrder={allele_order} --pCutoffforFirth={pCutoffforFirth} --nThreads={int(num_cores/2)}"
+            f"--AlleleOrder={allele_order} --pCutoffforFirth={pCutoffforFirth} --nThreads={int(num_cores/2)}; end_time=$(date +%s.%N); "
+            f'duration=$(echo "$end_time - $start_time" | bc -l); echo "chunk_{chunk_counter},chr{chromo},$duration" >> {out_dir}/{pop}/timing2.csv'
         )
+        #Add timing command
         cmds.append(chunk_command)
         chunk_counter += 1
     return cmds
@@ -98,6 +101,8 @@ for pop in populations:
     chromo_dict = {os.path.basename(".".join(x[0].split(".")[:2])): x[1] for x in causal_chromosomes}
     null_files = [x for x in shared_files if "causal" not in x]
     causal_files = [x for x in shared_files if "causal" in x]
+    if null_files != []:
+        chromosomes = [str(x) for x in range(1,23,1)]
     chromo_to_file_dict = {
         chromo: [x for x in causal_files if chromo_dict.get(".".join(x.split(".")[:2])) == chromo] + null_files
         for chromo in chromosomes
