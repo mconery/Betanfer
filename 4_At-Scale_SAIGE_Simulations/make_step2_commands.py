@@ -47,12 +47,14 @@ def create_commands_for_chromosome(chromo, chromo_file_prefixes, bgen_file, var_
     chunk_counter = 1
     sample_file = f"{plink_dir}/{pop}/sample_list.txt"
     for sublist in chunked_generator(chromo_file_prefixes, number_traits_per_job):
+        #Make chunk directory if it doesn't exist yet
+        os.makedirs(f"{out_dir}/{pop}/chunk_{chunk_counter}",  exist_ok=True)
         manifest_file = os.path.join(out_dir, f"{pop}_manifests", f"chr{chromo}.chunk_{chunk_counter}.manifest.txt")
         manifest_list = [
             [
                 f"{inp_dir}/{pop}/{prefix}.step1_output.rda",
                 f"{inp_dir}/{pop}/{prefix}.step1_output.varianceRatio.txt",
-                f"{out_dir}/{pop}/{prefix}.chr{chromo}.step2.txt"
+                f"{out_dir}/{pop}/chunk_{chunk_counter}/{prefix}.chr{chromo}.step2.txt"
             ] for prefix in sublist
         ]
         with open(manifest_file, 'w', newline='') as f:
