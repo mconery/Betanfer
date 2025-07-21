@@ -14,8 +14,14 @@ from parsl.config import Config
 from parsl.providers import LocalProvider
 from parsl.executors import HighThroughputExecutor
 from parsl.launchers import SrunLauncher
-from parsl.addresses import address_by_interface
+from parsl.addresses import address_by_hostname
 import os
+
+import sys
+print(sys.executable)
+import zmq
+print(zmq.__file__)
+
 
 # Get the number of nodes:
 node_raw = os.getenv("SLURM_NODELIST")
@@ -27,7 +33,7 @@ config = Config(
     executors=[
         HighThroughputExecutor(
             label="frontier_htex",
-            address=address_by_interface('hsn0'),
+            address=address_by_hostname(),
             cores_per_worker=1.0,  # One worker per task
             max_workers_per_node=1,  # One worker per node
             provider=LocalProvider(
