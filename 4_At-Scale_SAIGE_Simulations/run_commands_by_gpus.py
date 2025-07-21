@@ -38,7 +38,7 @@ def main():
     with open(args.commands_file, 'r') as f:
         commands = [line.strip() for line in f if line.strip()]
         
-    print(len(commands))
+    print(commands[MPI.COMM_WORLD.Get_rank()])
     
     def myfunction(command):
         try:
@@ -53,8 +53,6 @@ def main():
         except Exception as e:
             print(e)
     
-    
-    print(MPICommExecutor(MPI.COMM_WORLD, root=0))
     with MPICommExecutor(MPI.COMM_WORLD, root=0) as executor:
         if executor is not None:
             print("test")
