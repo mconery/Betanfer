@@ -15,7 +15,7 @@ to gpus. This script uses mpi4py and should be called using the following approa
 import os
 import subprocess
 from mpi4py import MPI
-from mpi4py.futures import MPICommExecutor
+from mpi4py.futures import MPIPoolExecutor
 import argparse
 import socket
 
@@ -51,7 +51,7 @@ def main():
         except Exception as e:
             print(e)
     
-    with MPICommExecutor(MPI.COMM_WORLD, root=0) as executor:
+    with MPIPoolExecutor(MPI.COMM_WORLD, root=0) as executor:
         if executor is not None:
             print("test")
             executor.map(myfunction, commands)
