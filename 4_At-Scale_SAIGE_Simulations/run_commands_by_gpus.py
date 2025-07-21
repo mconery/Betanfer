@@ -3,8 +3,9 @@ run_commands_by_gpus.py
 
 The purpose of this script is to run a set of commands that are meant to be tied
 to gpus. This script uses mpi4py and should be called using the following approach:
-    srun -n [number of parallel tasks] --gpus-per-task=1 --exclusive /
-    python run_commands_by_gpus.py --commands
+    srun -N <number of nodes> -n <number of parallel tasks> --gpus-per-task=1 /
+    --exclusive python run_commands_by_gpus.py --commands <command-file> /
+    --gpus <gpus needed per command>
 
 ***This needs to be run on Python/3.9 as there's an incompatability with ***
 ***other versions of python.                                             ***
@@ -16,6 +17,7 @@ import subprocess
 from mpi4py import MPI
 from mpi4py.futures import MPICommExecutor
 import argparse
+import socket
 
 def main():
     #Parse command line arguments
@@ -41,11 +43,18 @@ def main():
     def myfunction(command):
         try:
             print("banana")
-            output = subprocess.check_output(command.split(" "))
+            local_rank = int(os.environ.get("SLURM_LOCALID", 0))
+            gpus_per_command = int(args.gpus)
+            first_gpu = local_rank * gpus_per_command
+            gpu_ids = ",".join(str(i) for i in range(first_gpu, first_gpu + gpus_per_command))
+            os.environ["ROCR_VISIBLE_DEVICES"] = gpu_ids  # for ROCm
+            output = subprocess.check_output(command.split(" "), env=os.environ)
             print(output)
         except Exception as e:
             print(e)
     
+    
+    print(MPICommExecutor(MPI.COMM_WORLD, root=0))
     with MPICommExecutor(MPI.COMM_WORLD, root=0) as executor:
         if executor is not None:
             print("test")
