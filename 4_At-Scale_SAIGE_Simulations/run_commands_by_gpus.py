@@ -46,12 +46,7 @@ def main():
     def myfunction(command):
         try:
             print("banana")
-            local_rank = int(os.environ.get("SLURM_LOCALID", 0))
-            gpus_per_command = int(args.gpus)
-            first_gpu = local_rank * gpus_per_command
-            gpu_ids = ",".join(str(i) for i in range(first_gpu, first_gpu + gpus_per_command))
-            os.environ["ROCR_VISIBLE_DEVICES"] = gpu_ids  # for ROCm
-            output = subprocess.check_output(command.split(" "), env=os.environ)
+            output = subprocess.check_output(command.split(" "))
             print(output)
         except Exception as e:
             print(e)
