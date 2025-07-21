@@ -38,8 +38,9 @@ def main():
     with open(args.commands_file, 'r') as f:
         commands = [line.strip() for line in f if line.strip()]
     
-    comm = print(MPI.COMM_WORLD)
-    local_rank = comm.rank
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    num_nodes = comm.size
     
     def myfunction(command):
         try:
