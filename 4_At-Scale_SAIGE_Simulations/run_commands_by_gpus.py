@@ -37,8 +37,6 @@ def main():
     # Read commands from file
     with open(args.commands_file, 'r') as f:
         commands = [line.strip() for line in f if line.strip()]
-        
-    print(commands[MPI.COMM_WORLD.Get_rank()])
     
     def myfunction(command):
         try:
