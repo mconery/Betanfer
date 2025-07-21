@@ -56,7 +56,7 @@ def main():
         except Exception as e:
             print(e)
     
-    with MPIPoolExecutor(MPI.COMM_WORLD, root=0) as executor:
+    with MPIPoolExecutor() as executor:
         if executor is not None:
             print("test")
             executor.map(myfunction, commands)
