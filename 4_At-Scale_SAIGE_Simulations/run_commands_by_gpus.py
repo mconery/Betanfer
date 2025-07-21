@@ -40,7 +40,8 @@ def main():
     
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
-    num_nodes = comm.size
+    size = comm.size
+    print(f"Comm: {comm}, Rank: {rank}, Size: {size}")
     
     def myfunction(command):
         try:
