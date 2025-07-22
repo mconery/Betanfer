@@ -48,13 +48,15 @@ def main():
         try:
             output = subprocess.check_output(command.split(" "))
             print(output)
+            return(True)
         except Exception as e:
             print(e)
+            return(False)
     
     with MPICommExecutor(MPI.COMM_WORLD, root=0) as executor:
         if executor is not None:
             print("test")
-            executor.map(myfunction, commands)
+            results = list(executor.map(myfunction, commands))
 
 if __name__ == "__main__":
     main()
