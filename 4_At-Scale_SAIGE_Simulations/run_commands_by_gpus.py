@@ -47,6 +47,10 @@ def main():
     print(f"Commands file: {args.commands_file}")
     print(f"GPUs per command: {args.gpus}")
     
+    #Calculate number of workers per node
+    workers_per_node = 8 // args.gpus
+    nodes_per_block = args.gpus // 8 + 1
+    
     # Read commands from file
     with open(args.commands_file, 'r') as f:
         commands = [line.strip() for line in f if line.strip()]
@@ -57,14 +61,14 @@ def main():
             HighThroughputExecutor(
                 label="frontier_htex",
                 address=address_by_hostname(),
-                cores_per_worker=args.gpus * 7,  # Seven CPUs per GPU
-                max_workers_per_node=args.gpus,  # One worker per node
+                max_workers_per_node=args.gpus,
+                available_acclerators=8, 
                 provider=LocalProvider(
                     # Number of nodes job
-                    nodes_per_block=num_nodes,
+                    nodes_per_block=nodes_per_block,
                     launcher=SrunLauncher(overrides='--gpus-per-task=1 --gpu-bind closest --exclusive'),
                     init_blocks=1,
-                    max_blocks=1,
+                    max_blocks=1
                 ),
             )
         ],
