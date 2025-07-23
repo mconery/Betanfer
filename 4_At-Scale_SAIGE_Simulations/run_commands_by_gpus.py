@@ -25,6 +25,8 @@ import os
 node_raw = os.getenv("SLURM_NODELIST")
 node_list = [f"frontier{x}" for x  in node_raw.lstrip("frontier[").rstrip("]").split(",")]
 num_nodes = len(node_list)
+#Get number of gpus per node
+gpus_per_node=8
 
 @bash_app
 def run_command(cmd):
@@ -46,34 +48,34 @@ def main():
     args = parser.parse_args()
     print(f"Commands file: {args.commands_file}")
     print(f"GPUs per command: {args.gpus}")
-    
-    #Calculate number of workers per node
-    workers_per_node = 8 // args.gpus
-    nodes_per_block = args.gpus // 8 + 1
-    
+        
     # Read commands from file
     with open(args.commands_file, 'r') as f:
         commands = [line.strip() for line in f if line.strip()]
     
-    # Parsl configuration for OLCF Frontier (56 cores per node)
-    config = Config(
-        executors=[
-            HighThroughputExecutor(
-                label="frontier_htex",
-                address=address_by_hostname(),
-                max_workers_per_node=args.gpus,
-                available_accelerators=8, 
-                provider=LocalProvider(
-                    # Number of nodes job
-                    nodes_per_block=nodes_per_block,
-                    launcher=SrunLauncher(overrides='--gpus-per-task=1 --gpu-bind closest --exclusive'),
-                    init_blocks=1,
-                    max_blocks=1
-                ),
-            )
-        ],
-        usage_tracking=True,
-    )
+    #Check number of gpus per node and process accordingly
+    if  args.gpus < gpus_per_node:
+        # Parsl configuration for OLCF Frontier (56 cores per node)
+        config = Config(
+            executors=[
+                HighThroughputExecutor(
+                    label="frontier_htex",
+                    address=address_by_hostname(),
+                    max_workers_per_node=args.gpus,
+                    available_accelerators=8, 
+                    provider=LocalProvider(
+                        # Number of nodes job
+                        nodes_per_block=num_nodes,
+                        launcher=SrunLauncher(overrides='--gpus-per-task=1 --gpu-bind closest --exclusive'),
+                        init_blocks=1,
+                        max_blocks=1
+                    ),
+                )
+            ],
+            usage_tracking=True,
+        )
+    else:
+        pass
 
     parsl.clear()
     parsl.load(config)
