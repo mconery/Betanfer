@@ -35,7 +35,7 @@ module load python/3.10-miniforge3
 module load r/4.4.1
 module load amd/6.4.0
 module load flux
-module load rocm/6.4.1
+module load rocm/6.4.0
 module load hwloc/2.9.1-gpu
 
 ##### START OF SBCAST AND CONDA-UNPACK #####
