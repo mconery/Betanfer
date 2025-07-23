@@ -11,13 +11,26 @@ to gpus. This script uses mpi4py and should be called using the following approa
 ***other versions of python.                                             ***
 '''
 
-
-import os
-import subprocess
-from mpi4py import MPI
-from mpi4py.futures import MPICommExecutor
 import argparse
-import socket
+import parsl
+from parsl.app.app import bash_app
+from parsl.config import Config
+from parsl.providers import LocalProvider
+from parsl.executors import HighThroughputExecutor
+from parsl.launchers import SrunLauncher
+from parsl.addresses import address_by_hostname
+import os
+
+# Get the number of nodes:
+node_raw = os.getenv("SLURM_NODELIST")
+node_list = [f"frontier{x}" for x  in node_raw.lstrip("frontier[").rstrip("]").split(",")]
+num_nodes = len(node_list)
+
+@bash_app
+def run_command(cmd):
+    return f"""
+    {cmd}
+    """
 
 def main():
     #Parse command line arguments
@@ -38,25 +51,48 @@ def main():
     with open(args.commands_file, 'r') as f:
         commands = [line.strip() for line in f if line.strip()]
     
-    comm = MPI.COMM_WORLD
-    rank = comm.Get_rank()
-    size = comm.size
-    print(f"Comm: {comm}, Rank: {rank}, Size: {size}")
+    # Parsl configuration for OLCF Frontier (56 cores per node)
+    config = Config(
+        executors=[
+            HighThroughputExecutor(
+                label="frontier_htex",
+                address=address_by_hostname(),
+                cores_per_worker=args.gpus * 7,  # Seven CPUs per GPU
+                max_workers_per_node=args.gpus,  # One worker per node
+                provider=LocalProvider(
+                    # Number of nodes job
+                    nodes_per_block=num_nodes,
+                    launcher=SrunLauncher(overrides='--gpus-per-task=1 --gpu-bind closest --exclusive'),
+                    init_blocks=1,
+                    max_blocks=1,
+                ),
+            )
+        ],
+        usage_tracking=True,
+    )
+
+    parsl.clear()
+    parsl.load(config)
     
-    def myfunction(command):
-        print("banana")
+    # Submit each command as a Parsl task
+    tasks = []
+    for cmd in commands:
+        task = run_command(cmd)
+        tasks.append(task)
+
+    # Wait for all tasks to complete
+    results = []
+    for i, task in enumerate(tasks):
         try:
-            output = subprocess.check_output(command.split(" "))
-            print(output)
-            return(True)
+            result = task.result()
+            print(f"SUCCESS: Task {i} completed successfully")
+            results.append(result)
         except Exception as e:
-            print(e)
-            return(False)
-    
-    with MPICommExecutor(MPI.COMM_WORLD, root=0) as executor:
-        if executor is not None:
-            print("test")
-            results = list(executor.map(myfunction, commands))
+            print(f"ERROR: Task {i} failed with error: {e}")
+            results.append(None)
+
+    parsl.clear()
+
 
 if __name__ == "__main__":
     main()
