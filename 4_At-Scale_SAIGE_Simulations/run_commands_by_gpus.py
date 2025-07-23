@@ -62,7 +62,7 @@ def main():
                 label="frontier_htex",
                 address=address_by_hostname(),
                 max_workers_per_node=args.gpus,
-                available_acclerators=8, 
+                available_accelerators=8, 
                 provider=LocalProvider(
                     # Number of nodes job
                     nodes_per_block=nodes_per_block,
