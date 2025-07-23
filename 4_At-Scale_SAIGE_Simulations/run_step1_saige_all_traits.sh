@@ -2,9 +2,9 @@
 #SBATCH -A bif154
 #SBATCH -J saige_step1
 #SBATCH -o run_step1_saige_all_traits.log
-#SBATCH -N 24
-#SBATCH -p batch
-#SBATCH -t 2:00:00
+#SBATCH -N 2
+#SBATCH -q debug
+#SBATCH -t 1:00:00
 #SBATCH -C nvme
 
 ##################################################################################################################
@@ -20,6 +20,7 @@ R_LIB=/lustre/orion/bif154/proj-shared/arodriguez/tools/conda_envs/RSAIGE_1.3.3_
 path_to_saige="/lustre/orion/bif154/proj-shared/arodriguez/tools/SAIGE-GPU/src/SAIGE"
 saige_step1_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/run_step1_saige_single_trait.sh"
 cmd_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/make_step1_commands.py"
+parsl_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/run_commands_by_gpus.py"
 
 #Set population names
 populations=("AFR" "EUR")
@@ -66,11 +67,6 @@ srun -N ${NNODES} --ntasks-per-node 1 conda-unpack
 #################################################### Run SAIGE Step 1 ############################################
 ##################################################################################################################
 
-#Get total number of gpus
-total_gpus=$(($NNODES * 8))
-#Get maximum number of parallel jobs
-max_parallel=$(($total_gpus / $gpus))
-
 #Cast the plink files
 for pop in ${populations[@]}; do
 	plink_file_pre=$plink_dir/$pop/merged.plink.maf.ld
@@ -83,15 +79,5 @@ done
 
 ##Create the file of commands (Commented out since previously ran)
 #python $cmd_script
-#Read in the command file
-mapfile -t cmds < /lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step1_results/step1_commands.txt
-job_size=${#cmds[@]}
-
-#Run all the commands for the populations
-for (( i=0; i<${#cmds[@]}; i++ )); do
-	j=$(( $i + 1 ))
-	srun -N1 -n $gpus --gpus-per-task 1 --gpu-bind closest --exclusive -C nvme --job-name=$j ${cmds[$i]} &
-	if [ $(($j % $max_parallel)) == 0 ] || [ $j == $job_size ]; then 
-	    	wait
-        fi
-done
+#Run the flux script
+python $parsl_script --commands-file /lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step1_results/step1_commands.txt --gpus $gpus
