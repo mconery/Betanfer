@@ -33,10 +33,10 @@ gpus=3
 #Activate needed modules
 module load python/3.10-miniforge3
 module load r/4.4.1
-module load amd/6.2.4
-module load rocm/6.2.4
+module load amd/6.3.1
+module load rocm/6.3.1
 module load flux
-module load hwloc/2.9.1-gpu
+module load hwloc/2.11.1-gpu
 
 ##### START OF SBCAST AND CONDA-UNPACK #####
 #Set variables
@@ -85,5 +85,4 @@ mapfile -t cmds < /lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_
 job_size=${#cmds[@]}
 
 #Start flux
-#srun -N $NNODES -n $NNODES -c 56 --gpus-per-node=8 flux start "flux resource list; for (( i=0; i<${#cmds[@]}; i++ )); do flux submit -N1 -n $gpus -c7 --gpus-per-task=1 --output=flux_output\$i.txt ${cmds[$i]}; done; flux queue drain;"
-#srun -N $NNODES -n $NNODES -c 56 --gpus-per-node=8 flux start "flux resource list; for (( i=0; i<${#cmds[@]}; i++ )); do flux submit -N1 -n $gpus -c7 --gpus-per-task=1 --output=flux_output\$i.txt echo command $i; done; flux queue drain;"
+srun -N $NNODES -n $NNODES -c 56 --gpus-per-node=8 flux start "flux resource list; for (( i=0; i<${#cmds[@]}; i++ )); do flux submit -N1 -n $gpus -c7 --gpus-per-task=1 --output=flux_output/output_\$i.txt ${cmds[$i]}; done; flux queue drain;"
