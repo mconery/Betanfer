@@ -84,4 +84,4 @@ done
 mapfile -t cmds < /lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step1_results/step1_commands.txt
 
 #Start flux
-srun -N $NNODES -n $NNODES -c 56 --gpus-per-node=8 flux start "flux resource list; for command in ${cmds[@]}; do flux submit -N1 -n $gpus -c7 --gpus-per-task=1 --output=flux_output/output_\$i.txt echo $command; done; flux queue drain;"
+srun -N $NNODES -n $NNODES -c 56 --gpus-per-node=8 flux start "flux resource list; for command in ${cmds[@]}; do flux submit -N1 -n $gpus -c7 --gpus-per-task=1 $command; done; flux queue drain;"
