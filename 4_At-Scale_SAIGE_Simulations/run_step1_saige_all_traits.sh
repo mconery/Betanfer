@@ -2,11 +2,10 @@
 #SBATCH -A bif154
 #SBATCH -J saige_step1
 #SBATCH -o run_step1_saige_all_traits.log
-#SBATCH -N 2
+#SBATCH -N 10
 #SBATCH -q debug
 #SBATCH -t 1:00:00
 #SBATCH -C nvme
-
 
 ##################################################################################################################
 ################################################### Set Needed Variables #########################################
@@ -78,7 +77,26 @@ for pop in ${populations[@]}; do
 	sbcast -pf $plink_file_pre.bed $plink_file_post.bed
 done
 
+
 ##Create the file of commands (Commented out since previously ran)
 #python $cmd_script
+
+#Attempt at parsl
 #Run the flux script
-python $parsl_script --commands-file /lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step1_results/step1_commands.txt --gpus $gpus
+#python $parsl_script --commands-file /lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step1_results/step1_commands.txt --gpus $gpus
+
+
+#Srun version
+#Get total number of nodes
+NNODES=${SLURM_NNODES}
+#Get maximum number of parallel jobs
+max_parallel=$(($NNODES / 2))
+mapfile -t cmds < /lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step1_results/step1_commands.txt
+job_size=${#cmds[@]}
+for (( i=0; i<$job_size; i++ )); do
+	j=$(( $i + 1 ))
+	srun -N1 -n1 -c56 --exclusive -C nvme --job-name=$j ${cmds[$i]} & 
+	if [ $(($j % $max_parallel)) == 0 ] || [ $j == $job_size ]; then 
+	    	wait
+        fi
+done
