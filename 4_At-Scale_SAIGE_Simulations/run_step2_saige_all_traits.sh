@@ -17,7 +17,7 @@ execute_cmd_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta
 cmd_file="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step2_results/step2_commands.txt"
 
 #Call command making script
-#python $make_cmd_script
+python $make_cmd_script
 
 ##################################################################################################################
 ############################################## Load Modules and Conda Env ########################################
