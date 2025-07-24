@@ -89,7 +89,7 @@ done
 #Get total number of nodes
 NNODES=${SLURM_NNODES}
 #Get maximum number of parallel jobs
-max_parallel=$(($NNODES / 2))
+max_parallel=$(($NNODES * 2))
 mapfile -t cmds < /lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step1_results/step1_commands.txt
 job_size=${#cmds[@]}
 for (( i=0; i<$job_size; i++ )); do
