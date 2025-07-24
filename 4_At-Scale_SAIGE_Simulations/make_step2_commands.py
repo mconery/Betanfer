@@ -66,7 +66,8 @@ def create_commands_for_chromosome(chromo, chromo_file_prefixes, bgen_file, var_
             f"--minMAF={minMAF} --minMAC={minMAC} --LOCO={LOCO} --is_fastTest={is_fastTest} --is_Firth_beta={is_Firth_beta} "
             f"--idstoIncludeFile={var_list} "
             f"--AlleleOrder={allele_order} --pCutoffforFirth={pCutoffforFirth} --nThreads={int(num_cores/2)}; end_time=$(date +%s.%N); "
-            f'duration=$(echo "$end_time - $start_time" | bc -l); echo "chunk_{chunk_counter},chr{chromo},$duration" >> {out_dir}/{pop}/timing2.csv'
+            f'duration=$(echo "$end_time - $start_time" | bc -l); echo "chunk_{chunk_counter},chr{chromo},$duration" >> {out_dir}/{pop}/timing2.csv; '
+            f'mv {out_dir}/{pop}/chunk_{chunk_counter}/*.chr{chromo}.step2.txt {out_dir}/{pop}'
         )
         #Add timing command
         cmds.append(chunk_command)
