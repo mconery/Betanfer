@@ -94,7 +94,7 @@ mapfile -t cmds < /lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_
 job_size=${#cmds[@]}
 for (( i=0; i<$job_size; i++ )); do
 	j=$(( $i + 1 ))
-	srun -N1 -n1 -c56 --exclusive -C nvme --job-name=$j ${cmds[$i]} & 
+	srun -N1 -n $gpus --gpus-per-task=1 --gpu-bind closest --exclusive -C nvme --job-name=$j ${cmds[$i]} & 
 	if [ $(($j % $max_parallel)) == 0 ] || [ $j == $job_size ]; then 
 	    	wait
         fi
