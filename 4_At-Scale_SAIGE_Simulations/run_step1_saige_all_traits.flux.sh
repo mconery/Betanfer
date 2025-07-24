@@ -69,14 +69,14 @@ srun -N ${NNODES} --ntasks-per-node 1 conda-unpack
 ##################################################################################################################
 
 #Cast the plink files
-#for pop in ${populations[@]}; do
-#	plink_file_pre=$plink_dir/$pop/merged.plink.maf.ld
-#	plink_file_post=/mnt/bb/${USER}/$pop
-#	#sbcast genotype files to local scratch
-#	sbcast -pf $plink_file_pre.bim $plink_file_post.bim
-#	sbcast -pf $plink_file_pre.fam $plink_file_post.fam
-#	sbcast -pf $plink_file_pre.bed $plink_file_post.bed
-#done
+for pop in ${populations[@]}; do
+	plink_file_pre=$plink_dir/$pop/merged.plink.maf.ld
+	plink_file_post=/mnt/bb/${USER}/$pop
+	#sbcast genotype files to local scratch
+	sbcast -pf $plink_file_pre.bim $plink_file_post.bim
+	sbcast -pf $plink_file_pre.fam $plink_file_post.fam
+	sbcast -pf $plink_file_pre.bed $plink_file_post.bed
+done
 
 ##Create the file of commands (Commented out since previously ran)
 #python $cmd_script
@@ -84,5 +84,4 @@ srun -N ${NNODES} --ntasks-per-node 1 conda-unpack
 mapfile -t cmds < /lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step1_results/step1_commands.txt
 
 #Start flux
-#srun -N $NNODES -n $NNODES -c 56 --gpus-per-node=8 flux start "flux resource list; for (( i=0; i<${#cmds[@]}; i++ )); do flux submit -N1 -n $gpus -c7 --gpus-per-task=1 --output=flux_output/output_\$i.txt ${cmds[$i]}; done; flux queue drain;"
-srun -N $NNODES -n $NNODES -c 56 --gpus-per-node=8 flux start "flux resource list; for (( i=0; i<${#cmds[@]}; i++ )); do flux submit -N1 -n $gpus -c7 --gpus-per-task=1 --output=flux_output/output_\$i.txt echo \$i; done; flux queue drain;"
+srun -N $NNODES -n $NNODES -c 56 --gpus-per-node=8 flux start "flux resource list; for (( i=0; i<${#cmds[@]}; i++ )); do flux submit -N1 -n $gpus -c7 --gpus-per-task=1 --output=flux_output/output_\$i.txt ${cmds[\$i]}; done; flux queue drain;"
