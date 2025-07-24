@@ -2,9 +2,9 @@
 #SBATCH -A bif154
 #SBATCH -J saige_step1
 #SBATCH -o run_step1_saige_all_traits.log
-#SBATCH -N 10
+#SBATCH -N 2
 #SBATCH -q debug
-#SBATCH -t 1:00:00
+#SBATCH -t 30:00
 #SBATCH -C nvme
 
 ##################################################################################################################
@@ -84,7 +84,6 @@ done
 #Attempt at parsl
 #Run the flux script
 #python $parsl_script --commands-file /lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step1_results/step1_commands.txt --gpus $gpus
-
 
 #Srun version
 #Get total number of nodes
