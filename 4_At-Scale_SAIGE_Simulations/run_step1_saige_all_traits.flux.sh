@@ -69,14 +69,14 @@ srun -N ${NNODES} --ntasks-per-node 1 conda-unpack
 ##################################################################################################################
 
 #Cast the plink files
-for pop in ${populations[@]}; do
-	plink_file_pre=$plink_dir/$pop/merged.plink.maf.ld
-	plink_file_post=/mnt/bb/${USER}/$pop
-	#sbcast genotype files to local scratch
-	sbcast -pf $plink_file_pre.bim $plink_file_post.bim
-	sbcast -pf $plink_file_pre.fam $plink_file_post.fam
-	sbcast -pf $plink_file_pre.bed $plink_file_post.bed
-done
+#for pop in ${populations[@]}; do
+#	plink_file_pre=$plink_dir/$pop/merged.plink.maf.ld
+#	plink_file_post=/mnt/bb/${USER}/$pop
+#	#sbcast genotype files to local scratch
+#	sbcast -pf $plink_file_pre.bim $plink_file_post.bim
+#	sbcast -pf $plink_file_pre.fam $plink_file_post.fam
+#	sbcast -pf $plink_file_pre.bed $plink_file_post.bed
+#done
 
 ##Create the file of commands (Commented out since previously ran)
 #python $cmd_script
