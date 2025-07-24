@@ -2,7 +2,7 @@
 #SBATCH -A bif154
 #SBATCH -J saige_step1
 #SBATCH -o run_step1_saige_all_traits.flux.log
-#SBATCH -N 4
+#SBATCH -N 2
 #SBATCH -q debug
 #SBATCH -t 30:00
 #SBATCH -C nvme
@@ -82,8 +82,7 @@ done
 #python $cmd_script
 #Run the flux script
 mapfile -t cmds < /lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step1_results/step1_commands.txt
-job_size=${#cmds[@]}
 
 #Start flux
 #srun -N $NNODES -n $NNODES -c 56 --gpus-per-node=8 flux start "flux resource list; for (( i=0; i<${#cmds[@]}; i++ )); do flux submit -N1 -n $gpus -c7 --gpus-per-task=1 --output=flux_output/output_\$i.txt ${cmds[$i]}; done; flux queue drain;"
-srun -N $NNODES -n $NNODES -c 56 --gpus-per-node=8 flux start "flux resource list; for (( i=0; i<${#cmds[@]}; i++ )); do flux submit -N1 -n $gpus -c7 --gpus-per-task=1 --output=flux_output/output_\$i.txt echo $i; done; flux queue drain;"
+srun -N $NNODES -n $NNODES -c 56 --gpus-per-node=8 flux start "flux resource list; mapfile -t cmds < /lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step1_results/step1_commands.txt; for (( i=0; i<${#cmds[@]}; i++ )); do flux submit -N1 -n $gpus -c7 --gpus-per-task=1 --output=flux_output/output_\$i.txt echo $i; done; flux queue drain;"
