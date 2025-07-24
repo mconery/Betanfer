@@ -55,22 +55,29 @@ def main():
     
     #Check number of gpus per node and process accordingly
     if  args.gpus < gpus_per_node:
-        # Parsl configuration for OLCF Frontier (56 cores per node)
+        #Calculate number of workers per node
+        workers_per_node = 8 // args.gpus
+        # Parsl configuration for OLCF Frontier (56 cores & 8 GPUs per node)
         config = Config(
             executors=[
-                HighThroughputExecutor(
-                    label="frontier_htex",
-                    address=address_by_hostname(),
-                    max_workers_per_node=args.gpus,
-                    available_accelerators=8, 
-                    provider=LocalProvider(
-                        # Number of nodes job
-                        nodes_per_block=num_nodes,
-                        launcher=SrunLauncher(overrides='--gpus-per-task=1 --gpu-bind closest --exclusive'),
-                        init_blocks=1,
-                        max_blocks=1
-                    ),
-                )
+            	HighThroughputExecutor(
+                        label="frontier_htex",
+                        address=address_by_hostname(),
+                        # Set max_workers_per_node to the max number of tasks that can run concurrently
+                        # on a single node. You can only accommodate 2 tasks each attaching to 3 GPUs
+                        max_workers_per_node=workers_per_node,
+                        # You could also try passing in explicit GPU ids like:
+                        available_accelerators=["0,1,2", "3,4,5"],
+                        provider=LocalProvider(
+                    		# Number of nodes job
+                    		nodes_per_block=num_nodes, #Variable denoting total number of nodes requested in batch job
+                            # The manager is the component that is launched, in this case, we need all the GPUs attach
+                            # to each task. So I would recommend removing --gpus-per-task=1 or setting it to 8
+                    		launcher=SrunLauncher(overrides='--gpu-bind closest --exclusive'),
+                    		init_blocks=1,
+                    		max_blocks=1
+                        ),
+            	)
             ],
             usage_tracking=True,
         )
