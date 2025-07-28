@@ -33,10 +33,15 @@ gpus=3
 #Activate needed modules
 module load python/3.10-miniforge3
 module load r/4.4.1
-module load amd/6.3.1
-module load rocm/6.3.1
+module load amd/6.4.0
+module load rocm/6.4.0
 module load flux
-module load hwloc/2.11.1-gpu
+
+#Load HWLOC
+export HWLOC_ROOT=/lustre/orion/bif154/proj-shared/mconery/tools/hwloc-2.12.1/installation
+export LD_LIBRARY_PATH=${HWLOC_ROOT}/lib:${LD_LIBRARY_PATH}
+export PKG_CONFIG_PATH=${HWLOC_ROOT}/lib/pkgconfig:${PKG_CONFIG_PATH}
+export PATH=${HWLOC_ROOT}/bin:${PATH}
 
 ##### START OF SBCAST AND CONDA-UNPACK #####
 #Set variables
@@ -80,8 +85,6 @@ done
 
 ##Create the file of commands (Commented out since previously ran)
 #python $cmd_script
-#Run the flux script
-mapfile -t cmds < /lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step1_results/step1_commands.txt
 
-#Start flux
-srun -N $NNODES -n $NNODES -c 56 --gpus-per-node=8 flux start "flux resource list; for command in ${cmds[@]}; do flux submit -N1 -n $gpus -c7 --gpus-per-task=1 $command; done; flux queue drain;"
+#Start flux and Run the flux script
+srun -N $NNODES -n $NNODES -c 56 --gpus-per-node=8 flux start "flux resource list; mapfile -t cmds < /lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step1_results/step1_commands.txt; for ((i=0; i<${#cmds[@]}; i++)); do flux submit -N1 -n $gpus --gpus-per-task=1 --output=flux_output/output_\$i.txt ./\${cmds[\$i]}; done; flux queue drain;"
