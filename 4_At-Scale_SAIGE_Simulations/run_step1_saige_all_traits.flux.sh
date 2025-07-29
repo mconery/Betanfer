@@ -41,6 +41,7 @@ module load flux
 export HWLOC_ROOT=/lustre/orion/bif154/proj-shared/mconery/tools/hwloc-2.12.1/installation
 export LD_LIBRARY_PATH=${HWLOC_ROOT}/lib:${LD_LIBRARY_PATH}
 export PKG_CONFIG_PATH=${HWLOC_ROOT}/lib/pkgconfig:${PKG_CONFIG_PATH}
+export MANPATH=$MANPATH:${HWLOC_ROOT}/share/man
 export PATH=${HWLOC_ROOT}/bin:${PATH}
 
 ##### START OF SBCAST AND CONDA-UNPACK #####
