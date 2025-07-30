@@ -40,7 +40,7 @@ module load flux
 
 ##### START OF SBCAST AND CONDA-UNPACK #####
 #Set variables
-ENV_NAME=RSAIGE_1.3.3_amd_gpu
+ENV_NAME=RSAIGE_1.3.3_amd6.3.1_gpu
 TAR_FILE=${ENV_NAME}.tar.gz
 TAR_DIR=/lustre/orion/bif154/proj-shared/arodriguez/tools/conda_envs
 NNODES=${SLURM_NNODES}
