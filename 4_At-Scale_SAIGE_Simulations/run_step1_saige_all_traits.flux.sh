@@ -3,7 +3,7 @@
 #SBATCH -J saige_step1
 #SBATCH -o run_step1_saige_all_traits.flux.log
 #SBATCH -N 5
-#SBATCH -q debug
+#SBATCH -p batch
 #SBATCH -t 35:00
 #SBATCH -C nvme
 
