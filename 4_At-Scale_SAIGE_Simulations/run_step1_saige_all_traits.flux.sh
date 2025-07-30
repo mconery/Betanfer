@@ -25,7 +25,7 @@ flux_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-M
 populations=("AFR" "EUR")
 
 #Set number of gpus needed per phenotype
-gpus=3
+gpus=4
 
 ##################################################################################################################
 ############################################## Load Modules and Conda Env ########################################
