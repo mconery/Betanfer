@@ -16,8 +16,8 @@ pheno_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulat
 out_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step1_results"
 
 #Set up SAIGE-GPU variables
-R_LIB=/lustre/orion/bif154/proj-shared/arodriguez/tools/conda_envs/RSAIGE_1.3.3_amd_gpu/lib/R/library
-path_to_saige="/lustre/orion/bif154/proj-shared/arodriguez/tools/SAIGE-GPU/src/SAIGE"
+R_LIB=/lustre/orion/bif154/proj-shared/arodriguez/tools/conda_envs/RSAIGE_1.3.3_amd6.3.1_gpu/lib/R/library
+path_to_saige="/lustre/orion/bif154/proj-shared/arodriguez/tools/SAIGE_AMD_6.3.1/SAIGE-GPU/src/SAIGE"
 cmd_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/make_step1_commands.py"
 flux_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/run_step1_saige_all_traits.flux.py"
 
@@ -33,16 +33,10 @@ gpus=3
 #Activate needed modules
 module load python/3.10-miniforge3
 module load r/4.4.1
-module load amd/6.4.0
-module load rocm/6.4.0
+module load amd/6.3.1
+module load rocm/6.3.1
+module load hwloc/2.11.1-gpu
 module load flux
-
-#Load HWLOC
-export HWLOC_ROOT=/lustre/orion/bif154/proj-shared/mconery/tools/hwloc-2.12.1/installation
-export LD_LIBRARY_PATH=${HWLOC_ROOT}/lib:${LD_LIBRARY_PATH}
-export PKG_CONFIG_PATH=${HWLOC_ROOT}/lib/pkgconfig:${PKG_CONFIG_PATH}
-export MANPATH=$MANPATH:${HWLOC_ROOT}/share/man
-export PATH=${HWLOC_ROOT}/bin:${PATH}
 
 ##### START OF SBCAST AND CONDA-UNPACK #####
 #Set variables
@@ -90,4 +84,4 @@ done
 mapfile -t cmds < /lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step1_results/step1_commands.txt
 
 #Start flux and Run the flux script
-srun -N $NNODES -n $NNODES -c 56 --gpus-per-node=8 flux start "flux resource list; mapfile -t cmds < /lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step1_results/step1_commands.txt; for ((i=0; i<${#cmds[@]}; i++)); do flux submit -N1 -n $gpus --gpus-per-task=1 --output=flux_output/output_\$i.txt ./\${cmds[\$i]}; done; flux queue drain;"
+srun -N $NNODES -n $NNODES -c 56 --gpus-per-node=8 flux start "flux resource list; mapfile -t cmds < /lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step1_results/step1_commands.txt; for ((i=0; i<${#cmds[@]}; i++)); do flux submit -N1 -n $gpus --gpus-per-task=1 --output=flux_output/output_\$i.txt \${cmds[\$i]}; done; flux queue drain;"
