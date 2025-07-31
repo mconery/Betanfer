@@ -24,7 +24,7 @@ is_Firth_beta="TRUE"
 allele_order="ref-first"
 is_fastTest="FALSE"
 pCutoffforFirth=0.05
-num_cores = os.cpu_count()
+num_cores = 96
 
 # ------------------ Helper Functions -----------------------
 
