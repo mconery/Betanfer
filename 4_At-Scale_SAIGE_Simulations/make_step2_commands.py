@@ -113,7 +113,7 @@ for pop in populations:
     chromo_to_file_dict = {
         chromo: [
             prefix for prefix in chromo_to_file_dict[chromo]
-            if not os.path.exists(os.path.join(out_dir, f"{prefix}.chr{chromo}.step2.txt"))
+            if not os.path.exists(os.path.join(out_dir, pop, f"{prefix}.chr{chromo}.step2.txt"))
         ]
         for chromo in chromosomes
     }
