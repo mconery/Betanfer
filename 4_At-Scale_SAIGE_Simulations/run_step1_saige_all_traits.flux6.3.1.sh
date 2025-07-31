@@ -2,9 +2,9 @@
 #SBATCH -A bif154
 #SBATCH -J saige_step1
 #SBATCH -o run_step1_saige_all_traits.flux6.3.1.log
-#SBATCH -N 5
+#SBATCH -N 97
 #SBATCH -q debug
-#SBATCH -t 35:00
+#SBATCH -t 1:10:00
 #SBATCH -C nvme
 
 ##################################################################################################################
