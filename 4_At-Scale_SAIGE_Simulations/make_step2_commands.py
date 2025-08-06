@@ -13,7 +13,6 @@ parser = argparse.ArgumentParser(
 parser.add_argument("--output-path", default="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step2_results/step2_commands.txt", help="Output file for step2 commands.")
 parser.add_argument("--plink-dir", default="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/simulated_genotypes", help="Directory for genotype files.")
 parser.add_argument("--pheno-dir", default="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/simulated_phenotypes", help="Directory for phenotype files.")
-parser.add_argument("--causal-var-dir", default="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/simulated_phenotypes/causal_variants", help="Directory for causal variant files.")
 parser.add_argument("--step1-dir", default="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step1_results", help="Step 1 results directory.")
 parser.add_argument("--out-dir", default="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step2_results", help="Output directory for step 2 results.")
 parser.add_argument("--saige-step2-script", default="/lustre/orion/bif154/proj-shared/arodriguez/tools/SAIGE-GPU/src/SAIGE/extdata/step2_SPAtests.R", help="SAIGE Step 2 R script path.")
@@ -36,7 +35,7 @@ args = parser.parse_args()
 output_path = args.output_path
 plink_dir = args.plink_dir
 pheno_dir = args.pheno_dir
-causal_var_dir = args.causal_var_dir
+causal_var_dir = os.path.join(pheno_dir, "causal_variants")
 inp_dir = args.step1_dir
 out_dir = args.out_dir
 saige_step2_script = args.saige_step2_script
