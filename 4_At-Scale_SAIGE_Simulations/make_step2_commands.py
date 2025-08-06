@@ -126,7 +126,6 @@ for pop in populations:
     with ThreadPoolExecutor(max_workers=num_cores) as executor:
         causal_chromosomes = list(executor.map(get_chromosome_from_file, causal_dict.values()))
         causal_chromosomes = [x for x in causal_chromosomes if x is not None]
-    print(causal_chromosomes)
     chromosomes = sorted(list(set([x[1] for x in causal_chromosomes])))
     chromo_dict = {os.path.basename(".".join(x[0].split(".")[:2])): x[1] for x in causal_chromosomes}
     null_files = [x for x in shared_files if "causal" not in x]
@@ -148,17 +147,13 @@ for pop in populations:
     var_files_raw = glob.glob(f"{plink_dir}/{pop}/chr*.plink.maf.var_list.txt")
     chromosomes_bgen = [os.path.basename(x).replace(".plink.maf.bgen", "").replace("chr", "") for x in bgen_files_raw]
     chromosomes_var = [os.path.basename(x).replace(".plink.maf.var_list.txt", "").replace("chr", "") for x in var_files_raw]
-    print(chromosomes_bgen)
-    print(chromosomes_var)
-    print(chromosomes)
     chr_intersection = sorted(list(set(chromosomes_bgen) & set(chromosomes_var) & set(chromosomes)))
     bgen_files = {chrom: f"{plink_dir}/{pop}/chr{chrom}.plink.maf.bgen" for chrom in chr_intersection}
     var_files = {chrom: f"{plink_dir}/{pop}/chr{chrom}.plink.maf.var_list.txt" for chrom in chr_intersection}
-    print(chr_intersection)
-    print(bgen_files)
-    print(var_files)
 
     # ------------ Parallel Command Generation ------------
+    if len(chr_intersection) == 0:
+        continue #Case where nothing needs mapping for the population
     with ThreadPoolExecutor(max_workers=min(num_cores, len(chr_intersection))) as executor:
         future_cmds = []
         for chromo in chr_intersection:
