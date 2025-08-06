@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+
+import argparse
+import os
+import re
+import pandas as pd
+from glob import glob
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Extract causal variant results from SAIGE step2 output files."
+    )
+    parser.add_argument(
+        "--output-dir", required=True,
+        help="Directory containing population subdirectories with step2 output files."
+    )
+    parser.add_argument(
+        "--causal-var-dir", required=True,
+        help="Directory containing causal variant files."
+    )
+    parser.add_argument(
+        "--out", required=True,
+        help="Path for the combined output file (CSV)."
+    )
+    parser.add_argument(
+        "--populations", nargs="+", default=None,
+        help="List of populations to process (default: all directories in output-dir)."
+    )
+    return parser.parse_args()
+
+def get_causal_variants_map(causal_var_dir):
+    # Mapping: key = <Pheno_name>.<num_causal_variants>_causal.effect_size_<effect_size>, value = causal_var_file
+    mapping = dict()
+    causal_pattern = re.compile(r'(.+?\.\d+_causal\.effect_size_\d*\.?\d*)\.500000_space100000\.txt')
+    for f in glob(os.path.join(causal_var_dir, "*.txt")):
+        m = causal_pattern.match(os.path.basename(f))
+        if m:
+            mapping[m.group(1)] = f
+    return mapping
+
+def parse_output_filename(filename):
+    # Matches Pheno_name.numcausal_causal.effect_size_effect.trait_type.chr#.step2.txt
+    pattern = re.compile(
+        r"(.+?)\.(\d+_causal\.effect_size_\d*\.?\d*)\.(binary|continuous)\.(\d+)\.step2\.txt$"
+    )
+    base = os.path.basename(filename)
+    m = pattern.match(base)
+    if not m:
+        return None
+    pheno_name, causal_part, trait_type, chrom = m.groups()
+    return {
+        "pheno_name": pheno_name,
+        "causal_part": causal_part,  # e.g., 1_causal.effect_size_0.5
+        "trait_type": trait_type,
+        "chromosome": chrom,
+    }
+
+def extract_causal_results_for_file(out_file, variant_ids, population, meta):
+    df = pd.read_csv(out_file, sep=None, engine="python", dtype=str, low_memory=False)
+    if "MarkerID" not in df.columns:
+        return pd.DataFrame()
+    filtered = df[df["MarkerID"].isin(variant_ids)].copy()
+    if filtered.empty:
+        return filtered
+    for k, v in meta.items():
+        filtered[k] = v
+    filtered["population"] = population
+    return filtered
+
+def main():
+    args = parse_args()
+    output_dir = args.output_dir
+    causal_var_dir = args.causal_var_dir
+    out_file = args.out
+
+    if args.populations:
+        populations = args.populations
+    else:
+        # Use all directories in output_dir
+        populations = [d for d in os.listdir(output_dir)
+                         if os.path.isdir(os.path.join(output_dir, d))]
+
+    causal_map = get_causal_variants_map(causal_var_dir)
+
+    # Gather all output files and map to their experiment meta info
+    results = []
+    for pop in populations:
+        pop_dir = os.path.join(output_dir, pop)
+        for file in glob(os.path.join(pop_dir, "*.step2.txt")):
+            meta = parse_output_filename(file)
+            if not meta:
+                continue
+            causal_key = f"{meta['pheno_name']}.{meta['causal_part']}"
+            causal_file = causal_map.get(causal_key)
+            if not causal_file or not os.path.isfile(causal_file):
+                continue
+            # Load causal variant IDs for this set
+            cdf = pd.read_csv(causal_file, sep=None, engine="python", header=None)
+            variant_ids = set(cdf.iloc[:,0].astype(str))
+            meta["trait_type"] = meta["trait_type"]  # e.g., 'binary'/'continuous'
+            meta["chromosome"] = meta["chromosome"]
+            meta["pheno_name"] = meta["pheno_name"]
+            # Extract only relevant rows
+            extracted = extract_causal_results_for_file(file, variant_ids, pop, meta)
+            if not extracted.empty:
+                results.append(extracted)
+
+    if not results:
+        print("No results found.")
+        return
+
+    combined = pd.concat(results, axis=0, ignore_index=True)
+    combined.to_csv(out_file, index=False)
+    print(f"Combined results written to {out_file}")
+
+if __name__ == "__main__":
+    main()
