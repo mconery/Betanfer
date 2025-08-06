@@ -149,6 +149,7 @@ for pop in populations:
     chromosomes_var = [os.path.basename(x).replace(".plink.maf.var_list.txt", "").replace("chr", "") for x in var_files_raw]
     print(chromosomes_bgen)
     print(chromosomes_var)
+    print(chromosomes)
     chr_intersection = sorted(list(set(chromosomes_bgen) & set(chromosomes_var) & set(chromosomes)))
     bgen_files = {chrom: f"{plink_dir}/{pop}/chr{chrom}.plink.maf.bgen" for chrom in chr_intersection}
     var_files = {chrom: f"{plink_dir}/{pop}/chr{chrom}.plink.maf.var_list.txt" for chrom in chr_intersection}
