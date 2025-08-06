@@ -3,28 +3,55 @@
 import os
 import glob
 import csv
+import argparse
 from concurrent.futures import ThreadPoolExecutor
 
+# ------------------ Argument Parsing -----------------------
+parser = argparse.ArgumentParser(
+    description="Generate SAIGE Step 2 commands."
+)
+parser.add_argument("--output-path", default="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step2_results/step2_commands.txt", help="Output file for step2 commands.")
+parser.add_argument("--plink-dir", default="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/simulated_genotypes", help="Directory for genotype files.")
+parser.add_argument("--pheno-dir", default="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/simulated_phenotypes", help="Directory for phenotype files.")
+parser.add_argument("--causal-var-dir", default="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/simulated_phenotypes/causal_variants", help="Directory for causal variant files.")
+parser.add_argument("--step1-dir", default="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step1_results", help="Step 1 results directory.")
+parser.add_argument("--out-dir", default="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step2_results", help="Output directory for step 2 results.")
+parser.add_argument("--saige-step2-script", default="/lustre/orion/bif154/proj-shared/arodriguez/tools/SAIGE-GPU/src/SAIGE/extdata/step2_SPAtests.R", help="SAIGE Step 2 R script path.")
+parser.add_argument("--timing-file", default="timing2.csv", help="Timing file name.")
+parser.add_argument("--populations", nargs="+", default=["AFR", "EUR"], help="List of populations.")
+parser.add_argument("--number-traits-per-job", type=int, default=15, help="Number of traits per job.")
+parser.add_argument("--causal-var-suffix", default=".effect_size_0.05.500000_space100000.txt", help="Suffix for causal variant files.")
+parser.add_argument("--minMAF", type=float, default=0, help="Minimum MAF.")
+parser.add_argument("--minMAC", type=float, default=0.5, help="Minimum MAC.")
+parser.add_argument("--LOCO", default="TRUE", help="Leave One Chromosome Out setting.")
+parser.add_argument("--is-Firth-beta", default="TRUE", help="Firth beta setting.")
+parser.add_argument("--allele-order", default="ref-first", help="Allele order.")
+parser.add_argument("--is-fastTest", default="FALSE", help="Use fast test.")
+parser.add_argument("--pCutoffforFirth", type=float, default=0.05, help="p-value cutoff for Firth correction.")
+parser.add_argument("--num-cores", type=int, default=112, help="Number of cores.")
+
+args = parser.parse_args()
+
 # ------------------ Adjustable Parameters -----------------------
-output_path = "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step2_results/step2_commands.txt"
-plink_dir = "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/simulated_genotypes"
-pheno_dir = "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/simulated_phenotypes"
-causal_var_dir = "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/simulated_phenotypes/causal_variants"
-inp_dir  = "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step1_results"
-out_dir  = "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step2_results"
-saige_step2_script = "/lustre/orion/bif154/proj-shared/arodriguez/tools/SAIGE-GPU/src/SAIGE/extdata/step2_SPAtests.R"
-timing_file = "timing2.csv"
-populations = ["AFR", "EUR"]
-number_traits_per_job = 15
-causal_var_suffix = ".effect_size_0.05.500000_space100000.txt"
-minMAF=0
-minMAC=0.5
-LOCO="TRUE"
-is_Firth_beta="TRUE"
-allele_order="ref-first"
-is_fastTest="FALSE"
-pCutoffforFirth=0.05
-num_cores = 112
+output_path = args.output_path
+plink_dir = args.plink_dir
+pheno_dir = args.pheno_dir
+causal_var_dir = args.causal_var_dir
+inp_dir = args.step1_dir
+out_dir = args.out_dir
+saige_step2_script = args.saige_step2_script
+timing_file = args.timing_file
+populations = args.populations
+number_traits_per_job = args.number_traits_per_job
+causal_var_suffix = args.causal_var_suffix
+minMAF = args.minMAF
+minMAC = args.minMAC
+LOCO = args.LOCO
+is_Firth_beta = args.is_Firth_beta
+allele_order = args.allele_order
+is_fastTest = args.is_fastTest
+pCutoffforFirth = args.pCutoffforFirth
+num_cores = args.num_cores
 
 # ------------------ Helper Functions -----------------------
 
