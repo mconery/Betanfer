@@ -65,7 +65,7 @@ def parse_output_filename(filename):
     return meta
 
 def extract_causal_results_for_file(out_file, variant_ids, population, meta):
-    df = pd.read_csv(out_file, sep=None, engine="python", dtype=str, low_memory=False)
+    df = pd.read_csv(out_file, sep=None, engine="python", dtype=str)
     if "MarkerID" not in df.columns:
         return pd.DataFrame()
     filtered = df[df["MarkerID"].isin(variant_ids)].copy()
