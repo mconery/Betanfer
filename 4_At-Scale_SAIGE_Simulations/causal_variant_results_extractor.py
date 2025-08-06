@@ -64,16 +64,37 @@ def parse_output_filename(filename):
         meta["prevalence"] = float(prevalence) if prevalence else None
     return meta
 
+def extract_effect_size(causal_part):
+    # causal_part is like '1_causal.effect_size_5'
+    m = re.search(r"effect_size_(\d*\.?\d+)", causal_part)
+    return float(m.group(1)) if m else None
+
 def extract_causal_results_for_file(out_file, variant_ids, population, meta):
     df = pd.read_csv(out_file, sep=None, engine="python", dtype=str)
-    if "MarkerID" not in df.columns:
-        return pd.DataFrame()
+    if not all(col in df.columns for col in ["MarkerID", "BETA", "p.value"]):
+        return pd.DataFrame()  # Return empty if columns missing
+    
+    # Filter rows with causal variant IDs
     filtered = df[df["MarkerID"].isin(variant_ids)].copy()
     if filtered.empty:
         return filtered
-    for k, v in meta.items():
-        filtered[k] = v
+
+    # Select only the columns needed
+    filtered = filtered[["MarkerID", "BETA", "p.value"]]
+
+    # Add metadata columns
     filtered["population"] = population
+    filtered["pheno_name"] = meta["pheno_name"]
+
+    # For trait_type include prevalence if binary, e.g. "binary_0.25"
+    if meta["trait_type"] == "binary" and "prevalence" in meta and meta["prevalence"] is not None:
+        filtered["trait_type"] = f"binary_{meta['prevalence']}"
+    else:
+        filtered["trait_type"] = meta["trait_type"]
+
+    # Extract effect_size from causal_part
+    filtered["effect_size"] = extract_effect_size(meta["causal_part"])
+
     return filtered
 
 def main():
