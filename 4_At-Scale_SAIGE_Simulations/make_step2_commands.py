@@ -126,6 +126,7 @@ for pop in populations:
     with ThreadPoolExecutor(max_workers=num_cores) as executor:
         causal_chromosomes = list(executor.map(get_chromosome_from_file, causal_dict.values()))
         causal_chromosomes = [x for x in causal_chromosomes if x is not None]
+    print(causal_chromosomes)
     chromosomes = sorted(list(set([x[1] for x in causal_chromosomes])))
     chromo_dict = {os.path.basename(".".join(x[0].split(".")[:2])): x[1] for x in causal_chromosomes}
     null_files = [x for x in shared_files if "causal" not in x]
