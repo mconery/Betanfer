@@ -19,7 +19,7 @@ parser.add_argument("--saige-step2-script", default="/lustre/orion/bif154/proj-s
 parser.add_argument("--timing-file", default="timing2.csv", help="Timing file name.")
 parser.add_argument("--populations", nargs="+", default=["AFR", "EUR"], help="List of populations.")
 parser.add_argument("--number-traits-per-job", type=int, default=15, help="Number of traits per job.")
-parser.add_argument("--causal-var-suffix", default=".effect_size_0.05.500000_space100000.txt", help="Suffix for causal variant files.")
+parser.add_argument("--causal-var-suffix", default=".500000_space100000.txt", help="Suffix for causal variant files.")
 parser.add_argument("--minMAF", type=float, default=0, help="Minimum MAF.")
 parser.add_argument("--minMAC", type=float, default=0.5, help="Minimum MAC.")
 parser.add_argument("--LOCO", default="TRUE", help="Leave One Chromosome Out setting.")
@@ -117,11 +117,11 @@ for pop in populations:
     causal_var_files = glob.glob(f"{causal_var_dir}/Pheno*.txt")
     rda_files = [os.path.basename(x).replace(".step1_output.rda", "") for x in rda_files]
     ratio_files = [os.path.basename(x).replace(".step1_output.varianceRatio.txt", "") for x in ratio_files]
-    causal_var_files = {".".join(os.path.basename(x).split(".")[:2]):x for x in causal_var_files}
+    causal_var_files = {".".join(os.path.basename(x).split(".")[:3]):x for x in causal_var_files}
     shared_files = list(set(rda_files) & set(ratio_files))
     causal_dict = {
-        x: os.path.join(causal_var_dir, ".".join(x.split(".")[:2]) + causal_var_suffix)
-        for x in shared_files if ".".join(x.split(".")[:2]) in causal_var_files
+        x: os.path.join(causal_var_dir, ".".join(x.split(".")[:3]) + causal_var_suffix)
+        for x in shared_files if ".".join(x.split(".")[:3]) in causal_var_files
     }
     with ThreadPoolExecutor(max_workers=num_cores) as executor:
         causal_chromosomes = list(executor.map(get_chromosome_from_file, causal_dict.values()))
