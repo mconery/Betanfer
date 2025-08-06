@@ -147,9 +147,14 @@ for pop in populations:
     var_files_raw = glob.glob(f"{plink_dir}/{pop}/chr*.plink.maf.var_list.txt")
     chromosomes_bgen = [os.path.basename(x).replace(".plink.maf.bgen", "").replace("chr", "") for x in bgen_files_raw]
     chromosomes_var = [os.path.basename(x).replace(".plink.maf.var_list.txt", "").replace("chr", "") for x in var_files_raw]
+    print(chromosomes_bgen)
+    print(chromosomes_var)
     chr_intersection = sorted(list(set(chromosomes_bgen) & set(chromosomes_var) & set(chromosomes)))
     bgen_files = {chrom: f"{plink_dir}/{pop}/chr{chrom}.plink.maf.bgen" for chrom in chr_intersection}
     var_files = {chrom: f"{plink_dir}/{pop}/chr{chrom}.plink.maf.var_list.txt" for chrom in chr_intersection}
+    print(chr_intersection)
+    print(bgen_files)
+    print(var_files)
 
     # ------------ Parallel Command Generation ------------
     with ThreadPoolExecutor(max_workers=min(num_cores, len(chr_intersection))) as executor:
