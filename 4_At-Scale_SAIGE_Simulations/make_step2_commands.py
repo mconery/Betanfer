@@ -150,7 +150,7 @@ for pop in populations:
     chr_intersection = sorted(list(set(chromosomes_bgen) & set(chromosomes_var) & set(chromosomes)))
     bgen_files = {chrom: f"{plink_dir}/{pop}/chr{chrom}.plink.maf.bgen" for chrom in chr_intersection}
     var_files = {chrom: f"{plink_dir}/{pop}/chr{chrom}.plink.maf.var_list.txt" for chrom in chr_intersection}
-    
+
     # ------------ Parallel Command Generation ------------
     with ThreadPoolExecutor(max_workers=min(num_cores, len(chr_intersection))) as executor:
         future_cmds = []
