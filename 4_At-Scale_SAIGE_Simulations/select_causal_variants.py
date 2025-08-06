@@ -28,10 +28,10 @@ def load_bim_files(input_dir: Path, pattern: str) -> dict[int, pd.DataFrame]:
     """
     Read BIM files matching the pattern and return a dict keyed by chromosome.
     """
-    files = glob.glob(str(input_dir / pattern))
+    files = glob.glob(str(os.path.join(input_dir, pattern)))
     if not files:
         sys.exit(f"No BIM files matching pattern '{pattern}' found in {input_dir}")
-
+    
     data: dict[int, pd.DataFrame] = {}
     for f in files:
         # Extract chromosome from filename by replacing '*' placeholder
@@ -60,7 +60,7 @@ def infer_chromosome_from_filename(path: str) -> int:
     Extract integer chromosome from filename (assumes 'chr<number>' in name).
     """
     import re
-
+    
     m = re.search(r"chr(\d+)", os.path.basename(path))
     if not m:
         sys.exit(f"Cannot infer chromosome number from file name '{path}'")
@@ -84,23 +84,23 @@ def pick_variant_set(
     positions = df["BP"].to_numpy()
     ids = df["SNP"].to_numpy()
     n = len(df)
-
+    
     for _ in range(max_trials):
         idx_anchor = rng.randrange(n)
         anchor_pos = positions[idx_anchor]
         window_end = anchor_pos + max_span
-
+        
         # Candidates within window
         mask = (positions >= anchor_pos) & (positions <= window_end)
         cand_pos = positions[mask]
         cand_ids = ids[mask]
         if len(cand_pos) < k:
             continue
-
+        
         # Greedy random spacing
         chosen_pos = [anchor_pos]
         chosen_ids = [ids[idx_anchor]]
-
+        
         for _ in range(k - 1):
             valid = [
                 (p, s)
@@ -112,10 +112,10 @@ def pick_variant_set(
             p, s = rng.choice(valid)
             chosen_pos.append(p)
             chosen_ids.append(s)
-
+        
         if len(chosen_pos) != k:
             continue
-
+        
         # Check inter-set separation
         interval_start = min(chosen_pos)
         interval_end = max(chosen_pos)
@@ -124,10 +124,10 @@ def pick_variant_set(
             for us, ue in used_intervals
         ):
             continue
-
+        
         used_intervals.append((interval_start, interval_end))
         return chosen_pos, chosen_ids
-
+    
     raise ValueError("Failed to select variant set given the constraints.")
 
 
@@ -147,7 +147,7 @@ def write_set_file(
         f"Pheno{pheno_idx}.{k}_causal."
         f"effect_size_{effect:g}.{max_span}_space{min_spacing}.txt"
     )
-    out_path = out_dir / filename
+    out_path = os.path.join(out_dir, filename)
     with open(out_path, "w") as fout:
         for vid in variant_ids:
             fout.write(f"{vid}\t{effect}\n")
@@ -234,7 +234,7 @@ def main() -> None:
     chroms = list(chrom_weights.keys())
     weights = np.array([chrom_weights[c] for c in chroms], dtype=float)
     weights /= weights.sum()
-
+    
     used_intervals_by_chr: dict[int, List[Tuple[int, int]]] = defaultdict(list)
 
     # ---------------------------------------------------------------------- #
@@ -243,7 +243,7 @@ def main() -> None:
     for pheno_idx in range(1, args.num_sets + 1):
         # Pick chromosome proportional to variant count
         chrom = rng.choices(chroms, weights=weights, k=1)[0]
-
+        
         try:
             positions, vid_list = pick_variant_set(
                 bim_data[chrom],
@@ -255,7 +255,7 @@ def main() -> None:
             )
         except ValueError as e:
             sys.exit(f"Phenotype {pheno_idx}: {e}")
-
+        
         write_set_file(
             args.output_dir,
             pheno_idx,
@@ -265,7 +265,7 @@ def main() -> None:
             args.min_spacing,
             vid_list,
         )
-
+        
         if pheno_idx % 50 == 0 or pheno_idx == args.num_sets:
             print(f"Completed {pheno_idx}/{args.num_sets} sets", file=sys.stderr)
 
