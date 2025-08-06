@@ -39,21 +39,30 @@ def get_causal_variants_map(causal_var_dir):
     return mapping
 
 def parse_output_filename(filename):
-    # Matches Pheno_name.numcausal_causal.effect_size_effect.trait_type.chr#.step2.txt
-    pattern = re.compile(
-        r"(.+?)\.(\d+_causal\.effect_size_\d*\.?\d*)\.(binary|continuous)\.(\d+)\.step2\.txt$"
-    )
+    """
+    Matches:
+      <Pheno_name>.<num_causal_variants>_causal.effect_size_<effect_size>.(binary_<prevalence>|continuous).<chr#>.step2.txt
+    Returns a metadata dict with possible keys: pheno_name, causal_part, trait_type, chromosome, prevalence.
+    """
     base = os.path.basename(filename)
+    # Regex captures both binary_<prevalence> and continuous
+    pattern = re.compile(
+        r"(.+?)\.(\d+_causal\.effect_size_\d*\.?\d*)\.(binary_(\d*\.?\d+)|continuous)\.(chr\d+)\.step2\.txt$"
+    )
     m = pattern.match(base)
     if not m:
         return None
-    pheno_name, causal_part, trait_type, chrom = m.groups()
-    return {
+    pheno_name, causal_part, trait_type_full, prevalence, chrom = m.groups()
+    trait_type = "binary" if trait_type_full.startswith("binary") else "continuous"
+    meta = {
         "pheno_name": pheno_name,
-        "causal_part": causal_part,  # e.g., 1_causal.effect_size_0.5
+        "causal_part": causal_part,
         "trait_type": trait_type,
         "chromosome": chrom,
     }
+    if trait_type == "binary":
+        meta["prevalence"] = float(prevalence) if prevalence else None
+    return meta
 
 def extract_causal_results_for_file(out_file, variant_ids, population, meta):
     df = pd.read_csv(out_file, sep=None, engine="python", dtype=str, low_memory=False)
