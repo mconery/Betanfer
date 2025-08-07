@@ -2,7 +2,7 @@
 #SBATCH -A bif154
 #SBATCH -J saige_effectsweep
 #SBATCH -o saige_effectsweep.%j.log
-#SBATCH -N 30                 
+#SBATCH -N 2              
 #SBATCH -q debug
 #SBATCH -t 1:10:00
 #SBATCH -C nvme
