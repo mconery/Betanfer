@@ -5,6 +5,7 @@ import glob
 import csv
 import argparse
 from concurrent.futures import ThreadPoolExecutor
+import re
 
 # ------------------ Argument Parsing -----------------------
 parser = argparse.ArgumentParser(
@@ -117,11 +118,11 @@ for pop in populations:
     causal_var_files = glob.glob(f"{causal_var_dir}/Pheno*.txt")
     rda_files = [os.path.basename(x).replace(".step1_output.rda", "") for x in rda_files]
     ratio_files = [os.path.basename(x).replace(".step1_output.varianceRatio.txt", "") for x in ratio_files]
-    causal_var_files = {".".join(os.path.basename(x).split(".")[:3]):x for x in causal_var_files}
+    causal_var_files = {os.path.basename(x).replace(causal_var_suffix, ""):x for x in causal_var_files}
     shared_files = list(set(rda_files) & set(ratio_files))
     causal_dict = {
-        x: os.path.join(causal_var_dir, ".".join(x.split(".")[:3]) + causal_var_suffix)
-        for x in shared_files if ".".join(x.split(".")[:3]) in causal_var_files
+        x: os.path.join(causal_var_dir, re.sub(r'\.binary_[\d\.]+|continuous' ,'', x) + causal_var_suffix)
+        for x in shared_files if re.sub(r'\.binary_[\d\.]+|continuous' ,'', x) in causal_var_files
     }
     with ThreadPoolExecutor(max_workers=num_cores) as executor:
         causal_chromosomes = list(executor.map(get_chromosome_from_file, causal_dict.values()))
