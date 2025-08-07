@@ -162,6 +162,7 @@ srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start "mapfile
 
 #Unload conflicting modules for step 2
 module unload amd/6.3.1 rocm/6.3.1 hwloc/2.11.1-gpu flux
+conda deactivate
 
 ################################################################################
 ######################## 3. SAIGE STEP 2 (GWAS scan) ###########################
