@@ -106,12 +106,8 @@ def generate_gwama_commands(matched_traits, output_dir):
             echo_cmd += f"; {echo_line} >> {input_list_file}"
         
         # GWAMA base command
-        gwama_cmd = f"GWAMA --filelist {input_list_file} --output {output_prefix} --indel_alleles"
-        
-        # Add flag for quantitative traits
-        if trait_type.lower() in ['continuous', 'quantitative']:
-            gwama_cmd += " --quantitative"
-        
+        gwama_cmd = f"GWAMA --filelist {input_list_file} --output {output_prefix} --quantitative --indel_alleles --name_marker=MarkerID --name_n=N --name_eaf=AF_Allele2 --name_beta=BETA --name_se=SE"
+                
         # Join full command
         full_cmd = f"{mkdir_cmd}; {echo_cmd}; {gwama_cmd}"
         commands.append(full_cmd)
