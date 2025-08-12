@@ -103,7 +103,7 @@ def prepare_meta_task(args):
             
     gwama_cmd = (
         f"GWAMA --filelist {input_list_file} --output {output_prefix} "
-        "--quantitative --indel_alleles --name_marker MarkerID "
+        "--quantitative --indel_alleles --name_marker MarkerID --name_ea Allele2 --name_nea Allele1"
         "--name_n N --name_eaf AF_Allele2 --name_beta BETA --name_se SE"
     )
     return gwama_cmd
