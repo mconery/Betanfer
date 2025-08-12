@@ -82,7 +82,6 @@ def check_file_exists(filepath):
     return os.path.exists(filepath) and os.path.getsize(filepath) > 0
 
 from concurrent.futures import ThreadPoolExecutor
-import os
 
 def prepare_meta_task(args):
     # Unpack arguments
