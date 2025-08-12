@@ -81,38 +81,50 @@ def find_common_traits_across_pops(pop_files_dict):
 def check_file_exists(filepath):
     return os.path.exists(filepath) and os.path.getsize(filepath) > 0
 
-def generate_gwama_commands(matched_traits, output_dir):
+from concurrent.futures import ThreadPoolExecutor
+import os
+
+def prepare_meta_task(args):
+    # Unpack arguments
+    phenotype, trait_type, chromosome, pop_files, output_dir = args
+    pheno_out_dir = os.path.join(output_dir, f"{phenotype}.{trait_type}")
+    output_prefix = os.path.join(pheno_out_dir, f"{phenotype}.{trait_type}.{chromosome}.meta")
+    input_list_file = f"{output_prefix}.input_files.txt"
+    expected_output = f"{output_prefix}.out"
+
+    # If meta-analysis already run, skip
+    if os.path.exists(expected_output) and os.path.getsize(expected_output) > 0:
+        return None
+
+    os.makedirs(pheno_out_dir, exist_ok=True)
+    with open(input_list_file, 'w') as f:
+        for fpath in pop_files.values():
+            f.write(f"{fpath}\n")
+            
+    gwama_cmd = (
+        f"GWAMA --filelist {input_list_file} --output {output_prefix} "
+        "--quantitative --indel_alleles --name_marker MarkerID "
+        "--name_n N --name_eaf AF_Allele2 --name_beta BETA --name_se SE"
+    )
+    return gwama_cmd
+
+def generate_gwama_commands(matched_traits, output_dir, max_workers=32):
     """
-    Generate GWAMA commands for each matched trait and chromosome.
-    Uses 'GWAMA' as the executable on PATH.
+    Prepare all directories and input files in parallel,
+    return pure GWAMA command lines only.
     """
+    # Prepare argument tuples for parallelization
+    args_list = [
+        (phenotype, trait_type, chromosome, pop_files, output_dir)
+        for (phenotype, trait_type, chromosome), pop_files in matched_traits.items()
+    ]
     commands = []
-    for (phenotype, trait_type, chromosome), pop_files in matched_traits.items():
-        # Create output subdirectory per phenotype and trait_type
-        pheno_out_dir = os.path.join(output_dir, f"{phenotype}.{trait_type}")
-        output_prefix = os.path.join(pheno_out_dir, f"{phenotype}.{trait_type}.{chromosome}.meta")
-        input_list_file = f"{output_prefix}.input_files.txt"
-        expected_output = f"{output_prefix}.out"
-        
-        # Skip if output already exists and is non-empty
-        if check_file_exists(expected_output):
-            continue
-        
-        # Build input file list content
-        mkdir_cmd = f"mkdir -p {pheno_out_dir}"
-        echo_cmds = [f"echo '{fpath}'" for fpath in pop_files.values()]
-        echo_cmd = f"{echo_cmds[0]} > {input_list_file}"
-        for echo_line in echo_cmds[1:]:
-            echo_cmd += f" && {echo_line} >> {input_list_file}"
-        
-        # GWAMA base command
-        gwama_cmd = f"GWAMA --filelist {input_list_file} --output {output_prefix} --quantitative --indel_alleles --name_marker MarkerID --name_n N --name_eaf AF_Allele2 --name_beta BETA --name_se SE"
-                
-        # Join full command
-        cmd_body = f"{mkdir_cmd} && {echo_cmd} && {gwama_cmd}"
-        full_cmd = f'bash -c "{cmd_body}"'
-        commands.append(full_cmd)
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        for res in executor.map(prepare_meta_task, args_list):
+            if res is not None:
+                commands.append(res)
     return commands
+
 
 def write_commands(commands, commands_file):
     with open(commands_file, 'w') as f:
@@ -139,7 +151,7 @@ def main():
 
     print(f"Found {len(matched_traits)} matching trait-chromosome combinations across populations: {', '.join(pop_names_list)}")
 
-    commands = generate_gwama_commands(matched_traits, args.output_dir)
+    commands = generate_gwama_commands(matched_traits, args.output_dir, max_workers=os.cpu_count())
 
     write_commands(commands, args.commands_file)
 
