@@ -99,7 +99,7 @@ def generate_gwama_commands(matched_traits, output_dir):
             continue
         
         # Build input file list content
-        mkdir_cmd = f"mkdir -p {pheno_out_dir}"
+        mkdir_cmd = f"mkdir -p '{pheno_out_dir}'"
         echo_cmds = [f"echo '{fpath}'" for fpath in pop_files.values()]
         echo_cmd = f"{echo_cmds[0]} > {input_list_file}"
         for echo_line in echo_cmds[1:]:
