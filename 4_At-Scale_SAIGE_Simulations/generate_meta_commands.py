@@ -109,7 +109,8 @@ def generate_gwama_commands(matched_traits, output_dir):
         gwama_cmd = f"GWAMA --filelist {input_list_file} --output {output_prefix} --quantitative --indel_alleles --name_marker MarkerID --name_n N --name_eaf AF_Allele2 --name_beta BETA --name_se SE"
                 
         # Join full command
-        full_cmd = f"'{mkdir_cmd} && {echo_cmd} && {gwama_cmd}'"
+        cmd_body = f"{mkdir_cmd} && {echo_cmd} && {gwama_cmd}"
+        full_cmd = f'bash -c "{cmd_body}"'
         commands.append(full_cmd)
     return commands
 
