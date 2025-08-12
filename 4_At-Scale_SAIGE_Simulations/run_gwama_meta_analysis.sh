@@ -3,9 +3,9 @@
 #SBATCH -A bif154
 #SBATCH -J gwama_meta_analysis
 #SBATCH -o gwama_meta_analysis_%j.log
-#SBATCH -N 20
-#SBATCH -q debug
-#SBATCH -t 2:00:00
+#SBATCH -N 10
+#SBATCH -p batch
+#SBATCH -t 1:00:00
 
 ##################################################################################################################
 ################################################### Set Needed Variables #########################################
@@ -26,9 +26,6 @@ COMMANDS_FILE="${OUTPUT_DIR}/meta_analysis_commands.txt"
 # Path to the updated generate_meta_commands.py script
 CMD_SCRIPT="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/generate_meta_commands.py"
 
-# Flux output directory
-FLUX_OUTPUT_DIR="${OUTPUT_DIR}/flux_output"
-
 # Number of nodes allocated by SLURM
 NNODES=${SLURM_NNODES}
 
@@ -40,7 +37,6 @@ module load python/3.10-miniforge3
 module load flux
 
 mkdir -p ${OUTPUT_DIR}
-mkdir -p ${FLUX_OUTPUT_DIR}
 
 ##################################################################################################################
 ################################################### Generate Commands ############################################
@@ -67,48 +63,13 @@ echo "Generated ${NUM_COMMANDS} meta-analysis commands"
 ##################################################################################################################
 
 echo "Starting meta-analysis using Flux..."
-
+echo "Submitting ${NUM_COMMANDS} meta-analysis jobs to Flux..."
+mapfile -t cmds < ${COMMANDS_FILE}
 srun -N ${NNODES} -n ${NNODES} -c 56 flux start \
     "flux resource list; \
-     echo 'Submitting ${NUM_COMMANDS} meta-analysis jobs to Flux...'; \
      mapfile -t cmds < ${COMMANDS_FILE}; \
-     for ((i=0; i<\${#cmds[@]}; i++)); do \
-         flux submit -N1 -n1 -c4 --output=${FLUX_OUTPUT_DIR}/meta_output_\$i.txt \"\${cmds[\$i]}\"; \
+     for ((i=0; i<${#cmds[@]}; i++)); do \
+         flux submit -N1 -n1 -c4 --output=flux_output/meta_output_\$i.txt \${cmds[\$i]}; \
      done; \
-     echo 'All jobs submitted. Waiting for completion...'; \
-     flux queue drain; \
-     echo 'All meta-analysis jobs completed.'"
-
-##################################################################################################################
-################################################### Post-Processing ###############################################
-##################################################################################################################
-
-echo "Meta-analysis completed. Generating summary..."
-
-SUMMARY_FILE="${OUTPUT_DIR}/meta_analysis_summary.txt"
-
-echo "GWAMA Meta-Analysis Summary" > ${SUMMARY_FILE}
-echo "Generated on: $(date)" >> ${SUMMARY_FILE}
-echo "======================================" >> ${SUMMARY_FILE}
-echo "" >> ${SUMMARY_FILE}
-
-COMPLETED_ANALYSES=$(find ${OUTPUT_DIR} -name "*.meta.out" | wc -l)
-echo "Total completed meta-analyses: ${COMPLETED_ANALYSES}" >> ${SUMMARY_FILE}
-echo "" >> ${SUMMARY_FILE}
-
-echo "Completed phenotype-trait combinations:" >> ${SUMMARY_FILE}
-find ${OUTPUT_DIR} -name "*.meta.out" | while read file; do
-    basename=$(basename "$file" .meta.out)
-    echo "  $basename" >> ${SUMMARY_FILE}
-done
-
-echo "" >> ${SUMMARY_FILE}
-echo "Output files location: ${OUTPUT_DIR}" >> ${SUMMARY_FILE}
-echo "Flux output logs location: ${FLUX_OUTPUT_DIR}" >> ${SUMMARY_FILE}
-
-cat ${SUMMARY_FILE}
-
-echo "Meta-analysis pipeline completed successfully!"
-echo "Summary written to: ${SUMMARY_FILE}"
-
-echo "Pipeline finished at: $(date)"
+     flux queue drain;" 
+echo 'SUCCESS: All meta-analysis jobs completed.'
