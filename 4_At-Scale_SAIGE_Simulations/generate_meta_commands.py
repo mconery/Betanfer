@@ -66,14 +66,13 @@ def find_common_traits_across_pops(pop_files_dict):
     """
     Given a dict mapping pop_name -> {(phenotype, trait_type, chromosome): filepath},
     find trait keys common to all populations.
-
     Returns:
       dict {(phenotype, trait_type, chromosome): {pop_name: filepath, ...}}
     """
     # Find set of keys present in all populations
     all_keys_sets = [set(d.keys()) for d in pop_files_dict.values()]
     common_keys = set.intersection(*all_keys_sets)
-
+    
     matched = {}
     for key in common_keys:
         matched[key] = {pop: pop_files_dict[pop][key] for pop in pop_files_dict.keys()}
@@ -94,35 +93,28 @@ def generate_gwama_commands(matched_traits, output_dir):
         output_prefix = os.path.join(pheno_out_dir, f"{phenotype}.{trait_type}.{chromosome}.meta")
         input_list_file = f"{output_prefix}.input_files.txt"
         expected_output = f"{output_prefix}.out"
-
+        
         # Skip if output already exists and is non-empty
         if check_file_exists(expected_output):
             continue
-
-        # Check all files exist and warn if any missing
-        missing = [pop for pop, fpath in pop_files.items() if not check_file_exists(fpath)]
-        if missing:
-            print(f"Warning: Missing or empty files for populations {missing} for trait {phenotype}.{trait_type}.{chromosome}")
-            continue
-
+        
         # Build input file list content
         mkdir_cmd = f"mkdir -p {pheno_out_dir}"
         echo_cmds = [f"echo '{fpath}'" for fpath in pop_files.values()]
         echo_cmd = f"{echo_cmds[0]} > {input_list_file}"
         for echo_line in echo_cmds[1:]:
             echo_cmd += f" && {echo_line} >> {input_list_file}"
-
+        
         # GWAMA base command
-        gwama_cmd = f"GWAMA --filelist {input_list_file} --output {output_prefix}"
-
+        gwama_cmd = f"GWAMA --filelist {input_list_file} --output {output_prefix} --indel_alleles"
+        
         # Add flag for quantitative traits
         if trait_type.lower() in ['continuous', 'quantitative']:
             gwama_cmd += " --quantitative"
-
+        
         # Join full command
         full_cmd = f"{mkdir_cmd} && {echo_cmd} && {gwama_cmd}"
         commands.append(full_cmd)
-
     return commands
 
 def write_commands(commands, commands_file):
