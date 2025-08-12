@@ -103,7 +103,7 @@ def generate_gwama_commands(matched_traits, output_dir):
         echo_cmds = [f"echo '{fpath}'" for fpath in pop_files.values()]
         echo_cmd = f"{echo_cmds[0]} > {input_list_file}"
         for echo_line in echo_cmds[1:]:
-            echo_cmd += f" && {echo_line} >> {input_list_file}"
+            echo_cmd += f"; {echo_line} >> {input_list_file}"
         
         # GWAMA base command
         gwama_cmd = f"GWAMA --filelist {input_list_file} --output {output_prefix} --indel_alleles"
@@ -113,7 +113,7 @@ def generate_gwama_commands(matched_traits, output_dir):
             gwama_cmd += " --quantitative"
         
         # Join full command
-        full_cmd = f"{mkdir_cmd} && {echo_cmd} && {gwama_cmd}"
+        full_cmd = f"{mkdir_cmd}; {echo_cmd}; {gwama_cmd}"
         commands.append(full_cmd)
     return commands
 
