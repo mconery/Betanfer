@@ -4,7 +4,7 @@
 #SBATCH -J gwama_meta_analysis
 #SBATCH -o gwama_meta_analysis_%j.log
 #SBATCH -N 10
-#SBATCH -p extended
+#SBATCH -p batch
 #SBATCH -t 1:00:00
 
 ##################################################################################################################
