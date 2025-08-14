@@ -3,9 +3,9 @@
 #SBATCH -A bif154
 #SBATCH -J gwama_meta_analysis
 #SBATCH -o gwama_meta_analysis_%j.log
-#SBATCH -N 10
+#SBATCH -N 20
 #SBATCH -p batch
-#SBATCH -t 1:00:00
+#SBATCH -t 2:00:00
 
 ##################################################################################################################
 ################################################### Set Needed Variables #########################################
