@@ -8,8 +8,8 @@
 #SBATCH -C nvme
 
 #Load plink tools and conda environment
-source ~/.bashrc
-conda activate simulate_pheno
+module load miniforge3
+source activate /lustre/orion/bif154/proj-shared/mconery/tools/environments/simulate_pheno
 
 ################################################################################################################
 ########################## Define directories and other key file/script locations ##############################
