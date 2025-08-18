@@ -30,7 +30,7 @@ min_spacing=100000
 
 #Set key variables for phenotype simulation
 trait_types=(binary continuous)
-prevalences=(0.1 0.25 0.5)
+prevalences=(0.25)
 
 #Get number of nodes
 num_nodes="$SLURM_NNODES"
@@ -82,12 +82,12 @@ num_nodes="$SLURM_NNODES"
 ################################################################################################################
 ############################################ Select Causal Variants ############################################
 ################################################################################################################
-##Loop over the number of variants
-#for num_var in ${set_numbers[@]}; do
-#	python $selection_script --input-dir $geno_dir/shared_variants --output-dir $pheno_dir/causal_variants --effect-size $m_beta --max-distance $max_distance --min-spacing $min_spacing --variants-per-set $num_var
-#done
+#Loop over the number of variants
+for num_var in ${set_numbers[@]}; do
+	python $selection_script --input-dir $geno_dir/shared_variants --output-dir $pheno_dir/causal_variants --effect-size $m_beta --max-distance $max_distance --min-spacing $min_spacing --variants-per-set $num_var
+done
 #Make a master list of phenotypes
-#ls $pheno_dir/causal_variants/Pheno*.*_causal.*.txt > $pheno_dir/causal_variants/master_casual_list.txt
+ls $pheno_dir/causal_variants/Pheno*.*_causal.*.txt > $pheno_dir/causal_variants/master_casual_list.txt
 
 
 ################################################################################################################
