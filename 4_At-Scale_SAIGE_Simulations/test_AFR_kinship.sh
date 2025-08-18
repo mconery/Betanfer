@@ -8,7 +8,7 @@
 #SBATCH -C nvme
 
 #Run the plink command
-plink --bfile \
+plink2 --bfile \
 	/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/simulated_genotypes/AFR/merged.plink.maf.ld \
-	--make-rel --noweb \
+	--make-rel \
 	--out /lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/simulated_genotypes/AFR/kinship_results
