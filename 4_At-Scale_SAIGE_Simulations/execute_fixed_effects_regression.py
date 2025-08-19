@@ -76,11 +76,11 @@ def main():
     n_snps = len(sid_list)
 
     # Load and merge phenotype+covariates
-    pheno_df = pd.read_csv(args.pheno_file, sep='\s+')
+    pheno_df = pd.read_csv(args.pheno_file, sep=r'\s+')
     covar_list = [f"PC{i}" for i in range(1, 11)]
     pheno_df = pheno_df[["#FID", "IID", "PHENO"] + covar_list]
     pheno_df = pheno_df.rename(columns={"#FID": "FID"})
-    fam_df = pd.read_csv(f"{args.plink_prefix}.fam", sep='\s+', header=None)
+    fam_df = pd.read_csv(f"{args.plink_prefix}.fam", sep=r'\s+', header=None)
     fam_df.columns = ["FID","IID","PAT","MAT","SEX","PHENO_IGNORE"]
     pheno_df = pd.merge(pheno_df, fam_df[["FID","IID"]], on=["FID","IID"])
     pheno_df = pheno_df.sort_values(["FID", "IID"]).reset_index(drop=True)
