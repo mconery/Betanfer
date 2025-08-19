@@ -93,8 +93,9 @@ def main():
     n_cores = args.n_cores or multiprocessing.cpu_count()
     chunk_size = int(np.ceil(n_snps / n_cores))
     chunks = [list(range(i*chunk_size, min((i+1)*chunk_size, n_snps))) for i in range(n_cores)]
-    progress_queue = multiprocessing.Queue()
-
+    manager = multiprocessing.Manager()
+    progress_queue = manager.Queue()
+    
     pool_args = [
         (chunk, bed, pheno_df, covar_list, args.trait_type, sid_list, chr_list, bp_list, a1_list, a2_list, progress_queue, n_snps)
         for chunk in chunks
@@ -125,6 +126,7 @@ def main():
     # Collect results
     pool.close()
     pool.join()
+    manager.shutdown()
     all_results = []
     for res in results_async:
         all_results.extend(res.get())
