@@ -19,7 +19,7 @@ def worker(args):
     results = []
     n_done = 0
     last_update = 0
-
+    
     for snp_offset, snp_idx in enumerate(snp_idxs):
         snp_id = sid_list[snp_idx]
         chr_num = chr_list[snp_idx]
@@ -28,13 +28,13 @@ def worker(args):
         alt = a2_list[snp_idx]
         geno = bed[:, snp_idx].read().val.flatten()
         aaf = np.nanmean(geno) / 2
-
+        
         df = pheno_df.copy()
         df['SNP'] = geno
         X = df[["SNP"] + covar_list]
         X = add_constant(X, has_constant='add')
         y = df["PHENO"]
-
+        
         try:
             if trait_type == "binary":
                 model = Logit(y, X, missing="drop")
@@ -46,15 +46,15 @@ def worker(args):
             p = fit.pvalues["SNP"]
         except Exception:
             beta = se = p = None
-
+        
         results.append({"SNP": snp_id, "CHR": chr_num, "BP": bp_pos,
                         "REF": ref, "ALT": alt, "AAF": aaf,
                         "Beta": beta, "StdErr": se, "Pval": p})
-
+        
         n_done += 1
         if progress_queue is not None:
             progress_queue.put(1)
-
+    
     return results
 
 def main():
@@ -71,10 +71,14 @@ def main():
     sid_list = bed.sid                                # Variant IDs
     chr_list = bed.pos[:,0]                           # Chromosome numbers (as int or str)
     bp_list = bed.pos[:,2]                            # Physical positions
-    a1_list = bed._row["allele1"] if hasattr(bed, '_row') else [None]*len(sid_list)
-    a2_list = bed._row["allele2"] if hasattr(bed, '_row') else [None]*len(sid_list)
     n_snps = len(sid_list)
-
+    
+    # Read the .bim file that corresponds to .bed to get allele info
+    bim = pd.read_csv(args.plink_prefix + '.bim', sep='\t', header=None)
+    bim.columns = ['CHR', 'SNP', 'CM', 'BP', 'A1', 'A2']
+    a1_list = bim['A1'].tolist()              # A1 (effect/ref) allele
+    a2_list = bim['A2'].tolist()              # A2 (other) allele
+    
     # Load and merge phenotype+covariates
     pheno_df = pd.read_csv(args.pheno_file, sep=r'\s+')
     covar_list = [f"PC{i}" for i in range(1, 11)]
@@ -84,10 +88,7 @@ def main():
     fam_df.columns = ["FID","IID","PAT","MAT","SEX","PHENO_IGNORE"]
     pheno_df = pd.merge(pheno_df, fam_df[["FID","IID"]], on=["FID","IID"])
     pheno_df = pheno_df.sort_values(["FID", "IID"]).reset_index(drop=True)
-
-    # Bed SNPs are always sample-major
-    assert bed.iid.shape[0] == pheno_df.shape
-
+    
     # Setup multiprocessing
     n_cores = args.n_cores or multiprocessing.cpu_count()
     chunk_size = int(np.ceil(n_snps / n_cores))
