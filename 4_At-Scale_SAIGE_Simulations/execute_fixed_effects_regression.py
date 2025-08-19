@@ -35,7 +35,7 @@ def extract_genotypes(plink_prefix, snps_to_extract, tmp_dir):
         "--out", out_pref
     ]
     subprocess.run(cmd, check=True)
-    geno = pd.read_csv(out_pref + ".raw", delim_whitespace=True)
+    geno = pd.read_csv(out_pref + ".raw", sep='\s+')
 
     # Fix SNP column names: remove allele suffix from IDs
     def normalize_snp_col(col):
@@ -101,7 +101,7 @@ def main():
     bim_df = get_all_variants_with_info(plink_prefix)
     all_variants = bim_df["SNP"].tolist()
 
-    pheno = pd.read_csv(args.pheno_file, delim_whitespace=True)
+    pheno = pd.read_csv(args.pheno_file, sep='\s+')
     covars = ["PC{}".format(i) for i in range(1, 11)]
     pheno = pheno[["#FID", "IID", "PHENO"] + covars]
 
