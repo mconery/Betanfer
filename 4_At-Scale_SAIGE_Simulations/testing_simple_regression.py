@@ -99,7 +99,7 @@ def run_regressions(merged, causal_variants, random_variants, trait_type):
     for snp in causal_variants:
         if snp in merged.columns:
             X = merged[[snp] + covars]
-            print(x)
+            print(X)
             X = add_constant(X)
             y = merged["PHENO"]
             print(y)
