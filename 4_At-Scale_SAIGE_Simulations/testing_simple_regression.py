@@ -99,8 +99,10 @@ def run_regressions(merged, causal_variants, random_variants, trait_type):
     for snp in causal_variants:
         if snp in merged.columns:
             X = merged[[snp] + covars]
+            print(x)
             X = add_constant(X)
             y = merged["PHENO"]
+            print(y)
             
             if trait_type == "binary":
                 model = Logit(y, X, missing="drop")
