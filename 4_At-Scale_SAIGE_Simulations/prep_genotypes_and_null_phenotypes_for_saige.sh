@@ -225,39 +225,39 @@ num_nodes="$SLURM_NNODES"
 ################################################################################################################
 ##################################### Make Sorted Chromosome Plink Files #######################################
 ################################################################################################################
-#Create empty command array
-cmds=()
-#Loop over two populations
-for pop in AFR EUR; do
-  #Change into population output directory and get sort list
-  cd $geno_dir/$pop
-  sort_list=$geno_dir/$pop/sort_list.txt
-  #Loop the chromosomes
-  for chromo in {1..22}; do
-    #Set input plink file prefix (without extension)
-    unsorted_plink=$geno_dir/$pop/chr"$chromo".plink.maf
-    #Set sorted plink file prefix
-    sorted_plink=$geno_dir/$pop/chr"$chromo".plink.maf.sorted
-    #Command to sort plink file
-    cmds+=("plink2 --bfile $unsorted_plink --indiv-sort file $sort_list --make-bed --out $sorted_plink")
-  done
-done
-
-#Calculate number of possible jobs
-job_size=${#cmds[@]}
-num_parallel_jobs=$((($SLURM_CPUS_ON_NODE / 4) * num_nodes))
-echo "JOB SIZE: $job_size"
-#Launch commands
-for (( i=0; i<${#cmds[@]}; i++ )); do
-	j=$(( $i + 1 ))
-	srun -n1 -c1 -N1 --exclusive --job-name=$j ${cmds[$i]} &
-	if [ $(($j % $num_parallel_jobs)) == 0 ] || [ $j == $job_size ]; then 
-	    wait
-        fi
-done
-wait
-
-
+##Create empty command array
+#cmds=()
+##Loop over two populations
+#for pop in AFR EUR; do
+#  #Change into population output directory and get sort list
+#  cd $geno_dir/$pop
+#  sort_list=$geno_dir/$pop/sort_list.txt
+#  #Loop the chromosomes
+#  for chromo in {1..22}; do
+#    #Set input plink file prefix (without extension)
+#    unsorted_plink=$geno_dir/$pop/chr"$chromo".plink.maf
+#    #Set sorted plink file prefix
+#    sorted_plink=$geno_dir/$pop/chr"$chromo".plink.maf.sorted
+#    #Command to sort plink file
+#    cmds+=("plink2 --bfile $unsorted_plink --indiv-sort file $sort_list --make-bed --out $sorted_plink")
+#  done
+#done
+#
+##Calculate number of possible jobs
+#job_size=${#cmds[@]}
+#num_parallel_jobs=$((($SLURM_CPUS_ON_NODE / 4) * num_nodes))
+#echo "JOB SIZE: $job_size"
+##Launch commands
+#for (( i=0; i<${#cmds[@]}; i++ )); do
+#	j=$(( $i + 1 ))
+#	srun -n1 -c1 -N1 --exclusive --job-name=$j ${cmds[$i]} &
+#	if [ $(($j % $num_parallel_jobs)) == 0 ] || [ $j == $job_size ]; then 
+#	    wait
+#        fi
+#done
+#wait
+#
+#
 ################################################################################################################
 ############################################## Make Step-2 BGEN Files ##########################################
 ################################################################################################################
@@ -272,7 +272,7 @@ for pop in AFR EUR; do
     #Set input plink file prefix (without extension)
     plink_inp=$geno_dir/$pop/chr"$chromo".plink.maf.sorted
     #Set output bgen prefix
-    bgen_out=$geno_dir/$pop/chr"$chromo".plink.maf.bgen
+    bgen_out=$geno_dir/$pop/chr"$chromo".plink.maf
     #Command to convert to BGEN v1.2 with 8-bit compression
     cmds+=("plink2 --bfile $plink_inp --export bgen-1.2 bits=8 --out $bgen_out")
   done
