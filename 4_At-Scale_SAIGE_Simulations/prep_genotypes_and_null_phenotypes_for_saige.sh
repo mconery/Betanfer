@@ -2,7 +2,7 @@
 #SBATCH -A bif154
 #SBATCH -J prep_geno
 #SBATCH -o prep_genotypes_and_null_phenotypes_for_saige.log
-#SBATCH -N 18
+#SBATCH -N 1
 #SBATCH -p batch
 #SBATCH -t 1:00:00
 
@@ -261,43 +261,43 @@ num_nodes="$SLURM_NNODES"
 ################################################################################################################
 ############################################## Make Step-2 BGEN Files ##########################################
 ################################################################################################################
-#Create empty command array
-cmds=()
-#Loop over two populations
-for pop in AFR EUR; do
-  #Change into population output directory
-  cd $geno_dir/$pop
-  #Loop the chromosomes
-  for chromo in {1..22}; do
-    #Set input plink file prefix (without extension)
-    plink_inp=$geno_dir/$pop/chr"$chromo".plink.maf.sorted
-    #Set output bgen prefix
-    bgen_out=$geno_dir/$pop/chr"$chromo".plink.maf
-    #Command to convert to BGEN v1.2 with 8-bit compression if file doesn't already exist
-    if [ ! -f $bgen_out.bgen ]; then 
-      cmds+=("plink2 --bfile $plink_inp --export bgen-1.2 bits=8 --out $bgen_out")
-    fi
-  done
-done
-
-#Launch commands
-job_size=${#cmds[@]}
-echo "JOB SIZE: $job_size"
-for (( i=0; i<${#cmds[@]}; i++ )); do
-	j=$(( $i + 1 ))
-	srun -n1 -N1 --ntasks-per-node=1 --job-name=$j ${cmds[$i]} &
-	if [ $(($j % $num_nodes)) == 0 ] || [ $j == $job_size ]; then 
-	    wait
-       fi
-done
-wait
+##Create empty command array
+#cmds=()
+##Loop over two populations
+#for pop in AFR EUR; do
+#  #Change into population output directory
+#  cd $geno_dir/$pop
+#  #Loop the chromosomes
+#  for chromo in {1..22}; do
+#    #Set input plink file prefix (without extension)
+#    plink_inp=$geno_dir/$pop/chr"$chromo".plink.maf.sorted
+#    #Set output bgen prefix
+#    bgen_out=$geno_dir/$pop/chr"$chromo".plink.maf
+#    #Command to convert to BGEN v1.2 with 8-bit compression if file doesn't already exist
+#    if [ ! -f $bgen_out.bgen ]; then 
+#      cmds+=("plink2 --bfile $plink_inp --export bgen-1.2 bits=8 --out $bgen_out")
+#    fi
+#  done
+#done
+#
+##Launch commands
+#job_size=${#cmds[@]}
+#echo "JOB SIZE: $job_size"
+#for (( i=0; i<${#cmds[@]}; i++ )); do
+#	j=$(( $i + 1 ))
+#	srun -n1 -N1 --ntasks-per-node=1 --job-name=$j ${cmds[$i]} &
+#	if [ $(($j % $num_nodes)) == 0 ] || [ $j == $job_size ]; then 
+#	    wait
+#       fi
+#done
+#wait
 
 ################################################################################################################
 ######################################### Make BGEN Index Files (.bgen.bgi) ####################################
 ################################################################################################################
 cmds=()
 #Loop over two populations
-for pop in EUR; do
+for pop in AFR; do
   cd $geno_dir/$pop
   #Loop the chromosomes
   for chromo in {1..22}; do
