@@ -9,12 +9,12 @@ sample_file=$6
 var_list=$7
 saige_step2_script=$8
 minMAF=$9
-minMAC=$10
-LOCO=$11
-is_fastTest=$12
-is_Firth_beta=$13
-pCutoffforFirth=$14
-nThreads=$15
+minMAC=${10}
+LOCO=${11}
+is_fastTest=${12}
+is_Firth_beta=${13}
+pCutoffforFirth=${14}
+nThreads=${15}
 
 # Start timing
 start_time=$(date +%s.%N)
