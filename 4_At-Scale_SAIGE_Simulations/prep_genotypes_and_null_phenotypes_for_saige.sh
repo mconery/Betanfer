@@ -2,7 +2,7 @@
 #SBATCH -A bif154
 #SBATCH -J prep_geno
 #SBATCH -o prep_genotypes_and_null_phenotypes_for_saige.log
-#SBATCH -N 12
+#SBATCH -N 22
 #SBATCH -p batch
 #SBATCH -t 1:00:00
 
