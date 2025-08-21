@@ -16,7 +16,8 @@ parser.add_argument("--plink-dir", default="/lustre/orion/bif154/proj-shared/mco
 parser.add_argument("--pheno-dir", default="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/simulated_phenotypes", help="Directory for phenotype files.")
 parser.add_argument("--step1-dir", default="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step1_results", help="Step 1 results directory.")
 parser.add_argument("--out-dir", default="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step2_results", help="Output directory for step 2 results.")
-parser.add_argument("--saige-step2-script", default="/lustre/orion/bif154/proj-shared/arodriguez/tools/SAIGE-GPU/src/SAIGE/extdata/step2_SPAtests.R", help="SAIGE Step 2 R script path.")
+parser.add_argument("--saige-step2-wrapper", default="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/run_step2_saige_single_trait.sh", help="SAIGE Step 2 shell wrapper script path.")
+parser.add_argument("--saige-step2-script", default="/lustre/orion/bif154/proj-shared/arodriguez/tools/SAIGE_AMD_6.3.1/SAIGE-GPU/src/SAIGE/extdata/step2_SPAtests.R", help="SAIGE Step 2 R script path.")
 parser.add_argument("--timing-file", default="timing2.csv", help="Timing file name.")
 parser.add_argument("--populations", nargs="+", default=["AFR", "EUR"], help="List of populations.")
 parser.add_argument("--number-traits-per-job", type=int, default=15, help="Number of traits per job.")
@@ -39,6 +40,7 @@ pheno_dir = args.pheno_dir
 causal_var_dir = os.path.join(pheno_dir, "causal_variants")
 inp_dir = args.step1_dir
 out_dir = args.out_dir
+saige_step2_wrapper = args.saige_step2_wrapper
 saige_step2_script = args.saige_step2_script
 timing_file = args.timing_file
 populations = args.populations
@@ -88,15 +90,12 @@ def create_commands_for_chromosome(chromo, chromo_file_prefixes, bgen_file, var_
             writer = csv.writer(f, delimiter='\t')
             writer.writerows(manifest_list)
         chunk_command = (
-            f"start_time=$(date +%s.%N); Rscript {saige_step2_script} --bgenFile={bgen_file} --bgenFileIndex={bgen_file}.bgi "
-            f"--manifestFile={manifest_file} --sampleFile={sample_file} --chrom={chromo} --AlleleOrder=ref-first "
-            f"--minMAF={minMAF} --minMAC={minMAC} --LOCO={LOCO} --is_fastTest={is_fastTest} --is_Firth_beta={is_Firth_beta} "
-            f"--idstoIncludeFile={var_list} "
-            f"--AlleleOrder={allele_order} --pCutoffforFirth={pCutoffforFirth} --nThreads={int(num_cores/2)}; end_time=$(date +%s.%N); "
-            f'duration=$(echo "$end_time - $start_time" | bc -l); echo "chunk_{chunk_counter},chr{chromo},$duration" >> {out_dir}/{pop}/timing2.csv; '
-            f'mv {out_dir}/{pop}/chunk_{chunk_counter}/*.chr{chromo}.step2.txt {out_dir}/{pop}'
+            f"{saige_step2_wrapper} chunk_{chunk_counter} chr{chromo} {out_dir}/{pop} {bgen_file} "
+            f"{manifest_file} {sample_file} {var_list} {saige_step2_script}  "
+            f"{minMAF} {minMAC} {LOCO} {is_fastTest} {is_Firth_beta} "
+            f"{pCutoffforFirth} {int(num_cores/2)}"
         )
-        #Add timing command
+        #Add chunk command
         cmds.append(chunk_command)
         chunk_counter += 1
     return cmds
