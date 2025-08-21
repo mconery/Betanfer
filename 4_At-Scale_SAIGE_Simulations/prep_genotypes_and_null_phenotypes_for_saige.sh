@@ -2,13 +2,13 @@
 #SBATCH -A bif154
 #SBATCH -J prep_geno
 #SBATCH -o prep_genotypes_and_null_phenotypes_for_saige.log
-#SBATCH -N 8
+#SBATCH -N 4
 #SBATCH -p batch
 #SBATCH -t 1:00:00
 
 #Load plink tools and conda environment
-source ~/.bashrc
-conda activate simulate_pheno
+module load miniforge3
+source activate /lustre/orion/bif154/proj-shared/mconery/tools/environments/simulate_pheno
 
 ################################################################################################################
 ########################## Define directories and other key file/script locations ##############################
@@ -223,77 +223,84 @@ num_nodes="$SLURM_NNODES"
 #wait
 
 ################################################################################################################
-############################################## Make Step-2 BGEN Files ##########################################
+##################################### Make Sorted Chromosome Plink Files #######################################
 ################################################################################################################
-##Create empty command array
-#cmds=()
-##Loop over two populations
-#for pop in EUR; do
-#  #Change into population output directory
-#  cd $geno_dir/$pop
-#  #Loop the chromosomes
-#  for chromo in {1..22}; do
-#    #Set input plink file prefix (without extension)
-#    plink_inp=$geno_dir/$pop/chr"$chromo".plink.maf
-#    #Set output bgen prefix
-#    bgen_out=$geno_dir/$pop/chr"$chromo".plink.maf.bgen
-#    #Command to convert to BGEN v1.2 with 8-bit compression
-#    cmds+=("plink2 --bfile $plink_inp --export bgen-1.2 bits=8 --out $plink_inp")
-#  done
-#done
-#
-##Launch commands
+#Create empty command array
+cmds=()
+#Loop over two populations
+for pop in AFR EUR; do
+  #Change into population output directory and get sort list
+  cd $geno_dir/$pop
+  sort_list=$geno_dir/$pop/sort_list.txt
+  #Loop the chromosomes
+  for chromo in {1..22}; do
+    #Set input plink file prefix (without extension)
+    unsorted_plink=$geno_dir/$pop/chr"$chromo".plink.maf
+    #Set sorted plink file prefix
+    sorted_plink=$geno_dir/$pop/chr"$chromo".plink.maf.sorted
+    #Command to sort plink file
+    cmds+=("plink2 --bfile $unsorted_plink --indiv-sort file $sort_list --make-bed --out $sorted_plink")
+  done
+done
+##Calculate number of possible jobs
 #job_size=${#cmds[@]}
+#num_parallel_jobs=$((($SLURM_CPUS_ON_NODE / 4) * num_nodes))
 #echo "JOB SIZE: $job_size"
+##Launch commands
 #for (( i=0; i<${#cmds[@]}; i++ )); do
 #	j=$(( $i + 1 ))
-#	srun -n1 -N1 --ntasks-per-node=1 --job-name=$j ${cmds[$i]} &
-#	if [ $(($j % $num_nodes)) == 0 ] || [ $j == $job_size ]; then 
+#	srun -n1 -c1 -N1 --exclusive --job-name=$j ${cmds[$i]} &
+#	if [ $(($j % $num_parallel_jobs)) == 0 ] || [ $j == $job_size ]; then 
 #	    wait
-#       fi
+#        fi
 #done
 #wait
+
+
+################################################################################################################
+############################################## Make Step-2 BGEN Files ##########################################
+################################################################################################################
+#Create empty command array
+cmds=()
+#Loop over two populations
+for pop in AFR EUR; do
+  #Change into population output directory
+  cd $geno_dir/$pop
+  #Loop the chromosomes
+  for chromo in {1..22}; do
+    #Set input plink file prefix (without extension)
+    plink_inp=$geno_dir/$pop/chr"$chromo".plink.maf.sorted
+    #Set output bgen prefix
+    bgen_out=$geno_dir/$pop/chr"$chromo".plink.maf.bgen
+    #Command to convert to BGEN v1.2 with 8-bit compression
+    cmds+=("plink2 --bfile $plink_inp 	 --out $plink_inp")
+  done
+done
+
+#Launch commands
+job_size=${#cmds[@]}
+echo "JOB SIZE: $job_size"
+for (( i=0; i<${#cmds[@]}; i++ )); do
+	j=$(( $i + 1 ))
+	srun -n1 -N1 --ntasks-per-node=1 --job-name=$j ${cmds[$i]} &
+	if [ $(($j % $num_nodes)) == 0 ] || [ $j == $job_size ]; then 
+	    wait
+       fi
+done
+wait
 
 ################################################################################################################
 ######################################### Make BGEN Index Files (.bgen.bgi) ####################################
 ################################################################################################################
-#cmds=()
-##Loop over two populations
-#for pop in EUR; do
-#  cd $geno_dir/$pop
-#  #Loop the chromosomes
-#  for chromo in {1..22}; do
-#    bgen_file=$geno_dir/$pop/chr"$chromo".plink.maf.bgen
-#    #Command to create index for each BGEN file
-#    cmds+=("bgenix -g $bgen_file -index")
-#  done
-#done
-#
-##Launch index commands
-#job_size=${#cmds[@]}
-#echo "JOB SIZE: $job_size"
-#for (( i=0; i<${#cmds[@]}; i++ )); do
-#  j=$(( $i + 1 ))
-#  srun -n1 -N1 --ntasks-per-node=1 --job-name=$j ${cmds[$i]} &
-#  if [ $(($j % $num_nodes)) == 0 ] || [ $j == $job_size ]; then
-#    wait
-#  fi
-#done
-#wait
-
-################################################################################################################
-############################ Make BGEN Variant Lists (for Multi-Threading SAIGE Step 2) ########################
-################################################################################################################
 cmds=()
 #Loop over two populations
-for pop in AFR EUR; do
+for pop in EUR; do
   cd $geno_dir/$pop
   #Loop the chromosomes
   for chromo in {1..22}; do
-    bim_file=$geno_dir/$pop/chr"$chromo".plink.maf.bim
-    var_file=$geno_dir/$pop/chr"$chromo".plink.maf.var_list.txt
-    #Command to create index for each BIM file
-    awk '{print $2}' $bim_file > $var_file
+    bgen_file=$geno_dir/$pop/chr"$chromo".plink.maf.bgen
+    #Command to create index for each BGEN file
+    cmds+=("bgenix -g $bgen_file -index")
   done
 done
 
@@ -308,6 +315,34 @@ for (( i=0; i<${#cmds[@]}; i++ )); do
   fi
 done
 wait
+
+################################################################################################################
+############################ Make BGEN Variant Lists (for Multi-Threading SAIGE Step 2) ########################
+################################################################################################################
+#cmds=()
+##Loop over two populations
+#for pop in AFR EUR; do
+#  cd $geno_dir/$pop
+#  #Loop the chromosomes
+#  for chromo in {1..22}; do
+#    bim_file=$geno_dir/$pop/chr"$chromo".plink.maf.bim
+#    var_file=$geno_dir/$pop/chr"$chromo".plink.maf.var_list.txt
+#    #Command to create index for each BIM file
+#    awk '{print $2}' $bim_file > $var_file
+#  done
+#done
+#
+##Launch index commands
+#job_size=${#cmds[@]}
+#echo "JOB SIZE: $job_size"
+#for (( i=0; i<${#cmds[@]}; i++ )); do
+#  j=$(( $i + 1 ))
+#  srun -n1 -N1 --ntasks-per-node=1 --job-name=$j ${cmds[$i]} &
+#  if [ $(($j % $num_nodes)) == 0 ] || [ $j == $job_size ]; then
+#    wait
+#  fi
+#done
+#wait
 
 ################################################################################################################
 ############################################### Make Sample Lists ##############################################
