@@ -2,7 +2,7 @@
 #SBATCH -A bif154
 #SBATCH -J prep_geno
 #SBATCH -o prep_genotypes_and_null_phenotypes_for_saige.log
-#SBATCH -N 4
+#SBATCH -N 12
 #SBATCH -p batch
 #SBATCH -t 1:00:00
 
@@ -273,8 +273,10 @@ for pop in AFR EUR; do
     plink_inp=$geno_dir/$pop/chr"$chromo".plink.maf.sorted
     #Set output bgen prefix
     bgen_out=$geno_dir/$pop/chr"$chromo".plink.maf
-    #Command to convert to BGEN v1.2 with 8-bit compression
-    cmds+=("plink2 --bfile $plink_inp --export bgen-1.2 bits=8 --out $bgen_out")
+    #Command to convert to BGEN v1.2 with 8-bit compression if file doesn't already exist
+    if [ ! -f $bgen_out.bgen ]; then 
+      cmds+=("plink2 --bfile $plink_inp --export bgen-1.2 bits=8 --out $bgen_out")
+    done
   done
 done
 
