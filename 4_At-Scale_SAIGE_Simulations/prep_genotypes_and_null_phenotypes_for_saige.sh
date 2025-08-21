@@ -276,7 +276,7 @@ for pop in AFR EUR; do
     #Command to convert to BGEN v1.2 with 8-bit compression if file doesn't already exist
     if [ ! -f $bgen_out.bgen ]; then 
       cmds+=("plink2 --bfile $plink_inp --export bgen-1.2 bits=8 --out $bgen_out")
-    done
+    fi
   done
 done
 
