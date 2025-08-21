@@ -242,19 +242,20 @@ for pop in AFR EUR; do
     cmds+=("plink2 --bfile $unsorted_plink --indiv-sort file $sort_list --make-bed --out $sorted_plink")
   done
 done
-##Calculate number of possible jobs
-#job_size=${#cmds[@]}
-#num_parallel_jobs=$((($SLURM_CPUS_ON_NODE / 4) * num_nodes))
-#echo "JOB SIZE: $job_size"
-##Launch commands
-#for (( i=0; i<${#cmds[@]}; i++ )); do
-#	j=$(( $i + 1 ))
-#	srun -n1 -c1 -N1 --exclusive --job-name=$j ${cmds[$i]} &
-#	if [ $(($j % $num_parallel_jobs)) == 0 ] || [ $j == $job_size ]; then 
-#	    wait
-#        fi
-#done
-#wait
+
+#Calculate number of possible jobs
+job_size=${#cmds[@]}
+num_parallel_jobs=$((($SLURM_CPUS_ON_NODE / 4) * num_nodes))
+echo "JOB SIZE: $job_size"
+#Launch commands
+for (( i=0; i<${#cmds[@]}; i++ )); do
+	j=$(( $i + 1 ))
+	srun -n1 -c1 -N1 --exclusive --job-name=$j ${cmds[$i]} &
+	if [ $(($j % $num_parallel_jobs)) == 0 ] || [ $j == $job_size ]; then 
+	    wait
+        fi
+done
+wait
 
 
 ################################################################################################################
@@ -273,7 +274,7 @@ for pop in AFR EUR; do
     #Set output bgen prefix
     bgen_out=$geno_dir/$pop/chr"$chromo".plink.maf.bgen
     #Command to convert to BGEN v1.2 with 8-bit compression
-    cmds+=("plink2 --bfile $plink_inp 	 --out $plink_inp")
+    cmds+=("plink2 --bfile $plink_inp --export bgen-1.2 bits=8 --out $bgen_out")
   done
 done
 
