@@ -26,6 +26,10 @@ def parse_args():
         "--populations", nargs="+", default=None,
         help="List of populations to process (default: all directories in output-dir)."
     )
+    parser.add_argument(
+        "--legacy-filenames", default=False, action='store_true',
+        help="Switch to expect output files WITHOUT effect_size in filename."
+    )
     return parser.parse_args()
 
 def get_causal_variants_map(causal_var_dir):
@@ -38,7 +42,7 @@ def get_causal_variants_map(causal_var_dir):
             mapping[m.group(1)] = f
     return mapping
 
-def parse_output_filename(filename):
+def parse_output_filename(filename, legacy_filenames=False):
     """
     Matches:
       <Pheno_name>.<num_causal_variants>_causal.effect_size_<effect_size>.(binary_<prevalence>|continuous).<chr#>.step2.txt
@@ -46,9 +50,15 @@ def parse_output_filename(filename):
     """
     base = os.path.basename(filename)
     # Regex captures both binary_<prevalence> and continuous
-    pattern = re.compile(
-        r"(.+?)\.(\d+_causal\.effect_size_\d*\.?\d*)\.(binary_(\d*\.?\d+)|continuous)\.(chr\d+)\.step2\.txt$"
-    )
+    if legacy_filenames:
+        # No effect_size in filename
+        pattern = re.compile(
+            r"(.+?)\.(\d+_causal)\.(binary_(\d*\.?\d+)|continuous)\.(chr\d+)\.step2\.txt$"
+        )
+    else:
+        pattern = re.compile(
+            r"(.+?)\.(\d+_causal\.effect_size_\d*\.?\d*)\.(binary_(\d*\.?\d+)|continuous)\.(chr\d+)\.step2\.txt$"
+        )
     m = pattern.match(base)
     if not m:
         return None
@@ -69,72 +79,70 @@ def extract_effect_size(causal_part):
     m = re.search(r"effect_size_(\d*\.?\d+)", causal_part)
     return float(m.group(1)) if m else None
 
-def extract_causal_results_for_file(out_file, variant_ids, population, meta):
+def extract_causal_results_for_file(out_file, variant_ids, population, meta, legacy_filenames=False):
     df = pd.read_csv(out_file, sep=None, engine="python", dtype=str)
     if not all(col in df.columns for col in ["MarkerID", "BETA", "p.value"]):
-        return pd.DataFrame()  # Return empty if columns missing
-    
-    # Filter rows with causal variant IDs
+        return pd.DataFrame()
     filtered = df[df["MarkerID"].isin(variant_ids)].copy()
     if filtered.empty:
         return filtered
-
-    # Select only the columns needed
     filtered = filtered[["MarkerID", "BETA", "p.value"]]
-
-    # Add metadata columns
     filtered["population"] = population
     filtered["pheno_name"] = meta["pheno_name"]
-
-    # For trait_type include prevalence if binary, e.g. "binary_0.25"
     if meta["trait_type"] == "binary" and "prevalence" in meta and meta["prevalence"] is not None:
         filtered["trait_type"] = f"binary_{meta['prevalence']}"
     else:
         filtered["trait_type"] = meta["trait_type"]
-
-    # Extract effect_size from causal_part
-    filtered["effect_size"] = extract_effect_size(meta["causal_part"])
-
+    if not legacy_filenames:
+        filtered["effect_size"] = extract_effect_size(meta["causal_part"])
     return filtered
+
 
 def main():
     args = parse_args()
     output_dir = args.output_dir
     causal_var_dir = args.causal_var_dir
     out_file = args.out
+    legacy_filenames = args.legacy_filenames
 
     if args.populations:
         populations = args.populations
     else:
-        # Use all directories in output_dir
-        populations = [d for d in os.listdir(output_dir)
-                         if os.path.isdir(os.path.join(output_dir, d))]
+        populations = [d for d in os.listdir(output_dir) if os.path.isdir(os.path.join(output_dir, d))]
 
+    # All keys in this mapping include effect_size
     causal_map = get_causal_variants_map(causal_var_dir)
 
-    # Gather all output files and map to their experiment meta info
     results = []
     for pop in populations:
         pop_dir = os.path.join(output_dir, pop)
         for file in glob(os.path.join(pop_dir, "*.step2.txt")):
-            meta = parse_output_filename(file)
+            meta = parse_output_filename(file, legacy_filenames=legacy_filenames)
             if not meta:
                 continue
-            causal_key = f"{meta['pheno_name']}.{meta['causal_part']}"
+            if legacy_filenames:
+                # Find the first matching causal_map entry for this pheno_name and causal_part prefix (ignore effect_size)
+                # meta["causal_part"] will be e.g. "2_causal"
+                candidates = [
+                    k for k in causal_map.keys()
+                    if k.startswith(f"{meta['pheno_name']}.{meta['causal_part']}")
+                ]
+                if not candidates:
+                    continue
+                # If exactly one, use it
+                causal_key = candidates[0]
+            else:
+                causal_key = f"{meta['pheno_name']}.{meta['causal_part']}"
             causal_file = causal_map.get(causal_key)
             if not causal_file or not os.path.isfile(causal_file):
                 continue
-            # Load causal variant IDs for this set
             cdf = pd.read_csv(causal_file, sep=None, engine="python", header=None)
             variant_ids = set(cdf.iloc[:,0].astype(str))
-            meta["trait_type"] = meta["trait_type"]  # e.g., 'binary'/'continuous'
-            meta["chromosome"] = meta["chromosome"]
-            meta["pheno_name"] = meta["pheno_name"]
-            # Extract only relevant rows
-            extracted = extract_causal_results_for_file(file, variant_ids, pop, meta)
+            extracted = extract_causal_results_for_file(
+                file, variant_ids, pop, meta, legacy_filenames=legacy_filenames
+            )
             if not extracted.empty:
                 results.append(extracted)
-
     if not results:
         print("No results found.")
         return
