@@ -23,7 +23,7 @@ cmd_file="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulati
 #Activate needed modules
 module load python/3.10-miniforge3
 #Call command making script
-python $make_cmd_script --causal-var-suffix ".effect_size_0.05.500000_space100000.txt"
+python $make_cmd_script #--causal-var-suffix ".effect_size_0.05.500000_space100000.txt" #Commenting out to only run null phenotypes for now
 
 ##################################################################################################################
 ############################################## Load Modules and Conda Env ########################################
