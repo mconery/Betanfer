@@ -26,15 +26,15 @@ parsl_exec="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Ma
 causal_extractor="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/causal_variant_results_extractor.py"
 
 # Arrays
-effect_sizes=(0.5 1 5 10 100)
+effect_sizes=(0.01 0.05 0.1 0.2 0.5 1)
 set_numbers=(1 2 3)            # number of causal variants
 trait_types=(binary continuous)
 prevalence=0.25                # single value for all binary traits
-replicates=5         # five phenotypes per combination
+replicates=10         # ten phenotypes per combination
 populations=(AFR EUR)
 max_distance=500000
 min_spacing=100000
-gen_var=0.4
+gen_var=0.5
 
 # Resources
 num_nodes="$SLURM_NNODES"      # for parallel sims
@@ -54,7 +54,7 @@ mkdir -p "$pheno_dir/AFR" "$pheno_dir/EUR"
 
 #Loop over the number of variants
 for num_var in 1; do for m_beta in ${effect_sizes[@]}; do
-	python $selection_script --input-dir $geno_dir/shared_variants --output-dir $pheno_dir/causal_variants --effect-size $m_beta --max-distance $max_distance --min-spacing $min_spacing --variants-per-set $num_var --num-sets 5
+	python $selection_script --input-dir $geno_dir/shared_variants --output-dir $pheno_dir/causal_variants --effect-size $m_beta --max-distance $max_distance --min-spacing $min_spacing --variants-per-set $num_var --num-sets $replicates
 done; done
 #Make a master list of phenotypes
 ls $pheno_dir/causal_variants/Pheno*.*_causal.*.txt > $pheno_dir/causal_variants/master_casual_list.txt
@@ -160,51 +160,17 @@ srun -N ${NNODES} --ntasks-per-node 1 conda-unpack
 mapfile -t cmds < $step1_out/step1_commands.txt
 srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start "mapfile -t cmds < $step1_out/step1_commands.txt; flux resource list; for ((i=0; i<${#cmds[@]}; i++)); do flux submit -N1 -n $gpus --gpus-per-task=1 --output=flux_output/step1_\$i.txt \${cmds[\${i}]}; done; flux queue drain;"
 
-#Unload conflicting modules for step 2
-module unload amd/6.3.1 rocm/6.3.1 hwloc/2.11.1-gpu flux
-conda deactivate
-
 ################################################################################
 ######################## 3. SAIGE STEP 2 (GWAS scan) ###########################
 ################################################################################
 echo "=== SAIGE Step 2 ==="
-
-#Activate needed modules
-module load python/3.10-miniforge3
-module load r/4.4.1
-module load amd/6.4.0
-
-##### START OF SBCAST AND CONDA-UNPACK #####
-#Set variables
-ENV_NAME=RSAIGE_1.3.3_amd_gpu
-TAR_FILE=${ENV_NAME}.tar.gz
-TAR_DIR=/lustre/orion/bif154/proj-shared/arodriguez/tools/conda_envs
-NNODES=${SLURM_NNODES}
-# Move a copy of the env to the NVMe on each node
-echo "copying ${ENV_NAME} to each node in the job"
-sbcast -pf ${TAR_DIR}/${TAR_FILE} /mnt/bb/${USER}/${TAR_FILE}
-if [ ! "$?" == "0" ]; then
-    # CHECK EXIT CODE. When SBCAST fails, it may leave partial files on the compute nodes, and if you continue to launch srun,
-    # your application may pick up partially complete shared library files, which would give you confusing errors.
-    echo "SBCAST failed!"
-    exit 1
-fi
-
-# Untar the environment file (only need 1 task per node to do this)
-srun -N ${NNODES} --ntasks-per-node 1 mkdir -p /mnt/bb/${USER}/${ENV_NAME}
-echo "untaring ${ENV_NAME}"
-srun -N ${NNODES} --ntasks-per-node 1 tar -xzf /mnt/bb/${USER}/${TAR_FILE} -C /mnt/bb/${USER}/${ENV_NAME}
-
-# Unpack the env
-source activate /mnt/bb/${USER}/${ENV_NAME}
-srun -N ${NNODES} --ntasks-per-node 1 conda-unpack
-##### END OF SBCAST AND CONDA-UNPACK #####
-
 # create updated step2 commands
 python "$make_step2_cmd" --plink-dir $geno_dir --pheno-dir "$pheno_dir" --out-dir $step2_out --step1-dir "$step1_out" --output-path "$step2_out/step2_commands.txt" --number-traits-per-job 1
 
-# massive parallel sweep – one trait per node
-python "$parsl_exec" "$step2_out/step2_commands.txt"
+#Read in the commands
+mapfile -t cmds < $step2_out/step2_commands.txt
+#Start flux and Run the flux script
+srun -N $NNODES -n $NNODES -c 56 --gpus-per-node=8 flux start "flux resource list; mapfile -t cmds < $step2_out/step2_commands.txt; for ((i=0; i<${#cmds[@]}; i++)); do flux submit -N1 -n1 -c56 --output=flux_output/steptwo_\$i.txt \${cmds[\$i]}; done; flux queue drain;"
 
 #Deactivate conda environment
 conda deactivate
