@@ -22,7 +22,6 @@ simulate_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fi
 selection_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/select_causal_variants.py"
 make_step1_cmd="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/make_step1_commands.py"
 make_step2_cmd="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/make_step2_commands.py"
-parsl_exec="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/parsl_run_1_command_per_node.py"
 causal_extractor="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/causal_variant_results_extractor.py"
 
 # Arrays
