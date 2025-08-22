@@ -2,7 +2,7 @@
 #SBATCH -A bif154
 #SBATCH -J saige_step2
 #SBATCH -o run_step2_saige_all_traits.log
-#SBATCH -N 595
+#SBATCH -N 4
 #SBATCH -p batch
 #SBATCH -t 2:00:00
 #SBATCH -C nvme
@@ -14,7 +14,7 @@
 make_cmd_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/make_step2_commands.py"
 execute_cmd_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/parsl_run_1_command_per_node.py"
 #Set command file
-cmd_file="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step2_results/step2_commands.txt"
+cmd_file="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step2_results/step2_commands.txt" #This isn't actually used to ensure flux works (need to modify below)
 
 ##################################################################################################################
 ################################################### Prepare Command File #########################################
@@ -23,19 +23,21 @@ cmd_file="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulati
 #Activate needed modules
 module load python/3.10-miniforge3
 #Call command making script
-#python $make_cmd_script
+python $make_cmd_script
 
 ##################################################################################################################
 ############################################## Load Modules and Conda Env ########################################
 ##################################################################################################################
 #Activate needed modules
-module load python/3.10-miniforge3
 module load r/4.4.1
-module load amd/6.4.0
+module load amd/6.3.1
+module load rocm/6.3.1
+module load hwloc/2.11.1-gpu
+module load flux
 
 ##### START OF SBCAST AND CONDA-UNPACK #####
 #Set variables
-ENV_NAME=RSAIGE_1.3.3_amd_gpu
+ENV_NAME=RSAIGE_1.3.3_amd6.3.1_gpu
 TAR_FILE=${ENV_NAME}.tar.gz
 TAR_DIR=/lustre/orion/bif154/proj-shared/arodriguez/tools/conda_envs
 NNODES=${SLURM_NNODES}
@@ -63,5 +65,7 @@ srun -N ${NNODES} --ntasks-per-node 1 conda-unpack
 ################################################## Execute SAIGE Step 2 ##########################################
 ##################################################################################################################
 
-#Call command to run step 2
-python $execute_cmd_script $cmd_file
+#Read in the commands
+mapfile -t cmds < /lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step2_results/step2_commands.txt
+#Start flux and Run the flux script
+srun -N $NNODES -n $NNODES -c 56 --gpus-per-node=8 flux start "flux resource list; mapfile -t cmds < /lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step2_results/step2_commands.txt; for ((i=0; i<${#cmds[@]}; i++)); do flux submit -N1 -n1 -c56 --output=flux_output/steptwo_\$i.txt \${cmds[\$i]}; done; flux queue drain;"
