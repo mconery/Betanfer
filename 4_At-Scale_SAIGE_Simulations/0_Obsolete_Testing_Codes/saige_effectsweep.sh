@@ -2,9 +2,9 @@
 #SBATCH -A bif154
 #SBATCH -J saige_effectsweep
 #SBATCH -o saige_effectsweep.%j.log
-#SBATCH -N 1             
+#SBATCH -N 120             
 #SBATCH -p batch
-#SBATCH -t 1:10:00
+#SBATCH -t 50:00
 #SBATCH -C nvme
 
 #############################  GLOBAL SETTINGS  ################################
@@ -43,74 +43,75 @@ gpus=3			       # GPUs for step 1
 ################################################################################
 ######################## 1. SELECT CAUSAL VARIANTS & SIMULATE ##################
 ################################################################################
-echo "=== Selecting variants ==="
-
-module load miniforge3
-source activate /lustre/orion/bif154/proj-shared/mconery/tools/environments/simulate_pheno
-
-mkdir -p "$pheno_dir/causal_variants"
-mkdir -p "$pheno_dir/AFR" "$pheno_dir/EUR"
-
-#Loop over the number of variants
-for num_var in 1; do for m_beta in ${effect_sizes[@]}; do
-	python $selection_script --input-dir $geno_dir/shared_variants --output-dir $pheno_dir/causal_variants --effect-size $m_beta --max-distance $max_distance --min-spacing $min_spacing --variants-per-set $num_var --num-sets $replicates
-done; done
-#Make a master list of phenotypes
-ls $pheno_dir/causal_variants/Pheno*.*_causal.*.txt > $pheno_dir/causal_variants/master_casual_list.txt
-
-echo "=== Generating phenotypes ==="
-
-#Loop over the populations and cast the pcs to the burst buffer
-for pop in AFR EUR; do
-	sbcast -pf $geno_dir/$pop/merged.plink.maf.ld.pcs.eigenvec /mnt/bb/${USER}/$pop.eigenvec
-done
-
-#Loop over the phenotype traits and create commands
-cmds=()
-while read file; do 
-	#Get number of causal variants and effect size for simulation
-	temp=${file%_causal*}
-	num_var=${temp#$pheno_dir/causal_variants/Pheno*.}
-	temp2=${temp%.*}
-	pheno=${temp2#$pheno_dir/causal_variants/}
-	temp3=${file%_space*}
-	temp4=${temp3#$pheno_dir/causal_variants/Pheno*.effect_size_}
-	effect_size=${temp4%.*}
-	#Get chromosome
-	chromo=$(cut -f 1 -d : $file | head -n 1)
-	#Loop over the trait types and populations to create commands
-	for trait_type in ${trait_types[@]}; do for pop in AFR EUR; do
-		if [ $trait_type == "binary" ]; then
-			out_file=$pheno_dir/$pop/$pheno."$num_var"_causal.effect_size_"$effect_size"."$trait_type"_"$prevalence".txt
-			if [ ! -f $out_file ]; then 
-				cmds+=("python $simulate_script --plink $geno_dir/$pop/chr"$chromo".plink.maf --effects $file --trait-type $trait_type --heritability $gen_var --prevalence $prevalence --pc-file /mnt/bb/${USER}/$pop.eigenvec --output $out_file")
-			fi
-		else
-			out_file=$pheno_dir/$pop/$pheno."$num_var"_causal.effect_size_"$effect_size"."$trait_type".txt
-			if [ ! -f $out_file ]; then 
-				cmds+=("python $simulate_script --plink $geno_dir/$pop/chr"$chromo".plink.maf --effects $file --trait-type $trait_type --heritability $gen_var --pc-file /mnt/bb/${USER}/$pop.eigenvec --output $out_file")
-			fi
-		fi 
-	done; done
-done < $pheno_dir/causal_variants/master_casual_list.txt
-
-#Reset environment
-conda deactivate
-module unload miniforge3
-
-#Write commands to file
->$pheno_dir/simulate_commands.txt
-for (( i=0; i<${#cmds[@]}; i++ )); do echo ${cmds[$i]} >> $pheno_dir/simulate_commands.txt; done
-
-#Activate flux modules
-module load python/3.10-miniforge3 r/4.4.1 amd/6.3.1 rocm/6.3.1 hwloc/2.11.1-gpu flux
-source activate /lustre/orion/bif154/proj-shared/mconery/tools/environments/simulate_pheno
-#Simulate phenotypes
-srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start "mapfile -t cmds < $pheno_dir/simulate_commands.txt; flux resource list; for ((i=0; i<${#cmds[@]}; i++)); do flux submit -N1 -n1 -c7 --output=flux_output/simulate_\$i.txt \${cmds[\${i}]}; done; flux queue drain;"
-#Unload conda environment
-conda deactivate
-
-
+#echo "=== Selecting variants ==="
+#
+#module load miniforge3
+#source activate /lustre/orion/bif154/proj-shared/mconery/tools/environments/simulate_pheno
+#
+#mkdir -p "$pheno_dir/causal_variants"
+#mkdir -p "$pheno_dir/AFR" "$pheno_dir/EUR"
+#
+##Loop over the number of variants
+#for num_var in 1; do for m_beta in ${effect_sizes[@]}; do
+#	python $selection_script --input-dir $geno_dir/shared_variants --output-dir $pheno_dir/causal_variants --effect-size $m_beta --max-distance $max_distance --min-spacing $min_spacing --variants-per-set $num_var --num-sets #replicates
+#done; done
+##Make a master list of phenotypes
+#ls $pheno_dir/causal_variants/Pheno*.*_causal.*.txt > $pheno_dir/causal_variants/master_casual_list.txt
+#
+#echo "=== Generating phenotypes ==="
+#
+##Loop over the populations and cast the pcs to the burst buffer
+#for pop in AFR EUR; do
+#	sbcast -pf $geno_dir/$pop/merged.plink.maf.ld.pcs.eigenvec /mnt/bb/${USER}/$pop.eigenvec
+#done
+#
+##Loop over the phenotype traits and create commands
+#cmds=()
+#while read file; do 
+#	#Get number of causal variants and effect size for simulation
+#	temp=${file%_causal*}
+#	num_var=${temp#$pheno_dir/causal_variants/Pheno*.}
+#	temp2=${temp%.*}
+#	pheno=${temp2#$pheno_dir/causal_variants/}
+#	temp3=${file%_space*}
+#	temp4=${temp3#$pheno_dir/causal_variants/Pheno*.effect_size_}
+#	effect_size=${temp4%.*}
+#	#Get chromosome
+#	chromo=$(cut -f 1 -d : $file | head -n 1)
+#	#Loop over the trait types and populations to create commands
+#	for trait_type in ${trait_types[@]}; do for pop in AFR EUR; do
+#		if [ $trait_type == "binary" ]; then
+#			out_file=$pheno_dir/$pop/$pheno."$num_var"_causal.effect_size_"$effect_size"."$trait_type"_"$prevalence".txt
+#			if [ ! -f $out_file ]; then 
+#				cmds+=("python $simulate_script --plink $geno_dir/$pop/chr"$chromo".plink.maf --effects $file --trait-type $trait_type --heritability $gen_var --prevalence $prevalence --pc-file /mnt/bb/${USER}/$pop.eigenvec --output $out_file")
+#			fi
+#		else
+#			out_file=$pheno_dir/$pop/$pheno."$num_var"_causal.effect_size_"$effect_size"."$trait_type".txt
+#			if [ ! -f $out_file ]; then 
+#				cmds+=("python $simulate_script --plink $geno_dir/$pop/chr"$chromo".plink.maf --effects $file --trait-type $trait_type --heritability $gen_var --pc-file /mnt/bb/${USER}/$pop.eigenvec --output $out_file")
+#			fi
+#		fi 
+#	done; done
+#done < $pheno_dir/causal_variants/master_casual_list.txt
+#
+##Reset environment
+#conda deactivate
+#module unload miniforge3
+#conda deactivate
+#
+##Write commands to file
+#>$pheno_dir/simulate_commands.txt
+#for (( i=0; i<${#cmds[@]}; i++ )); do echo ${cmds[$i]} >> $pheno_dir/simulate_commands.txt; done
+#
+##Activate flux modules
+#module load python/3.10-miniforge3 r/4.4.1 amd/6.3.1 rocm/6.3.1 hwloc/2.11.1-gpu flux
+#source activate /lustre/orion/bif154/proj-shared/mconery/tools/environments/simulate_pheno
+##Simulate phenotypes
+#srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start "mapfile -t cmds < $pheno_dir/simulate_commands.txt; flux resource list; for ((i=0; i<${#cmds[@]}; i++)); do flux submit -N1 -n1 -c7 --output=flux_output/simulate_\$i.txt \${cmds[\${i}]}; done; flux queue drain;"
+##Unload conda environment
+#conda deactivate
+#
+#
 ################################################################################
 ######################## 2. SAIGE STEP 1 (GRM / NULL) ##########################
 ################################################################################
