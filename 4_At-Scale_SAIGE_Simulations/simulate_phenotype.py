@@ -23,7 +23,7 @@ def main():
     parser.add_argument('--heritability', type=float, default=0.5, help='Heritability (0-1, default=0.5)')
     parser.add_argument('--prevalence', type=float, default=0.3, help='Case prevalence for binary traits (0-1, default=0.3)')
     parser.add_argument('--pc-file', required=True, help='File with principal component vectors (format: FID IID PC1 ... PC10)')
-    parser.add_argument('--seed', type=int, default=5, help='Random seed (default=5)')  # <-- new argument
+    parser.add_argument('--seed', type=int, default=5, help='Random seed (default=5)')  
     args = parser.parse_args()
     
     # Set random seed for numpy
