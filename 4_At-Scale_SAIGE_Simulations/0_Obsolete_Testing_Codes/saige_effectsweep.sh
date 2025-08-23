@@ -104,7 +104,7 @@ gpus=3			       # GPUs for step 1
 #for (( i=0; i<${#cmds[@]}; i++ )); do echo ${cmds[$i]} >> $pheno_dir/simulate_commands.txt; done
 #
 ##Activate flux modules
-#module load python/3.10-miniforge3 r/4.4.1 amd/6.3.1 rocm/6.3.1 hwloc/2.11.1-gpu flux
+module load python/3.10-miniforge3 r/4.4.1 amd/6.3.1 rocm/6.3.1 hwloc/2.11.1-gpu flux
 #source activate /lustre/orion/bif154/proj-shared/mconery/tools/environments/simulate_pheno
 ##Simulate phenotypes
 #srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start "mapfile -t cmds < $pheno_dir/simulate_commands.txt; flux resource list; for ((i=0; i<${#cmds[@]}; i++)); do flux submit -N1 -n1 -c7 --output=flux_output/simulate_\$i.txt \${cmds[\${i}]}; done; flux queue drain;"
