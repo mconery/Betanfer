@@ -288,7 +288,7 @@ def write_variant_file(out_dir: Path, set_idx: int, variant_ids: List[str]) -> N
     """
     Write variant IDs to output file.
     """
-    filename = f"causal_variants_set_{set_idx}.txt"
+    filename = f"Pheno{set_idx}.{len(variant_ids)}_causal.variant_set.txt"
     out_path = os.path.join(out_dir, filename)
     
     with open(out_path, "w") as fout:
