@@ -33,15 +33,15 @@ def parse_args():
     
     parser.add_argument(
         "--legacy-filenames", default=False, action='store_true',
-        help="Switch to expect output files WITHOUT effect_size in filename."
+        help="Switch to expect output files WITHOUT heritability in filename."
     )
     
     return parser.parse_args()
 
 def get_causal_variants_map(causal_var_dir):
-    # Mapping: key = <pheno_name>.<num_causal>_causal.effect_size_<effect>, value = causal_var_file
+    # Mapping: key = <pheno_name>.<num_causal>_causal.heritability_<heritability>, value = causal_var_file
     mapping = dict()
-    causal_pattern = re.compile(r'(.+?\.\d+_causal\.effect_size_\d*\.?\d*)\.500000_space100000\.txt')
+    causal_pattern = re.compile(r'(.+?\.\d+_causal\.heritability_\d*\.?\d*)\.500000_space100000\.txt')
     
     for f in glob(os.path.join(causal_var_dir, "*.txt")):
         m = causal_pattern.match(os.path.basename(f))
@@ -53,19 +53,19 @@ def get_causal_variants_map(causal_var_dir):
 def parse_output_filename(filename, legacy_filenames=False):
     """
     Matches:
-      <Pheno_name>.<num_causal_variants>_causal.effect_size_<effect_size>.(binary_<prevalence>|continuous).<chr#>.step2.txt
+      <Pheno_name>.<num_causal_variants>_causal.heritability_<heritability>.(binary_<prevalence>|continuous).<chr#>.step2.txt
     Returns a metadata dict with possible keys: pheno_name, causal_part, trait_type, chromosome, prevalence.
     """
     base = os.path.basename(filename)
     # Regex captures both binary_<prevalence> and continuous
     if legacy_filenames:
-        # No effect_size in filename
+        # No heritability in filename
         pattern = re.compile(
             r"(.+?)\.(\d+_causal)\.(binary_(\d*\.?\d+)|continuous)\.(chr\d+)\.step2\.txt$"
         )
     else:
         pattern = re.compile(
-            r"(.+?)\.(\d+_causal\.effect_size_\d*\.?\d*)\.(binary_(\d*\.?\d+)|continuous)\.(chr\d+)\.step2\.txt$"
+            r"(.+?)\.(\d+_causal\.heritability_\d*\.?\d*)\.(binary_(\d*\.?\d+)|continuous)\.(chr\d+)\.step2\.txt$"
         )
     
     m = pattern.match(base)
@@ -87,15 +87,15 @@ def parse_output_filename(filename, legacy_filenames=False):
     
     return meta
 
-def extract_effect_size(causal_part):
-    # causal_part is like '1_causal.effect_size_5'
-    m = re.search(r"effect_size_(\d*\.?\d+)", causal_part)
+def extract_heritability(causal_part):
+    # causal_part is like '1_causal.heritability_5'
+    m = re.search(r"heritability_(\d*\.?\d+)", causal_part)
     return float(m.group(1)) if m else None
 
 def extract_num_causal_variants(causal_part):
     """
     Extract number of causal variants from causal_part
-    causal_part examples: '1_causal', '5_causal.effect_size_0.1'
+    causal_part examples: '1_causal', '5_causal.heritability_0.1'
     """
     m = re.match(r"(\d+)_causal", causal_part)
     return int(m.group(1)) if m else None
@@ -119,7 +119,7 @@ def extract_causal_results_for_file(out_file, variant_ids, population, meta, leg
         filtered["trait_type"] = meta["trait_type"]
     
     if not legacy_filenames:
-        filtered["effect_size"] = extract_effect_size(meta["causal_part"])
+        filtered["heritability"] = extract_heritability(meta["causal_part"])
     
     # Add the number of causal variants column
     filtered["num_causal_variants"] = extract_num_causal_variants(meta["causal_part"])
@@ -138,7 +138,7 @@ def main():
     else:
         populations = [d for d in os.listdir(output_dir) if os.path.isdir(os.path.join(output_dir, d))]
     
-    # All keys in this mapping include effect_size
+    # All keys in this mapping include heritability
     causal_map = get_causal_variants_map(causal_var_dir)
     
     results = []
@@ -152,7 +152,7 @@ def main():
                 continue
             
             if legacy_filenames:
-                # Find the first matching causal_map entry for this pheno_name and causal_part prefix (ignore effect_size)
+                # Find the first matching causal_map entry for this pheno_name and causal_part prefix (ignore heritability)
                 # meta["causal_part"] will be e.g. "2_causal"
                 candidates = [
                     k for k in causal_map.keys()
