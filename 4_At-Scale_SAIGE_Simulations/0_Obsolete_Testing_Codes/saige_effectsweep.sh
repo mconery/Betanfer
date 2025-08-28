@@ -2,7 +2,7 @@
 #SBATCH -A bif154
 #SBATCH -J saige_effectsweep
 #SBATCH -o saige_effectsweep.%j.log
-#SBATCH -N 120             
+#SBATCH -N 179             
 #SBATCH -p batch
 #SBATCH -t 50:00
 #SBATCH -C nvme
@@ -19,21 +19,23 @@ step2_out="$BASE/step2_results"
 
 # Scripts
 simulate_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/simulate_phenotype.py"
-selection_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/select_causal_variants.py"
+selection_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/select_causal_variants_ld.py"
 make_step1_cmd="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/make_step1_commands.py"
 make_step2_cmd="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/make_step2_commands.py"
 causal_extractor="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/causal_variant_results_extractor.py"
 
+#Files
+selection_bed="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/1_Locus_Defining/grch38_chr_bounds_mhc_only.bed"
+
 # Arrays
-effect_sizes=(0.000001 0.00001 0.0001)
-set_numbers=(1)            # number of causal variants
+heritabilities=(0.00005 0.0001 0.0002)
+set_numbers=(1 2 3)            # number of causal variants
 trait_types=(binary continuous)
 prevalence=0.25                # single value for all binary traits
 replicates=10         # ten phenotypes per combination
 populations=(AFR EUR)
 max_distance=500000
-min_spacing=100000
-gen_var=0.5
+max_ld=0.05
 
 # Resources
 num_nodes="$SLURM_NNODES"      # for parallel sims
@@ -52,11 +54,11 @@ mkdir -p "$pheno_dir/causal_variants"
 mkdir -p "$pheno_dir/AFR" "$pheno_dir/EUR"
 
 #Loop over the number of variants
-for num_var in 1; do for m_beta in ${effect_sizes[@]}; do
-	python $selection_script --input-dir $geno_dir/shared_variants --output-dir $pheno_dir/causal_variants --effect-size $m_beta --max-distance $max_distance --min-spacing $min_spacing --variants-per-set $num_var --num-sets replicates
-done; done
+#for num_var in ${set_numbers[@]}; do 
+#	python $selection_script --input-dir $geno_dir/shared_variants --output-dir $pheno_dir/causal_variants --population-dirs $geno_dir/AFR $geno_dir/EUR --plink-naming-convention "chr*.plink.maf" --max-distance $max_distance --max-ld $max_ld --variants-per-set $num_var --num-sets $replicates --bed-file $selection_bed
+#done
 #Make a master list of phenotypes
-ls $pheno_dir/causal_variants/Pheno*.*_causal.*.txt > $pheno_dir/causal_variants/master_casual_list.txt
+ls $pheno_dir/causal_variants/Pheno*.*_causal.variant_set.txt > $pheno_dir/causal_variants/master_casual_list.txt
 
 echo "=== Generating phenotypes ==="
 
@@ -67,32 +69,29 @@ done
 
 #Loop over the phenotype traits and create commands
 cmds=()
-while read file; do 
+while read file; do for gen_var in ${heritabilities[@]}; do
 	#Get number of causal variants and effect size for simulation
 	temp=${file%_causal*}
 	num_var=${temp#$pheno_dir/causal_variants/Pheno*.}
 	temp2=${temp%.*}
 	pheno=${temp2#$pheno_dir/causal_variants/}
-	temp3=${file%_space*}
-	temp4=${temp3#$pheno_dir/causal_variants/Pheno*.effect_size_}
-	effect_size=${temp4%.*}
 	#Get chromosome
 	chromo=$(cut -f 1 -d : $file | head -n 1)
 	#Loop over the trait types and populations to create commands
 	for trait_type in ${trait_types[@]}; do for pop in AFR EUR; do
 		if [ $trait_type == "binary" ]; then
-			out_file=$pheno_dir/$pop/$pheno."$num_var"_causal.effect_size_"$effect_size"."$trait_type"_"$prevalence".txt
+			out_file=$pheno_dir/$pop/$pheno."$num_var"_causal.heritability_"$gen_var"."$trait_type"_"$prevalence".txt
 			if [ ! -f $out_file ]; then 
-				cmds+=("python $simulate_script --plink $geno_dir/$pop/chr"$chromo".plink.maf --effects $file --trait-type $trait_type --heritability $gen_var --prevalence $prevalence --pc-file /mnt/bb/${USER}/$pop.eigenvec --output $out_file")
+				cmds+=("python $simulate_script --plink $geno_dir/$pop/chr"$chromo".plink.maf --variants $file --trait-type $trait_type --heritability $(echo " $gen_var * $num_var " | bc) --prevalence $prevalence --pc-file /mnt/bb/${USER}/$pop.eigenvec --output $out_file")
 			fi
 		else
-			out_file=$pheno_dir/$pop/$pheno."$num_var"_causal.effect_size_"$effect_size"."$trait_type".txt
+			out_file=$pheno_dir/$pop/$pheno."$num_var"_causal.heritability_"$gen_var"."$trait_type".txt
 			if [ ! -f $out_file ]; then 
-				cmds+=("python $simulate_script --plink $geno_dir/$pop/chr"$chromo".plink.maf --effects $file --trait-type $trait_type --heritability $gen_var --pc-file /mnt/bb/${USER}/$pop.eigenvec --output $out_file")
+				cmds+=("python $simulate_script --plink $geno_dir/$pop/chr"$chromo".plink.maf --variants $file --trait-type $trait_type --heritability $(echo " $gen_var * $num_var " | bc) --pc-file /mnt/bb/${USER}/$pop.eigenvec --output $out_file")
 			fi
 		fi 
 	done; done
-done < $pheno_dir/causal_variants/master_casual_list.txt
+done; done < $pheno_dir/causal_variants/master_casual_list.txt
 
 #Reset environment
 conda deactivate
@@ -107,7 +106,7 @@ for (( i=0; i<${#cmds[@]}; i++ )); do echo ${cmds[$i]} >> $pheno_dir/simulate_co
 module load python/3.10-miniforge3 r/4.4.1 amd/6.3.1 rocm/6.3.1 hwloc/2.11.1-gpu flux
 source activate /lustre/orion/bif154/proj-shared/mconery/tools/environments/simulate_pheno
 #Simulate phenotypes
-srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start "mapfile -t cmds < $pheno_dir/simulate_commands.txt; flux resource list; for ((i=0; i<${#cmds[@]}; i++)); do flux submit -N1 -n1 -c7 --output=flux_output/simulate_\$i.txt \${cmds[\${i}]}; done; flux queue drain;"
+#srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start "mapfile -t cmds < $pheno_dir/simulate_commands.txt; flux resource list; for ((i=0; i<${#cmds[@]}; i++)); do flux submit -N1 -n1 -c7 --output=flux_output/simulate_\$i.txt \${cmds[\${i}]}; done; flux queue drain;"
 #Unload conda environment
 conda deactivate
 
@@ -165,7 +164,7 @@ srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start "mapfile
 ################################################################################
 echo "=== SAIGE Step 2 ==="
 # create updated step2 commands
-python "$make_step2_cmd" --plink-dir $geno_dir --pheno-dir "$pheno_dir" --out-dir $step2_out --step1-dir "$step1_out" --output-path "$step2_out/step2_commands.txt" --number-traits-per-job 1
+python "$make_step2_cmd" --plink-dir $geno_dir --pheno-dir "$pheno_dir" --out-dir $step2_out --step1-dir "$step1_out" --output-path "$step2_out/step2_commands.txt" --number-traits-per-job 1 --causal-var-suffix ".heritability.variant_set.txt"
 
 #Read in the commands
 mapfile -t cmds < $step2_out/step2_commands.txt
