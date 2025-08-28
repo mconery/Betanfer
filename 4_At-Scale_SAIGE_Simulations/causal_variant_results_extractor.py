@@ -88,9 +88,9 @@ def parse_output_filename(filename, legacy_filenames=False):
     
     return meta
 
-def extract_heritability(causal_part):
+def extract_heritability(heritability):
     # causal_part is like '1_causal.heritability_5'
-    m = re.search(r"heritability_(\d*\.?\d+)", causal_part)
+    m = re.search(r"heritability_(\d*\.?\d+)", heritability)
     return float(m.group(1)) if m else None
 
 def extract_num_causal_variants(causal_part):
@@ -120,7 +120,7 @@ def extract_causal_results_for_file(out_file, variant_ids, population, meta, leg
         filtered["trait_type"] = meta["trait_type"]
     
     if not legacy_filenames:
-        filtered["heritability"] = extract_heritability(meta["causal_part"])
+        filtered["heritability"] = extract_heritability(meta["heritability"])
     
     # Add the number of causal variants column
     filtered["num_causal_variants"] = extract_num_causal_variants(meta["causal_part"])
