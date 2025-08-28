@@ -120,8 +120,8 @@ for pop in populations:
     causal_var_files = {os.path.basename(x).replace(causal_var_suffix, ""):x for x in causal_var_files}
     shared_files = list(set(rda_files) & set(ratio_files))
     causal_dict = {
-        x: os.path.join(causal_var_dir, re.sub(r'\.binary_[\d\.]+|continuous' ,'', x) + causal_var_suffix)
-        for x in shared_files if re.sub(r'\.binary_[\d\.]+|continuous' ,'', x) in causal_var_files
+        x: os.path.join(causal_var_dir, re.sub(r'\.heritability_[\d\.]+', '', re.sub(r'\.binary_[\d\.]+|continuous' ,'', x)) + causal_var_suffix)
+        for x in shared_files if re.sub(r'\.heritability_[\d\.]+', '', re.sub(r'\.binary_[\d\.]+|continuous' ,'', x)) in causal_var_files
     }
     with ThreadPoolExecutor(max_workers=num_cores) as executor:
         causal_chromosomes = list(executor.map(get_chromosome_from_file, causal_dict.values()))
