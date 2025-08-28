@@ -34,9 +34,8 @@ def main():
     causal_effects = {}
     with open(args.variants) as f:
         for line in f:
-            if line.strip():
-                variant, effect = line.split()
-                causal_effects[variant] = args.effect_size
+            variant = line.strip()
+            causal_effects[variant] = args.effect_size
     
     # Get list of causal variant IDs
     causal_sids = list(causal_effects.keys())
