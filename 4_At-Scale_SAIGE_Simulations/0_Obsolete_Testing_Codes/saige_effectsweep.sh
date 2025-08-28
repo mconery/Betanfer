@@ -2,9 +2,9 @@
 #SBATCH -A bif154
 #SBATCH -J saige_effectsweep
 #SBATCH -o saige_effectsweep.%j.log
-#SBATCH -N 60             
+#SBATCH -N 180             
 #SBATCH -p batch
-#SBATCH -t 35:00
+#SBATCH -t 58:00
 #SBATCH -C nvme
 
 #############################  GLOBAL SETTINGS  ################################
@@ -28,7 +28,7 @@ causal_extractor="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_F
 selection_bed="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/1_Locus_Defining/grch38_chr_bounds_mhc_only.bed"
 
 # Arrays
-heritabilities=(0.00005 0.0001 0.0002)
+heritabilities=(0.0001 0.0002 0.0004)
 set_numbers=(1 2 3)            # number of causal variants
 trait_types=(binary continuous)
 prevalence=0.25                # single value for all binary traits
@@ -106,7 +106,7 @@ for (( i=0; i<${#cmds[@]}; i++ )); do echo ${cmds[$i]} >> $pheno_dir/simulate_co
 module load python/3.10-miniforge3 r/4.4.1 amd/6.3.1 rocm/6.3.1 hwloc/2.11.1-gpu flux
 source activate /lustre/orion/bif154/proj-shared/mconery/tools/environments/simulate_pheno
 #Simulate phenotypes
-#srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start "mapfile -t cmds < $pheno_dir/simulate_commands.txt; flux resource list; for ((i=0; i<${#cmds[@]}; i++)); do flux submit -N1 -n1 -c7 --output=flux_output/simulate_\$i.txt \${cmds[\${i}]}; done; flux queue drain;"
+srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start "mapfile -t cmds < $pheno_dir/simulate_commands.txt; flux resource list; for ((i=0; i<${#cmds[@]}; i++)); do flux submit -N1 -n1 -c7 --output=flux_output/simulate_\$i.txt \${cmds[\${i}]}; done; flux queue drain;"
 #Unload conda environment
 conda deactivate
 
@@ -157,7 +157,7 @@ srun -N ${NNODES} --ntasks-per-node 1 conda-unpack
 
 #Run Step 1
 mapfile -t cmds < $step1_out/step1_commands.txt
-#srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start "mapfile -t cmds < $step1_out/step1_commands.txt; flux resource list; for ((i=0; i<${#cmds[@]}; i++)); do flux submit -N1 -n $gpus --gpus-per-task=1 --output=flux_output/step1_\$i.txt \${cmds[\${i}]}; done; flux queue drain;"
+srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start "mapfile -t cmds < $step1_out/step1_commands.txt; flux resource list; for ((i=0; i<${#cmds[@]}; i++)); do flux submit -N1 -n $gpus --gpus-per-task=1 --output=flux_output/step1_\$i.txt \${cmds[\${i}]}; done; flux queue drain;"
 
 ################################################################################
 ######################## 3. SAIGE STEP 2 (GWAS scan) ###########################
