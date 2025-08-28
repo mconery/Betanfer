@@ -65,19 +65,20 @@ def parse_output_filename(filename, legacy_filenames=False):
         )
     else:
         pattern = re.compile(
-            r"(.+?)\.(\d+_causal\.heritability_\d*\.?\d*)\.(binary_(\d*\.?\d+)|continuous)\.(chr\d+)\.step2\.txt$"
+            r"(.+?)\.(\d+_causal)\.(heritability_\d*\.?\d*)\.(binary_(\d*\.?\d+)|continuous)\.(chr\d+)\.step2\.txt$"
         )
     
     m = pattern.match(base)
     if not m:
         return None
     
-    pheno_name, causal_part, trait_type_full, prevalence, chrom = m.groups()
+    pheno_name, causal_part, heritability, trait_type_full, prevalence, chrom = m.groups()
     trait_type = "binary" if trait_type_full.startswith("binary") else "continuous"
     
     meta = {
         "pheno_name": pheno_name,
         "causal_part": causal_part,
+        "heritability": heritability,
         "trait_type": trait_type,
         "chromosome": chrom,
     }
@@ -171,7 +172,7 @@ def main():
             if not causal_file or not os.path.isfile(causal_file):
                 continue
             
-            cdf = pd.read_csv(causal_file, sep=None, engine="python", header=None)
+            cdf = pd.read_csv(causal_file, engine="python", header=None)
             variant_ids = set(cdf.iloc[:,0].astype(str))
             
             extracted = extract_causal_results_for_file(
