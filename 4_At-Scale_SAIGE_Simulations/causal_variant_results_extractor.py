@@ -41,7 +41,7 @@ def parse_args():
 def get_causal_variants_map(causal_var_dir):
     # Mapping: key = <pheno_name>.<num_causal>_causal.heritability_<heritability>, value = causal_var_file
     mapping = dict()
-    causal_pattern = re.compile(r'(.+?\.\d+_causal\.heritability_\d*\.?\d*)\.variant_set\.txt')
+    causal_pattern = re.compile(r'(.+?\.\d+_causal)\.variant_set\.txt')
     
     for f in glob(os.path.join(causal_var_dir, "*.txt")):
         m = causal_pattern.match(os.path.basename(f))
