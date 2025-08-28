@@ -2,9 +2,9 @@
 #SBATCH -A bif154
 #SBATCH -J saige_effectsweep
 #SBATCH -o saige_effectsweep.%j.log
-#SBATCH -N 179             
+#SBATCH -N 60             
 #SBATCH -p batch
-#SBATCH -t 50:00
+#SBATCH -t 35:00
 #SBATCH -C nvme
 
 #############################  GLOBAL SETTINGS  ################################
@@ -157,14 +157,14 @@ srun -N ${NNODES} --ntasks-per-node 1 conda-unpack
 
 #Run Step 1
 mapfile -t cmds < $step1_out/step1_commands.txt
-srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start "mapfile -t cmds < $step1_out/step1_commands.txt; flux resource list; for ((i=0; i<${#cmds[@]}; i++)); do flux submit -N1 -n $gpus --gpus-per-task=1 --output=flux_output/step1_\$i.txt \${cmds[\${i}]}; done; flux queue drain;"
+#srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start "mapfile -t cmds < $step1_out/step1_commands.txt; flux resource list; for ((i=0; i<${#cmds[@]}; i++)); do flux submit -N1 -n $gpus --gpus-per-task=1 --output=flux_output/step1_\$i.txt \${cmds[\${i}]}; done; flux queue drain;"
 
 ################################################################################
 ######################## 3. SAIGE STEP 2 (GWAS scan) ###########################
 ################################################################################
 echo "=== SAIGE Step 2 ==="
 # create updated step2 commands
-python "$make_step2_cmd" --plink-dir $geno_dir --pheno-dir "$pheno_dir" --out-dir $step2_out --step1-dir "$step1_out" --output-path "$step2_out/step2_commands.txt" --number-traits-per-job 1 --causal-var-suffix ".heritability.variant_set.txt"
+python "$make_step2_cmd" --plink-dir $geno_dir --pheno-dir "$pheno_dir" --out-dir $step2_out --step1-dir "$step1_out" --output-path "$step2_out/step2_commands.txt" --number-traits-per-job 1 --causal-var-suffix ".variant_set.txt"
 
 #Read in the commands
 mapfile -t cmds < $step2_out/step2_commands.txt
