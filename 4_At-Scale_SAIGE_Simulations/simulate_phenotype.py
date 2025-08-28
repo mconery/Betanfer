@@ -18,11 +18,12 @@ def main():
     parser = argparse.ArgumentParser(description='Simulate phenotypes from PLINK files and include principal components')
     parser.add_argument('--plink', required=True, help='PLINK file prefix (without .bed/.bim/.fam extension)')
     parser.add_argument('--output', required=True, help='Output phenotype file path')
-    parser.add_argument('--effects', required=True, help='File with causal variants and effect sizes (format: variant_id effect_size)')
+    parser.add_argument('--variants', required=True, help='File with causal variants and effect sizes (format: variant_id effect_size)')
     parser.add_argument('--trait-type', choices=['binary', 'continuous'], required=True, help='Trait type')
     parser.add_argument('--heritability', type=float, default=0.5, help='Heritability (0-1, default=0.5)')
     parser.add_argument('--prevalence', type=float, default=0.3, help='Case prevalence for binary traits (0-1, default=0.3)')
     parser.add_argument('--pc-file', required=True, help='File with principal component vectors (format: FID IID PC1 ... PC10)')
+    parser.add_argument('--effect_size', type=float, default=0.1, help="Effect size of variants (No effect on significance only scaling; default 0.1")
     parser.add_argument('--seed', type=int, default=5, help='Random seed (default=5)')  
     args = parser.parse_args()
     
@@ -31,11 +32,11 @@ def main():
     
     # Load causal effects
     causal_effects = {}
-    with open(args.effects) as f:
+    with open(args.variants) as f:
         for line in f:
             if line.strip():
                 variant, effect = line.split()
-                causal_effects[variant] = float(effect)
+                causal_effects[variant] = args.effect_size
     
     # Get list of causal variant IDs
     causal_sids = list(causal_effects.keys())
