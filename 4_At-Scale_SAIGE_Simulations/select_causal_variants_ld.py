@@ -163,8 +163,8 @@ def calculate_ld_matrix(variants: pd.DataFrame, pop_dir: Path, naming_convention
             print(f"PLINK2 error: {result.stderr}", file=sys.stderr)
             return np.eye(len(variants))
         
-        # PLINK2 outputs correlation matrix as .vcor file
-        ld_file = output_prefix + ".vcor"
+        # PLINK2 outputs correlation matrix as .unphased.vcor1 file
+        ld_file = output_prefix + ".unphased.vcor1"
         if not os.path.exists(ld_file):
             return np.eye(len(variants))
             
@@ -181,7 +181,7 @@ def calculate_ld_matrix(variants: pd.DataFrame, pop_dir: Path, naming_convention
     finally:
         # Clean up temporary files
         cleanup_files = [variant_file]
-        for ext in [".vcor", ".log"]:
+        for ext in [".unphased.vcor1", ".unphased.vcor1.vars", ".log"]:
             cleanup_files.append(output_prefix + ext)
         
         for file_path in cleanup_files:
