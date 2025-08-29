@@ -28,7 +28,7 @@ causal_extractor="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_F
 selection_bed="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/1_Locus_Defining/grch38_chr_bounds_mhc_only.bed"
 
 # Arrays
-heritabilities=(0.0001 0.0002 0.0004)
+heritabilities=(0.0001 0.0002 0.0003)
 set_numbers=(1 2 3)            # number of causal variants
 trait_types=(binary continuous)
 prevalence=0.25                # single value for all binary traits
@@ -82,12 +82,12 @@ while read file; do for gen_var in ${heritabilities[@]}; do
 		if [ $trait_type == "binary" ]; then
 			out_file=$pheno_dir/$pop/$pheno."$num_var"_causal.heritability_"$gen_var"."$trait_type"_"$prevalence".txt
 			if [ ! -f $out_file ]; then 
-				cmds+=("python $simulate_script --plink $geno_dir/$pop/chr"$chromo".plink.maf --variants $file --trait-type $trait_type --heritability $(echo " $gen_var * $num_var " | bc) --prevalence $prevalence --pc-file /mnt/bb/${USER}/$pop.eigenvec --output $out_file")
+				cmds+=("python $simulate_script --plink $geno_dir/$pop/chr"$chromo".plink.maf --variants $file --trait-type $trait_type --per-snp-heritability $gen_var --prevalence $prevalence --pc-file /mnt/bb/${USER}/$pop.eigenvec --output $out_file")
 			fi
 		else
 			out_file=$pheno_dir/$pop/$pheno."$num_var"_causal.heritability_"$gen_var"."$trait_type".txt
 			if [ ! -f $out_file ]; then 
-				cmds+=("python $simulate_script --plink $geno_dir/$pop/chr"$chromo".plink.maf --variants $file --trait-type $trait_type --heritability $(echo " $gen_var * $num_var " | bc) --pc-file /mnt/bb/${USER}/$pop.eigenvec --output $out_file")
+				cmds+=("python $simulate_script --plink $geno_dir/$pop/chr"$chromo".plink.maf --variants $file --trait-type $trait_type --per-snp-heritability $gen_var --pc-file /mnt/bb/${USER}/$pop.eigenvec --output $out_file")
 			fi
 		fi 
 	done; done
