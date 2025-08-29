@@ -54,9 +54,9 @@ mkdir -p "$pheno_dir/causal_variants"
 mkdir -p "$pheno_dir/AFR" "$pheno_dir/EUR"
 
 #Loop over the number of variants
-#for num_var in ${set_numbers[@]}; do 
-#	python $selection_script --input-dir $geno_dir/shared_variants --output-dir $pheno_dir/causal_variants --population-dirs $geno_dir/AFR $geno_dir/EUR --plink-naming-convention "chr*.plink.maf" --max-distance $max_distance --max-ld $max_ld --variants-per-set $num_var --num-sets $replicates --bed-file $selection_bed
-#done
+for num_var in ${set_numbers[@]}; do 
+	python $selection_script --input-dir $geno_dir/shared_variants --output-dir $pheno_dir/causal_variants --population-dirs $geno_dir/AFR $geno_dir/EUR --plink-naming-convention "chr*.plink.maf" --max-distance $max_distance --max-ld $max_ld --variants-per-set $num_var --num-sets $replicates --bed-file $selection_bed
+done
 #Make a master list of phenotypes
 ls $pheno_dir/causal_variants/Pheno*.*_causal.variant_set.txt > $pheno_dir/causal_variants/master_casual_list.txt
 
