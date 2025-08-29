@@ -279,7 +279,7 @@ def process_locus_with_retries(locus: Tuple[str, int, int], bim_data: Dict[str, 
             # Got some variants but not the full set
             if attempt == max_attempts - 1:  # Last attempt
                 print(f"Warning: Only found {len(selected_variants)}/{variants_per_set} variants after {max_attempts} attempts", file=sys.stderr)
-                return True, selected_variants
+                return False, selected_variants
         # If no variants selected, try again
     
     return False, []
