@@ -20,11 +20,11 @@ pheno_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulat
 
 #Set script locations
 simulate_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/simulate_phenotype.py"
-selection_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/select_causal_variants.py"
+selection_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/select_causal_variants_ld.py"
 
 #Set key variables for causal variant selection
 set_numbers=(1 2 3)
-heritability=0.0002
+heritability=0.0003
 max_distance=500000
 max_ld=0.05
 replicates=1000
@@ -117,12 +117,12 @@ while read file; do
 		if [ $trait_type == "binary" ]; then
 			out_file=$pheno_dir/$pop/$pheno."$num_var"_causal.heritability_"$heritability"."$trait_type"_"$prevalence".txt
 			if [ ! -f $out_file ]; then 
-				cmds+=("python $simulate_script --plink $geno_dir/$pop/chr"$chromo".plink.maf --variants $file --trait-type $trait_type --heritability $(echo " $heritability * $num_var " | bc) --prevalence $prevalence --pc-file /mnt/bb/${USER}/$pop.eigenvec --output $out_file")
+				cmds+=("python $simulate_script --plink $geno_dir/$pop/chr"$chromo".plink.maf --variants $file --trait-type $trait_type --per-snp-heritabilityy $heritability --prevalence $prevalence --pc-file /mnt/bb/${USER}/$pop.eigenvec --output $out_file")
 			fi
 		else
 			out_file=$pheno_dir/$pop/$pheno."$num_var"_causal.heritability_"$heritability"."$trait_type".txt
 			if [ ! -f $out_file ]; then 
-				cmds+=("python $simulate_script --plink $geno_dir/$pop/chr"$chromo".plink.maf --variants $file --trait-type $trait_type --heritability $(echo " $heritability * $num_var " | bc) --pc-file /mnt/bb/${USER}/$pop.eigenvec --output $out_file")
+				cmds+=("python $simulate_script --plink $geno_dir/$pop/chr"$chromo".plink.maf --variants $file --trait-type $trait_type --per-snp-heritability $heritability --pc-file /mnt/bb/${USER}/$pop.eigenvec --output $out_file")
 			fi
 		fi 
 	done; done
