@@ -150,77 +150,77 @@ num_nodes="$SLURM_NNODES"
 ################################################################################################################
 ############################################ Simulate Null Phenotypes ##########################################
 ################################################################################################################
-##Create empty command array
-#cmds=()
-##Loop over the populations
-#for pop in AFR EUR; do
-#	cd $pheno_dir/$pop
-#	cmds+=("python $null_script -i $geno_dir/$pop/merged.plink.maf.ld.pcs.eigenvec -o $pheno_dir/$pop/merged.maf.ld.continuous.txt -n 1000 -t continuous")
-#	cmds+=("python $null_script -i $geno_dir/$pop/merged.plink.maf.ld.pcs.eigenvec -o $pheno_dir/$pop/merged.maf.ld.binary.txt -n 1000 -t binary")
-#done
-#
-##Launch commands
-#job_size=${#cmds[@]}
-#echo "JOB SIZE: $job_size"
-#for (( i=0; i<${#cmds[@]}; i++ )); do
-#	j=$(( $i + 1 ))
-#	srun -n1 -N1 --ntasks-per-node=1 --job-name=$j ${cmds[$i]} &
-#	if [ $(($j % $num_nodes)) == 0 ] || [ $j == $job_size ]; then 
-#	    wait
-#        fi
-#done
-#wait
+#Create empty command array
+cmds=()
+#Loop over the populations
+for pop in AFR EUR; do
+	cd $pheno_dir/$pop
+	cmds+=("python $null_script -i $geno_dir/$pop/merged.plink.maf.ld.pcs.eigenvec -o $pheno_dir/$pop/merged.maf.ld.continuous.txt -n 1000 -t continuous")
+	cmds+=("python $null_script -i $geno_dir/$pop/merged.plink.maf.ld.pcs.eigenvec -o $pheno_dir/$pop/merged.maf.ld.binary.txt -n 1000 -t binary")
+done
+
+#Launch commands
+job_size=${#cmds[@]}
+echo "JOB SIZE: $job_size"
+for (( i=0; i<${#cmds[@]}; i++ )); do
+	j=$(( $i + 1 ))
+	srun -n1 -N1 --ntasks-per-node=1 --job-name=$j ${cmds[$i]} &
+	if [ $(($j % $num_nodes)) == 0 ] || [ $j == $job_size ]; then 
+	    wait
+        fi
+done
+wait
 
 ################################################################################################################
 ################################################# Split Phenotypes #############################################
 ################################################################################################################
-##Make commands to split the files
-#cmds=()
-##Loop over the populations
-#for pop in AFR EUR; do for trait_type in binary continuous; do cd $pheno_dir/$pop; for i in {1..1000}; do
-#		pheno_col=$(( $i + 12))
-#		if [ ! -f "$pheno_dir"/"$pop"/Pheno"$i"."$trait_type".txt ]; then 
-#			cmds+=("python $decode_script -c cut___-f___1-12,"$pheno_col"___"$pheno_dir"/"$pop"/merged.maf.ld."$trait_type".txt___>___"$pheno_dir"/"$pop"/Pheno"$i"."$trait_type".txt")
-#		fi
-#done; done; done
-#
-##Calculate number of possible jobs
-#job_size=${#cmds[@]}
-#num_parallel_jobs=$((($SLURM_CPUS_ON_NODE / 4) * num_nodes))
-#echo "JOB SIZE: $job_size"
-##Launch commands
-#for (( i=0; i<${#cmds[@]}; i++ )); do
-#	j=$(( $i + 1 ))
-#	srun -n1 -c1 -N1 --exclusive --job-name=$j ${cmds[$i]} &
-#	if [ $(($j % $num_parallel_jobs)) == 0 ] || [ $j == $job_size ]; then 
-#	    wait
-#        fi
-#done
-#wait
+#Make commands to split the files
+cmds=()
+#Loop over the populations
+for pop in AFR EUR; do for trait_type in binary continuous; do cd $pheno_dir/$pop; for i in {1..1000}; do
+		pheno_col=$(( $i + 12))
+		if [ ! -f "$pheno_dir"/"$pop"/Pheno"$i"."$trait_type".txt ]; then 
+			cmds+=("python $decode_script -c cut___-f___1-12,"$pheno_col"___"$pheno_dir"/"$pop"/merged.maf.ld."$trait_type".txt___>___"$pheno_dir"/"$pop"/Pheno"$i"."$trait_type".txt")
+		fi
+done; done; done
+
+#Calculate number of possible jobs
+job_size=${#cmds[@]}
+num_parallel_jobs=$((($SLURM_CPUS_ON_NODE / 4) * num_nodes))
+echo "JOB SIZE: $job_size"
+#Launch commands
+for (( i=0; i<${#cmds[@]}; i++ )); do
+	j=$(( $i + 1 ))
+	srun -n1 -c1 -N1 --exclusive --job-name=$j ${cmds[$i]} &
+	if [ $(($j % $num_parallel_jobs)) == 0 ] || [ $j == $job_size ]; then 
+	    wait
+        fi
+done
+wait
 
 ################################################################################################################
 ################################## Replace the Phenotype Name in the Split File ################################
 ################################################################################################################
-##Make commands to split the files
-#cmds=()
-##Loop over the populations
-#for pop in AFR EUR; do for trait_type in binary continuous; do cd $pheno_dir/$pop; for i in {1..1000}; do
-#			cmds+=("python $decode_script -c sed___-i___'s/Pheno$i/PHENO/g'___"$pheno_dir"/"$pop"/Pheno"$i"."$trait_type".txt")
-#done; done; done
-#
-##Calculate number of possible jobs
-#job_size=${#cmds[@]}
-#num_parallel_jobs=$((($SLURM_CPUS_ON_NODE / 4) * num_nodes))
-#echo "JOB SIZE: $job_size"
-##Launch commands
-#for (( i=0; i<${#cmds[@]}; i++ )); do
-#	j=$(( $i + 1 ))
-#	srun -n1 -c1 -N1 --exclusive --job-name=$j ${cmds[$i]} &
-#	if [ $(($j % $num_parallel_jobs)) == 0 ] || [ $j == $job_size ]; then 
-#	    wait
-#        fi
-#done
-#wait
+#Make commands to split the files
+cmds=()
+#Loop over the populations
+for pop in AFR EUR; do for trait_type in binary continuous; do cd $pheno_dir/$pop; for i in {1..1000}; do
+			cmds+=("python $decode_script -c sed___-i___'s/Pheno$i/PHENO/g'___"$pheno_dir"/"$pop"/Pheno"$i"."$trait_type".txt")
+done; done; done
+
+#Calculate number of possible jobs
+job_size=${#cmds[@]}
+num_parallel_jobs=$((($SLURM_CPUS_ON_NODE / 4) * num_nodes))
+echo "JOB SIZE: $job_size"
+#Launch commands
+for (( i=0; i<${#cmds[@]}; i++ )); do
+	j=$(( $i + 1 ))
+	srun -n1 -c1 -N1 --exclusive --job-name=$j ${cmds[$i]} &
+	if [ $(($j % $num_parallel_jobs)) == 0 ] || [ $j == $job_size ]; then 
+	    wait
+        fi
+done
+wait
 
 ################################################################################################################
 ##################################### Make Sorted Chromosome Plink Files #######################################
@@ -295,29 +295,29 @@ num_nodes="$SLURM_NNODES"
 ################################################################################################################
 ######################################### Make BGEN Index Files (.bgen.bgi) ####################################
 ################################################################################################################
-cmds=()
-#Loop over two populations
-for pop in AFR; do
-  cd $geno_dir/$pop
-  #Loop the chromosomes
-  for chromo in {1..22}; do
-    bgen_file=$geno_dir/$pop/chr"$chromo".plink.maf.bgen
-    #Command to create index for each BGEN file
-    cmds+=("bgenix -g $bgen_file -index")
-  done
-done
-
-#Launch index commands
-job_size=${#cmds[@]}
-echo "JOB SIZE: $job_size"
-for (( i=0; i<${#cmds[@]}; i++ )); do
-  j=$(( $i + 1 ))
-  srun -n1 -N1 --ntasks-per-node=1 --job-name=$j ${cmds[$i]} &
-  if [ $(($j % $num_nodes)) == 0 ] || [ $j == $job_size ]; then
-    wait
-  fi
-done
-wait
+#cmds=()
+##Loop over two populations
+#for pop in AFR; do
+#  cd $geno_dir/$pop
+#  #Loop the chromosomes
+#  for chromo in {1..22}; do
+#    bgen_file=$geno_dir/$pop/chr"$chromo".plink.maf.bgen
+#    #Command to create index for each BGEN file
+#    cmds+=("bgenix -g $bgen_file -index")
+#  done
+#done
+#
+##Launch index commands
+#job_size=${#cmds[@]}
+#echo "JOB SIZE: $job_size"
+#for (( i=0; i<${#cmds[@]}; i++ )); do
+#  j=$(( $i + 1 ))
+#  srun -n1 -N1 --ntasks-per-node=1 --job-name=$j ${cmds[$i]} &
+#  if [ $(($j % $num_nodes)) == 0 ] || [ $j == $job_size ]; then
+#    wait
+#  fi
+#done
+#wait
 
 ################################################################################################################
 ############################ Make BGEN Variant Lists (for Multi-Threading SAIGE Step 2) ########################
