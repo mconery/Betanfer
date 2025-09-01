@@ -31,6 +31,7 @@ gpus=3
 ############################################## Load Modules and Conda Env ########################################
 ##################################################################################################################
 #Activate needed modules
+conda deactivate
 module load python/3.10-miniforge3
 module load r/4.4.1
 module load amd/6.3.1
