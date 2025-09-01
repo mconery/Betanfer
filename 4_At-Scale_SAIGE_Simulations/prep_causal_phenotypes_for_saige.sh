@@ -117,7 +117,7 @@ while read file; do
 		if [ $trait_type == "binary" ]; then
 			out_file=$pheno_dir/$pop/$pheno."$num_var"_causal.heritability_"$heritability"."$trait_type"_"$prevalence".txt
 			if [ ! -f $out_file ]; then 
-				cmds+=("python $simulate_script --plink $geno_dir/$pop/chr"$chromo".plink.maf --variants $file --trait-type $trait_type --per-snp-heritabilityy $heritability --prevalence $prevalence --pc-file /mnt/bb/${USER}/$pop.eigenvec --output $out_file")
+				cmds+=("python $simulate_script --plink $geno_dir/$pop/chr"$chromo".plink.maf --variants $file --trait-type $trait_type --per-snp-heritability $heritability --prevalence $prevalence --pc-file /mnt/bb/${USER}/$pop.eigenvec --output $out_file")
 			fi
 		else
 			out_file=$pheno_dir/$pop/$pheno."$num_var"_causal.heritability_"$heritability"."$trait_type".txt
