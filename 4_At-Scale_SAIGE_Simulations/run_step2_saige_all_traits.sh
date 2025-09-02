@@ -20,6 +20,8 @@ cmd_file="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulati
 ################################################### Prepare Command File #########################################
 ##################################################################################################################
 
+#Reset environment
+source deactivate
 #Activate needed modules
 module load python/3.10-miniforge3 r/4.4.1 amd/6.3.1 rocm/6.3.1 hwloc/2.11.1-gpu flux
 #Call command making script
