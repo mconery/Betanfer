@@ -2,9 +2,9 @@
 #SBATCH -A bif154
 #SBATCH -J saige_step1
 #SBATCH -o run_step1_saige_all_traits.flux6.3.1.log
-#SBATCH -N 10
-#SBATCH -q debug
-#SBATCH -t 1:05:00
+#SBATCH -N 1990
+#SBATCH -p batch
+#SBATCH -t 1:00:00
 #SBATCH -C nvme
 
 ##################################################################################################################
@@ -76,7 +76,7 @@ for pop in ${populations[@]}; do
 done
 
 #Create the file of commands (Commented out since previously ran)
-python $cmd_script --causal-flag
+#python $cmd_script --causal-flag
 #Read in file of commands
 mapfile -t cmds < /lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step1_results/step1_commands.txt
 
