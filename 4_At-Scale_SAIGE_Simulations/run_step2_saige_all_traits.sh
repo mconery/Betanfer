@@ -21,19 +21,13 @@ cmd_file="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulati
 ##################################################################################################################
 
 #Activate needed modules
-module load python/3.10-miniforge3
+module load python/3.10-miniforge3 r/4.4.1 amd/6.3.1 rocm/6.3.1 hwloc/2.11.1-gpu flux
 #Call command making script
 python $make_cmd_script #--causal-var-suffix ".effect_size_0.05.500000_space100000.txt" #Commenting out to only run null phenotypes for now
 
 ##################################################################################################################
 ############################################## Load Modules and Conda Env ########################################
 ##################################################################################################################
-#Activate needed modules
-module load r/4.4.1
-module load amd/6.3.1
-module load rocm/6.3.1
-module load hwloc/2.11.1-gpu
-module load flux
 
 ##### START OF SBCAST AND CONDA-UNPACK #####
 #Set variables
