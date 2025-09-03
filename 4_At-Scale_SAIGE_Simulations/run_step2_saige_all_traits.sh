@@ -3,8 +3,8 @@
 #SBATCH -J saige_step2
 #SBATCH -o run_step2_saige_all_traits.log
 #SBATCH -N 10
-#SBATCH -p batch
-#SBATCH -t 1:00:00
+#SBATCH -p debug
+#SBATCH -t 1:50:00
 #SBATCH -C nvme
 
 ##################################################################################################################
