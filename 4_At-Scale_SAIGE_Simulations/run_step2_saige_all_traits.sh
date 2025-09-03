@@ -2,9 +2,9 @@
 #SBATCH -A bif154
 #SBATCH -J saige_step2
 #SBATCH -o run_step2_saige_all_traits.log
-#SBATCH -N 1882
+#SBATCH -N 10
 #SBATCH -p batch
-#SBATCH -t 4:00:00
+#SBATCH -t 2:00:00
 #SBATCH -C nvme
 
 ##################################################################################################################
@@ -20,12 +20,10 @@ cmd_file="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulati
 ################################################### Prepare Command File #########################################
 ##################################################################################################################
 
-#Reset environment
-source deactivate
 #Activate needed modules
 module load python/3.10-miniforge3 r/4.4.1 amd/6.3.1 rocm/6.3.1 hwloc/2.11.1-gpu flux
 #Call command making script
-python $make_cmd_script #--causal-var-suffix ".effect_size_0.05.500000_space100000.txt" #Commenting out to only run null phenotypes for now
+python $make_cmd_script --causal-var-suffix ".variant_set.txt" #Commenting out to only run null phenotypes for now
 
 ##################################################################################################################
 ############################################## Load Modules and Conda Env ########################################
