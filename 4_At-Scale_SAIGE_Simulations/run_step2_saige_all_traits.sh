@@ -2,9 +2,9 @@
 #SBATCH -A bif154
 #SBATCH -J saige_step2
 #SBATCH -o run_step2_saige_all_traits.log
-#SBATCH -N 809
+#SBATCH -N 1988
 #SBATCH -q debug
-#SBATCH -t 2:00:00
+#SBATCH -t 1:15:00
 #SBATCH -C nvme
 
 ##################################################################################################################
@@ -25,7 +25,7 @@ source deactivate
 #Activate needed modules
 module load python/3.10-miniforge3 r/4.4.1 amd/6.3.1 rocm/6.3.1 hwloc/2.11.1-gpu flux
 #Call command making script
-#python $make_cmd_script --causal-var-suffix ".variant_set.txt" #Commenting out to only run null phenotypes for now
+#python $make_cmd_script --causal-var-suffix ".variant_set.txt" --number-traits-per-job 6
 
 ##################################################################################################################
 ############################################## Load Modules and Conda Env ########################################
