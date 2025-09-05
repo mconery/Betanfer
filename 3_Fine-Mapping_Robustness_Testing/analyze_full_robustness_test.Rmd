@@ -1039,3 +1039,388 @@ two_way_sd_df <- rbind.data.frame(rsparsepro_two_way_sd_merge, carma_two_way_sd_
 #Call plotting script
 create_all_power_coverage_plot(two_way_sd_df, ymin=0.4,xmin=0.35)
 ```
+# 27) Create Power vs Coverage Function Including Non-Converged Results (FIXED) ====
+
+```{r}
+
+create_all_power_coverage_plot_with_failures <- function(data, point_size = 3, add_smooth = FALSE, xmin=0, ymin=0, experiment_type="traits") {
+  
+  # Validate input data
+  required_cols <- c("population", "locus", "num_causal_variants",
+                     "num_credible_sets", "coverage", "power", "ld_mismatch_degree", "method")
+  missing_cols <- setdiff(required_cols, names(data))
+  if (length(missing_cols) > 0) {
+    stop(paste("Missing required columns:", paste(missing_cols, collapse = ", ")))
+  }
+  
+  # Process data based on experiment type
+  if (experiment_type == "traits") {
+    # Convert LD mismatch degree to numeric traits
+    processed_data <- data %>%
+      mutate(
+        num_traits = suppressWarnings(case_when(
+          ld_mismatch_degree == "unmodified" ~ Inf,
+          .default = parse_number(str_replace(as.character(ld_mismatch_degree), "_traits", ""))
+        )),
+        # Create ordered factor for plotting
+        ld_numeric = factor(num_traits,
+                           levels = c(50, 100, 200, 300, 400, 500, 1000, Inf),
+                           labels = c("50", "100", "200", "300", "400", "500", "1000", "Unmodified")),
+        factor_num_causal_variants = as.factor(num_causal_variants)
+      )
+    xlabel <- "LD Mismatch Degree (Number of Traits)"
+  } else {
+    # Convert LD mismatch degree to numeric sd level
+    processed_data <- data %>%
+      mutate(ld_mismatch_degree = str_replace(ld_mismatch_degree, "sd_0", "sd_0.")) %>%
+      mutate(
+        num_traits = suppressWarnings(case_when(
+          ld_mismatch_degree == "unmodified" ~ 0,
+          .default = parse_number(str_replace(as.character(ld_mismatch_degree), "sd_", ""))
+        )),
+        # Create ordered factor for plotting
+        ld_numeric = factor(num_traits,
+                           levels = c(0.15, 0.1, 0.05, 0.01, 0.005, 0),
+                           labels = c("0.15", "0.1", "0.05", "0.01", "0.005", "Unmodified")),
+        factor_num_causal_variants = as.factor(num_causal_variants)
+      )
+    xlabel <- "LD Mismatch Degree (Standard Deviation of Noise)"
+  }
+  
+  # Aggregate data with weights (power and coverage already adjusted in data preparation)
+  plot_data <- processed_data %>%
+    group_by(population, ld_numeric, num_traits, factor_num_causal_variants, method) %>%
+    summarise(
+      weighted_coverage = weighted.mean(coverage, w = num_credible_sets, na.rm = TRUE),
+      weighted_power = weighted.mean(power, w = num_causal_variants, na.rm = TRUE),
+      .groups = 'drop'
+    )
+  
+  # Generate method-specific color palettes
+  n_ld <- length(unique(plot_data$ld_numeric))
+  susie_colors <- colorRampPalette(RColorBrewer::brewer.pal(9, "Blues")[1:9])(n_ld)
+  rsparsepro_colors <- colorRampPalette(RColorBrewer::brewer.pal(9, "Reds")[1:9])(n_ld)
+  carma_colors <- colorRampPalette(RColorBrewer::brewer.pal(9, "Greens")[1:9])(n_ld)
+  
+  # Combine colors with infinite value (black)
+  color_values <- c(
+    setNames(susie_colors[1:length(susie_colors)-1], paste0("SuSiE_", head(levels(plot_data$ld_numeric), -1))),
+    setNames(rsparsepro_colors[1:length(rsparsepro_colors)-1], paste0("RSparsePro_", head(levels(plot_data$ld_numeric), -1))),
+    setNames(carma_colors[1:length(carma_colors)-1], paste0("CARMA_", head(levels(plot_data$ld_numeric), -1))),
+    "SuSiE_Unmodified" = susie_colors[length(susie_colors)], # Darkest blue
+    "RSparsePro_Unmodified" = rsparsepro_colors[length(rsparsepro_colors)], # Darkest red
+    "CARMA_Unmodified" = carma_colors[length(carma_colors)] #Darkest Green
+  )
+  
+  # Create combined population-LD factor
+  plot_data <- plot_data %>%
+    mutate(method_ld = factor(paste0(method, "_", ld_numeric)))
+  
+  # Create base plot
+  main_plot <- ggplot(plot_data, aes(x = weighted_power, y = weighted_coverage,
+                                    fill = method_ld)) +
+    geom_point(size = point_size, alpha = 0.8, shape=21, color="black") +
+    facet_grid(population ~ factor_num_causal_variants) +
+    coord_cartesian(ylim = c(ymin, 1), xlim = c(xmin, 1)) +
+    scale_fill_manual(
+      name = xlabel,
+      values = color_values,
+      labels = rep(levels(plot_data$ld_numeric), 3)
+    ) +
+    labs(
+      x = "Power",
+      y = "Coverage",
+      title = "Number of Causal Variants"
+    ) +
+    theme_minimal() +
+    theme(
+      strip.text = element_text(size = 14),
+      axis.text = element_text(size=12),
+      axis.title = element_text(size=14),
+      panel.spacing = unit(1, "lines"),
+      legend.position = "none",
+      plot.title = element_text(hjust = 0.5),
+    ) +
+    guides(fill = guide_legend(nrow = 3, title.position = "top"))
+  
+  # Create legend grid data
+  legend_data <- expand.grid(
+    method = c("SuSiE", "RSparsePro", "CARMA"),
+    ld_numeric = levels(processed_data$ld_numeric),
+    stringsAsFactors = TRUE
+  ) %>% dplyr::arrange(method, ld_numeric) %>% dplyr::mutate(unique_name=paste(method, ld_numeric, sep="_"))
+  
+  # Create legend plot
+  legend_plot <- ggplot(legend_data, aes(x = ld_numeric, y = method)) +
+    geom_tile(aes(fill = unique_name), color = "black") +
+    scale_fill_manual(values = color_values) +
+    scale_x_discrete(breaks = levels(legend_data$ld_numeric), 
+                     labels = c(levels(legend_data$ld_numeric)[1:length(levels(legend_data$ld_numeric))-1], "Unmodified")) +
+    labs(x = xlabel, y = "") +
+    theme_minimal() +
+    theme(
+      strip.background = element_rect(fill = c(susie_colors[length(susie_colors)], 
+                                              rsparsepro_colors[length(rsparsepro_colors)], 
+                                              carma_colors[length(carma_colors)])),
+      strip.text = element_text(color = "white", face = "bold"),
+      panel.grid = element_blank(),
+      legend.position = "none",
+      plot.title = element_text(hjust = 0.5),
+      axis.text = element_text(size=8)
+    )
+  
+  # Combine plots
+  cowplot::plot_grid(
+    main_plot,
+    legend_plot,
+    ncol = 1,
+    rel_heights = c(4, 1)
+  )
+}
+
+```
+
+# 28) Plot All Methods Including Non-Converged for Trait-Level Experiment (FIXED) ====
+
+```{r}
+
+# Create combined dataframe for trait-level experiment including all results
+required_cols = c("population", "locus", "num_causal_variants",
+                 "num_credible_sets", "coverage", "power", "ld_mismatch_degree")
+
+# Prepare SuSiE data (including non-converged - treat as failures)
+susie_trait_all <- susie_trait_df %>% 
+  mutate(
+    method = "SuSiE",
+    # Set power and coverage to 0 for non-converged results
+    power = case_when(
+      mapping_status != "converged" ~ 0,
+      TRUE ~ power
+    ),
+    coverage = case_when(
+      mapping_status != "converged" ~ 0,
+      TRUE ~ coverage
+    ),
+    num_credible_sets = case_when(
+      mapping_status != "converged" ~ 0,
+      TRUE ~ num_credible_sets
+    )
+  ) %>%
+  dplyr::select(all_of(c(required_cols, "method")))
+
+# Prepare RSparsePro data (always converges)
+rsparsepro_trait_all <- rsparsepro_trait_df %>% 
+  dplyr::select(all_of(required_cols)) %>%
+  mutate(method = "RSparsePro")
+
+# Prepare CARMA data (including failed iterations - treat as failures)
+carma_trait_all <- carma_trait_df %>%
+  mutate(
+    method = "CARMA",
+    # Set power and coverage to 0 for failed iterations (NA or > 10)
+    power = case_when(
+      is.na(iterations) | iterations > 10 ~ 0,
+      TRUE ~ power
+    ),
+    coverage = case_when(
+      is.na(iterations) | iterations > 10 ~ 0,
+      TRUE ~ coverage
+    ),
+    num_credible_sets = case_when(
+      is.na(iterations) | iterations > 10 ~ 0,
+      TRUE ~ num_credible_sets
+    )
+  ) %>%
+  dplyr::select(all_of(c(required_cols, "method")))
+
+# Combine all three methods
+all_trait_df <- rbind.data.frame(susie_trait_all, rsparsepro_trait_all, carma_trait_all)
+
+# Create the plot
+create_all_power_coverage_plot_with_failures(all_trait_df, xmin=0, ymin=0.4, experiment_type="traits")
+
+```
+
+# 29) Plot All Methods Including Non-Converged for SD-Level Experiment (FIXED) ====
+
+```{r}
+
+# Create combined dataframe for SD-level experiment including all results
+required_cols = c("population", "locus", "num_causal_variants",
+                 "num_credible_sets", "coverage", "power", "ld_mismatch_degree")
+
+# Prepare SuSiE data (including non-converged - treat as failures)
+susie_sd_all <- susie_sd_df %>% 
+  mutate(
+    method = "SuSiE",
+    # Set power and coverage to 0 for non-converged results
+    power = case_when(
+      mapping_status != "converged" ~ 0,
+      TRUE ~ power
+    ),
+    coverage = case_when(
+      mapping_status != "converged" ~ 0,
+      TRUE ~ coverage
+    ),
+    num_credible_sets = case_when(
+      mapping_status != "converged" ~ 0,
+      TRUE ~ num_credible_sets
+    )
+  ) %>%
+  dplyr::select(all_of(c(required_cols, "method")))
+
+# Prepare RSparsePro data (always converges)
+rsparsepro_sd_all <- rsparsepro_sd_df %>% 
+  dplyr::select(all_of(required_cols)) %>%
+  mutate(method = "RSparsePro")
+
+# Prepare CARMA data (including failed iterations - treat as failures)
+carma_sd_all <- carma_sd_df %>%
+  mutate(
+    method = "CARMA",
+    # Set power and coverage to 0 for failed iterations (NA or > 10)
+    power = case_when(
+      is.na(iterations) | iterations > 10 ~ 0,
+      TRUE ~ power
+    ),
+    coverage = case_when(
+      is.na(iterations) | iterations > 10 ~ 0,
+      TRUE ~ coverage
+    ),
+    num_credible_sets = case_when(
+      is.na(iterations) | iterations > 10 ~ 0,
+      TRUE ~ num_credible_sets
+    )
+  ) %>%
+  dplyr::select(all_of(c(required_cols, "method")))
+
+# Combine all three methods
+all_sd_df <- rbind.data.frame(susie_sd_all, rsparsepro_sd_all, carma_sd_all)
+
+# Create the plot
+create_all_power_coverage_plot_with_failures(all_sd_df, xmin=0, ymin=0.4, experiment_type="sd")
+
+```
+
+
+# 30) Plot All Methods for EUR Population with 3 Causal Variants Only (SD-Based Noise) ====
+
+```{r}
+
+# Create combined dataframe for EUR population with 3 causal variants (SD-based experiment)
+required_cols = c("population", "locus", "num_causal_variants",
+                 "num_credible_sets", "coverage", "power", "ld_mismatch_degree")
+
+# Filter for EUR population, 3 causal variants, and SD-based LD mismatch, then prepare each method's data
+# Prepare SuSiE data (including non-converged - treat as failures)
+susie_eur_3cv_sd <- susie_sd_df %>% 
+  filter(population == "EUR" & num_causal_variants == 3) %>%
+  mutate(
+    method = "SuSiE",
+    # Set power and coverage to 0 for non-converged results
+    power = case_when(
+      mapping_status != "converged" ~ 0,
+      TRUE ~ power
+    ),
+    coverage = case_when(
+      mapping_status != "converged" ~ 0,
+      TRUE ~ coverage
+    ),
+    num_credible_sets = case_when(
+      mapping_status != "converged" ~ 0,
+      TRUE ~ num_credible_sets
+    )
+  ) %>%
+  dplyr::select(all_of(c(required_cols, "method")))
+
+# Prepare RSparsePro data (always converges)
+rsparsepro_eur_3cv_sd <- rsparsepro_sd_df %>% 
+  filter(population == "EUR" & num_causal_variants == 3) %>%
+  dplyr::select(all_of(required_cols)) %>%
+  mutate(method = "RSparsePro")
+
+# Prepare CARMA data (including failed iterations - treat as failures)
+carma_eur_3cv_sd <- carma_sd_df %>%
+  filter(population == "EUR" & num_causal_variants == 3) %>%
+  mutate(
+    method = "CARMA",
+    # Set power and coverage to 0 for failed iterations (NA or > 10)
+    power = case_when(
+      is.na(iterations) | iterations > 10 ~ 0,
+      TRUE ~ power
+    ),
+    coverage = case_when(
+      is.na(iterations) | iterations > 10 ~ 0,
+      TRUE ~ coverage
+    ),
+    num_credible_sets = case_when(
+      is.na(iterations) | iterations > 10 ~ 0,
+      TRUE ~ num_credible_sets
+    )
+  ) %>%
+  dplyr::select(all_of(c(required_cols, "method")))
+
+# Combine all three methods for EUR 3-variant loci (SD-based)
+eur_3cv_sd_df <- rbind.data.frame(susie_eur_3cv_sd, rsparsepro_eur_3cv_sd, carma_eur_3cv_sd)
+
+# Create a plotting function specifically for EUR 3CV SD-based results
+create_eur_3cv_sd_plot <- function(data, point_size = 4) {
+  
+  # Convert LD mismatch degree to numeric sd level
+  processed_data <- data %>%
+    mutate(ld_mismatch_degree = str_replace(ld_mismatch_degree, "sd_0", "sd_0.")) %>%
+    mutate(
+      num_traits = suppressWarnings(case_when(
+        ld_mismatch_degree == "unmodified" ~ 0,
+        .default = parse_number(str_replace(as.character(ld_mismatch_degree), "sd_", ""))
+      )),
+      # Create ordered factor for plotting
+      ld_numeric = factor(num_traits,
+                         levels = c(0.15, 0.1, 0.05, 0.01, 0.005, 0),
+                         labels = c("0.15", "0.1", "0.05", "0.01", "0.005", "Unmodified"))
+    )
+  
+  # Aggregate data with weights
+  plot_data <- processed_data %>%
+    group_by(ld_numeric, method) %>%
+    summarise(
+      weighted_coverage = weighted.mean(coverage, w = num_credible_sets, na.rm = TRUE),
+      weighted_power = weighted.mean(power, w = num_causal_variants, na.rm = TRUE),
+      .groups = 'drop'
+    )
+  
+  # Generate method-specific colors
+  method_colors <- c("SuSiE" = "#08306B", "RSparsePro" = "#67000D", "CARMA" = "#006428")
+  
+  # Create the plot
+  ggplot(plot_data, aes(x = weighted_power, y = weighted_coverage, color = method, shape = ld_numeric)) +
+    geom_point(size = point_size, alpha = 0.8) +
+    scale_color_manual(values = method_colors) +
+    scale_shape_manual(values = c(15, 16, 17, 18, 19, 4)) +  # Different shapes for each SD level
+    coord_cartesian(ylim = c(0, 1), xlim = c(0, 1)) +
+    labs(
+      x = "Power",
+      y = "Coverage",
+      title = "400K European Population - 3 Causal Variants per Locus",
+      color = "Method",
+      shape = "Standard Deviation\nof Noise"
+    ) +
+    theme_minimal() +
+    theme(
+      axis.text = element_text(size=12),
+      axis.title = element_text(size=14),
+      plot.title = element_text(hjust = 0.5, size = 16),
+      legend.text = element_text(size=12),
+      legend.title = element_text(size=12),
+      legend.position = "right"
+    ) +
+    guides(
+      color = guide_legend(override.aes = list(size = 4)),
+      shape = guide_legend(override.aes = list(size = 4))
+    )
+}
+
+# Create the plot
+create_eur_3cv_sd_plot(eur_3cv_sd_df)
+
+```
