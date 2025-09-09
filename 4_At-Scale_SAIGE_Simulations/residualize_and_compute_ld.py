@@ -155,7 +155,7 @@ def load_pc_data(pc_file, num_pcs):
     """Load PC data from PLINK eigenvec format."""
     print(f'Loading PCs from {pc_file}')
     pc_df = pd.read_csv(pc_file, sep=r'\s+', header=0,
-                       names=['FID', 'IID'] + [f'PC{i}' for i in range(1, 21)])
+                       names=['FID', 'IID'] + [f'PC{i}' for i in range(1, num_pcs + 1)])
     
     # Select only the required number of PCs
     pc_cols = ['FID', 'IID'] + [f'PC{i}' for i in range(1, num_pcs + 1)]
