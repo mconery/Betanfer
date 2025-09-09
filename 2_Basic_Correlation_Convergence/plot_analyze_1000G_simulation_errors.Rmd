@@ -131,3 +131,59 @@ out_file <- "C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping
 #Filter and write file
 input_df %>% filter(trait_type == "continuous" & bucket_type == "geno_corr") %>% group_by(n_traits, bucket_range) %>% summarize(stddev_error=mean(stddev_error, na.rm=TRUE)) %>% write.csv(file=out_file, col.names = TRUE, row.names = FALSE, quote = FALSE, sep = ",")
 ```
+
+# 11) Make High-Quality Figure for Grant Application ====
+```{r}
+
+df <- input_df
+x_var="n_traits"
+y_var="mae"
+filter_bucket = "overall"
+filter_trait_type = "continuous"
+color_var="n_causal"
+filter_n_causal = NULL
+facet_var="population"
+#Set function
+plot_title=NULL
+
+if(!is.null(filter_bucket)){
+  df <- df %>% filter(bucket_type %in% filter_bucket)
+}
+# Apply optional filters
+if (!is.null(filter_trait_type)) {
+  df <- df %>% filter(trait_type %in% filter_trait_type)
+}
+if (!is.null(filter_n_causal)) {
+  df <- df %>% filter(n_causal %in% filter_n_causal)
+}
+
+# Create base plot
+p <- ggplot(df %>% filter(population=="AFR"), aes_string(x = x_var, y = y_var, color = color_var)) +
+  geom_point(alpha = 0.7, size = 2) +
+  theme_minimal() +
+  labs(
+    title = plot_title,
+    x = "# Traits",
+    y = "Mean Absolute Error (MAE)", 
+    color = "# Causal\nVariants"
+  )
+
+# Faceting
+if (!is.null(facet_var)) {
+  p <- p + facet_wrap(as.formula(paste("~", facet_var)), scales = "free_x")
+}
+
+# Handle numeric vs categorical x-variables
+p <- p + scale_x_continuous(labels = scales::comma) + 
+  theme(axis.title = element_text(size=11),
+               strip.text = element_blank(),
+                legend.position = c(1, 1),
+                legend.title = element_text(size=11, hjust = 0.75),
+                legend.justification = c(1, 1),
+                legend.background = element_rect(fill = "white", color = "black", size = 0.25))
+
+ggsave("C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Figures/Correlation_Structure/high-res-convergence.jpeg", plot = p, width = 2.25, height = 3, units = "in",dpi = 300)
+
+
+
+```
