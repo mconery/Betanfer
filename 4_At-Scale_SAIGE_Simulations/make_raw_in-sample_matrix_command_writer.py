@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-make_matrix_command_writer.py
+make_raw_matrix_command_writer.py
 
 For each text file whose first column contains variants in the form
   chrom:pos:ref:alt
@@ -45,6 +45,8 @@ def parse_args():
                         help="Comma-delimited patterns for each population’s PLINK files.")
     parser.add_argument("--padding", type=int, default=250_000,
                         help="Padding (bp) added upstream & downstream of each locus (default 250 kb).")
+    parser.add_argument("--variant-file-suffix", type=str, default="",
+                        help="Optional suffix to remove from variant file name when making matrix file (default [empty string]).")
     return parser.parse_args()
 
 def find_plink_root(plink_dir, naming_convention, chrom):
@@ -109,11 +111,11 @@ def main():
                 continue
             variant_path = Path(variant_file)
             chrom, start, end = get_window(variant_path, args.padding)
-            locus_name = variant_path.stem  # base filename without extension
+            locus_name = variant_path.stem.rstrip(args.variant_file_suffix)  # base filename without extension
 
             for plink_dir, pop, naming_conv in zip(plink_dirs, populations, naming_conventions):
                 plink_root = find_plink_root(plink_dir, naming_conv, chrom)
-                out_prefix = matrix_root / pop / locus_name
+                out_prefix = matrix_root / pop / locus_name + ".raw_in-sample"
                 cmd = dedent(f"""{plink2} --bfile {plink_root} --chr {chrom} --from-bp {start} --to-bp {end} --r-unphased square --out {out_prefix}""")
                 commands.append(cmd)
     # Write all commands to file
