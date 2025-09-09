@@ -84,19 +84,63 @@ def load_genotype_data(geno_file_prefix):
     bed_reader = Bed(geno_file_prefix, count_A1=False)  # count_A1=False for 0/1/2 encoding
     snp_data = bed_reader.read()
     
-    # Extract sample IDs, SNP info, and genotype matrix
-    sample_ids = pd.DataFrame({
-        'FID': [iid.split('->')[0] if '->' in iid else iid for iid in snp_data.iid[:, 0]],
-        'IID': [iid.split('->')[1] if '->' in iid else iid for iid in snp_data.iid[:, 1]]
+    # Debug: print the structure of the loaded data
+    print(f"Debug - snp_data.iid shape: {snp_data.iid.shape}")
+    print(f"Debug - snp_data.sid shape: {snp_data.sid.shape}")
+    print(f"Debug - snp_data.pos shape: {snp_data.pos.shape}")
+    
+    # Extract sample IDs more robustly
+    if snp_data.iid.ndim == 2:
+        # Standard format with FID and IID columns
+        sample_ids = pd.DataFrame({
+            'FID': snp_data.iid[:, 0],
+            'IID': snp_data.iid[:, 1]
+        })
+    elif snp_data.iid.ndim == 1:
+        # Single column format - use same value for both FID and IID
+        sample_ids = pd.DataFrame({
+            'FID': snp_data.iid,
+            'IID': snp_data.iid
+        })
+    else:
+        raise ValueError(f"Unexpected iid structure: shape {snp_data.iid.shape}")
+    
+    # Extract SNP information more robustly
+    n_snps = len(snp_data.sid)
+    
+    # Handle sid (SNP IDs) - can be 1D or 2D
+    if snp_data.sid.ndim == 1:
+        snp_ids = snp_data.sid
+        chrom_info = [''] * n_snps  # No chromosome info available
+    elif snp_data.sid.ndim == 2:
+        if snp_data.sid.shape[1] >= 2:
+            chrom_info = snp_data.sid[:, 0]
+            snp_ids = snp_data.sid[:, 1]
+        else:
+            snp_ids = snp_data.sid[:, 0]
+            chrom_info = [''] * n_snps
+    else:
+        raise ValueError(f"Unexpected sid structure: shape {snp_data.sid.shape}")
+    
+    # Handle pos (positions) - can be 1D or 2D
+    if snp_data.pos.ndim == 1:
+        positions = snp_data.pos
+    elif snp_data.pos.ndim == 2:
+        # Usually pos has columns: [chr, pos] or [chr, cM, pos]
+        if snp_data.pos.shape[1] >= 2:
+            positions = snp_data.pos[:, -1]  # Take the last column as BP position
+        else:
+            positions = snp_data.pos[:, 0]
+    else:
+        positions = np.zeros(n_snps)  # Fallback
+    
+    snp_info = pd.DataFrame({
+        'CHR': chrom_info,
+        'SNP': snp_ids,
+        'BP': positions
     })
     
     genotypes = snp_data.val  # This is samples x SNPs
-    snp_info = pd.DataFrame({
-        'CHR': snp_data.sid[:, 0] if snp_data.sid.shape[1] > 0 else [''] * len(snp_data.sid),
-        'SNP': snp_data.sid[:, 1] if snp_data.sid.shape[1] > 1 else snp_data.sid[:, 0],
-        'BP': snp_data.pos[:, 2] if snp_data.pos.shape[1] > 2 else snp_data.pos[:, 1]
-    })
-    
     n_samples, n_snps = genotypes.shape
     print(f'Loaded {n_samples} samples, {n_snps} SNPs')
     
