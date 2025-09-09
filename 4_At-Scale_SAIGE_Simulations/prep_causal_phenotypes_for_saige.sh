@@ -91,7 +91,7 @@ num_nodes="$SLURM_NNODES"
 #	python $selection_script --input-dir $geno_dir/shared_variants --output-dir $pheno_dir/causal_variants --population-dirs $geno_dir/AFR $geno_dir/EUR --plink-naming-convention "chr*.plink.maf" --max-distance $max_distance --max-ld $max_ld --variants-per-set $num_var --num-sets $replicates --bed-file $selection_bed
 #done
 ##Make a master list of phenotypes
-#ls $pheno_dir/causal_variants/Pheno*.*_causal.*.txt > $pheno_dir/causal_variants/master_casual_list.txt
+#ls $pheno_dir/causal_variants/Pheno*.*_causal.*.txt > $pheno_dir/causal_variants/master_causal_list.txt
 
 
 ################################################################################################################
@@ -126,7 +126,7 @@ while read file; do
 			fi
 		fi 
 	done; done
-done < $pheno_dir/causal_variants/master_casual_list.txt
+done < $pheno_dir/causal_variants/master_causal_list.txt
 
 #Reset environment
 conda deactivate
