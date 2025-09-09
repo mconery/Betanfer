@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 """
-
 make_PC-corrected_LD_command_writer.py
 
 For each text file whose first column contains variants in the form
@@ -10,12 +9,12 @@ chrom:pos:ref:alt
 this script determines a locus window (min-pos – padding, max-pos + padding)
 and writes two separate command files:
 
-1. Commands that extract those windows from one or more plink datasets
-2. Commands that residualize genotypes and compute LD matrices
+1. Commands that extract those windows from one or more plink datasets as binary files
+2. Commands that residualize genotypes and compute LD matrices using pysnptools
 
 Usage
 -----
-python make_LD_command_writer.py \
+python make_PC-corrected_LD_command_writer.py \
     --extract_cmd_out extract_commands.txt \
     --ld_cmd_out ld_commands.txt \
     --matrix_dir /path/to/ld_matrices \
@@ -34,7 +33,6 @@ PC files should be in standard PLINK eigenvec format with FID, IID, PC1, PC2, ..
 import argparse
 from pathlib import Path
 import re
-from textwrap import dedent
 
 VAR_RE = re.compile(r"^(\w+):(\d+):")
 
@@ -153,13 +151,13 @@ def main():
                 out_prefix = matrix_root / pop / locus_name
                 temp_prefix = matrix_root / pop / "temp" / locus_name
                 
-                # Extraction command
-                extract_cmd = f"{plink2} --bfile {plink_root} --chr {chrom} --from-bp {start} --to-bp {end} --export A --out {temp_prefix}_raw"
+                # Extraction command - now using --make-bed instead of --export A
+                extract_cmd = f"{plink2} --bfile {plink_root} --chr {chrom} --from-bp {start} --to-bp {end} --make-bed --out {temp_prefix}_extracted"
                 extract_commands.append(extract_cmd)
                 
-                # LD computation command
+                # LD computation command - updated to use .bed files
                 ld_cmd = f"python3 {args.residualize_script} "
-                ld_cmd = ld_cmd + f"--geno_file {temp_prefix}_raw.raw "
+                ld_cmd = ld_cmd + f"--geno_file {temp_prefix}_extracted "  # No extension - pysnptools will handle .bed/.bim/.fam
                 ld_cmd = ld_cmd + f"--pc_file {pc_file} "
                 ld_cmd = ld_cmd + f"--out_prefix {out_prefix} "
                 ld_cmd = ld_cmd + f"--num_pcs {args.num_pcs} "
@@ -185,6 +183,7 @@ def main():
     print(f"Wrote {len(extract_commands)} extraction commands to {args.extract_cmd_out}")
     print(f"Wrote {len(ld_commands)} LD computation commands to {args.ld_cmd_out}")
     print(f"Each LD command will residualize {args.num_pcs} PCs before computing LD matrices")
+    print("NOTE: Extraction commands now create binary PLINK files (.bed/.bim/.fam) for faster processing")
 
 if __name__ == "__main__":
     main()
