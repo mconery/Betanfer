@@ -121,7 +121,7 @@ def main():
     # Write all commands to file
     with open(args.cmd_out, "w") as out_fh:
         for cmd in commands:
-            out_fh.write(cmd + "\n\n")
+            out_fh.write(cmd + "\n")
 
     print(f"Wrote {len(commands)} commands to {args.cmd_out}")
 
