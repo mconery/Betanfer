@@ -175,12 +175,12 @@ def main():
     # Write extraction commands to file
     with open(args.extract_cmd_out, "w") as out_fh:
         for cmd in extract_commands:
-            out_fh.write(cmd + "\n" + "="*80 + "\n")
+            out_fh.write(cmd + "\n")
     
     # Write LD computation commands to file
     with open(args.ld_cmd_out, "w") as out_fh:
         for cmd in ld_commands:
-            out_fh.write(cmd + "\n" + "="*80 + "\n")
+            out_fh.write(cmd + "\n")
     
     print(f"Wrote {len(extract_commands)} extraction commands to {args.extract_cmd_out}")
     print(f"Wrote {len(ld_commands)} LD computation commands to {args.ld_cmd_out}")
