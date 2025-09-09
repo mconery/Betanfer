@@ -154,41 +154,33 @@ def main():
                 temp_prefix = matrix_root / pop / "temp" / locus_name
                 
                 # Extraction command
-                extract_cmd = dedent(f"""\
-                    # Extract locus region for {locus_name} in {pop}
-                    {plink2} --bfile {plink_root} \\
-                        --chr {chrom} --from-bp {start} --to-bp {end} \\
-                        --export A \\
-                        --out {temp_prefix}_raw""")
-                
+                extract_cmd = f"{plink2} --bfile {plink_root} --chr {chrom} --from-bp {start} --to-bp {end} --export A --out {temp_prefix}_raw"
                 extract_commands.append(extract_cmd)
                 
                 # LD computation command
-                ld_cmd = dedent(f"""\
-                    # Compute residualized LD matrix for {locus_name} in {pop}
-                    python3 {args.residualize_script} \\
-                        --geno_file {temp_prefix}_raw.raw \\
-                        --pc_file {pc_file} \\
-                        --out_prefix {out_prefix} \\
-                        --num_pcs {args.num_pcs} \\
-                        --locus_name {locus_name} \\
-                        --population {pop} \\
-                        --chrom {chrom} \\
-                        --start {start} \\
-                        --end {end} \\
-                        --cleanup_temp""")
+                ld_cmd = f"python3 {args.residualize_script} "
+                ld_cmd = ld_cmd + f"--geno_file {temp_prefix}_raw.raw "
+                ld_cmd = ld_cmd + f"--pc_file {pc_file} "
+                ld_cmd = ld_cmd + f"--out_prefix {out_prefix} "
+                ld_cmd = ld_cmd + f"--num_pcs {args.num_pcs} "
+                ld_cmd = ld_cmd + f"--locus_name {locus_name} "
+                ld_cmd = ld_cmd + f"--population {pop} "
+                ld_cmd = ld_cmd + f"--chrom {chrom} "
+                ld_cmd = ld_cmd + f"--start {start} "
+                ld_cmd = ld_cmd + f"--end {end} "
+                ld_cmd = ld_cmd + "--cleanup_temp"
                 
                 ld_commands.append(ld_cmd)
     
     # Write extraction commands to file
     with open(args.extract_cmd_out, "w") as out_fh:
         for cmd in extract_commands:
-            out_fh.write(cmd + "\n\n" + "="*80 + "\n\n")
+            out_fh.write(cmd + "\n" + "="*80 + "\n")
     
     # Write LD computation commands to file
     with open(args.ld_cmd_out, "w") as out_fh:
         for cmd in ld_commands:
-            out_fh.write(cmd + "\n\n" + "="*80 + "\n\n")
+            out_fh.write(cmd + "\n" + "="*80 + "\n")
     
     print(f"Wrote {len(extract_commands)} extraction commands to {args.extract_cmd_out}")
     print(f"Wrote {len(ld_commands)} LD computation commands to {args.ld_cmd_out}")
