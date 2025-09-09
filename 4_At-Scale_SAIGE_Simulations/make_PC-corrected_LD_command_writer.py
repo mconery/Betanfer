@@ -151,13 +151,13 @@ def main():
                 out_prefix = matrix_root / pop / locus_name
                 temp_prefix = matrix_root / pop / "temp" / locus_name
                 
-                # Extraction command - now using --make-bed instead of --export A
+                # Extraction command - NOW USING --make-bed FOR BINARY FORMAT
                 extract_cmd = f"{plink2} --bfile {plink_root} --chr {chrom} --from-bp {start} --to-bp {end} --make-bed --out {temp_prefix}_extracted"
                 extract_commands.append(extract_cmd)
                 
-                # LD computation command - updated to use .bed files
+                # LD computation command - UPDATED FOR BINARY INPUT
                 ld_cmd = f"python3 {args.residualize_script} "
-                ld_cmd = ld_cmd + f"--geno_file {temp_prefix}_extracted "  # No extension - pysnptools will handle .bed/.bim/.fam
+                ld_cmd = ld_cmd + f"--geno_file {temp_prefix}_extracted "  # NO EXTENSION - pysnptools handles .bed/.bim/.fam
                 ld_cmd = ld_cmd + f"--pc_file {pc_file} "
                 ld_cmd = ld_cmd + f"--out_prefix {out_prefix} "
                 ld_cmd = ld_cmd + f"--num_pcs {args.num_pcs} "
@@ -183,7 +183,7 @@ def main():
     print(f"Wrote {len(extract_commands)} extraction commands to {args.extract_cmd_out}")
     print(f"Wrote {len(ld_commands)} LD computation commands to {args.ld_cmd_out}")
     print(f"Each LD command will residualize {args.num_pcs} PCs before computing LD matrices")
-    print("NOTE: Extraction commands now create binary PLINK files (.bed/.bim/.fam) for faster processing")
+    print("NOTE: Now using binary PLINK format (.bed/.bim/.fam) for faster processing with pysnptools")
 
 if __name__ == "__main__":
     main()
