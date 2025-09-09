@@ -154,7 +154,7 @@ def load_genotype_data(geno_file_prefix):
 def load_pc_data(pc_file, num_pcs):
     """Load PC data from PLINK eigenvec format."""
     print(f'Loading PCs from {pc_file}')
-    pc_df = pd.read_csv(pc_file, sep=r'\s+', header=None,
+    pc_df = pd.read_csv(pc_file, sep=r'\s+', header=0,
                        names=['FID', 'IID'] + [f'PC{i}' for i in range(1, 21)])
     
     # Select only the required number of PCs
