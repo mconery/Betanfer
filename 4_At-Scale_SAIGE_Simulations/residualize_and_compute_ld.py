@@ -391,7 +391,7 @@ def compute_correlation_matrix_pytorch(residual_genotypes, batch_size=2000):
                                 if x_ss > 0 and y_ss > 0:
                                     corr = numerator / torch.sqrt(x_ss * y_ss)
                                     if torch.isnan(corr):
-                                        corr = torch.tensor(0.0)
+                                        corr = torch.tensor(0.0, device=device)
                                     
                                     corr_matrix[global_i, global_j] = corr
                                     corr_matrix[global_j, global_i] = corr
@@ -509,7 +509,7 @@ def main():
         corr_matrix = compute_correlation_matrix_pytorch(residual_genotypes, args.gpu_batch_size)
         
         # Write output files
-        write_output_files(corr_matrix, args.out_prefix, args)
+        write_output_files(corr_matrix, args.out_prefix, args, snp_info)
         
         # Cleanup if requested
         if args.cleanup_temp:
