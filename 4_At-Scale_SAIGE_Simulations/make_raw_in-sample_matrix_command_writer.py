@@ -29,10 +29,10 @@ VAR_RE = re.compile(r"^(\w+):(\d+):")
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Generate plink2 commands to compute LD matrices per locus."
+        description="Generate plink commands to compute LD matrices per locus."
     )
     parser.add_argument("--cmd_out", required=True,
-                        help="Path to write the list of plink2 commands.")
+                        help="Path to write the list of plink commands.")
     parser.add_argument("--matrix_dir", required=True,
                         help="Directory where LD matrices should be stored.")
     parser.add_argument("--plink_dirs", required=True,
@@ -80,7 +80,7 @@ def get_window(variant_file, padding):
 
 def main():
     #Set plink directories
-    plink2 = "/lustre/orion/bif154/proj-shared/mconery/tools/bin/plink2"
+    plink = "/lustre/orion/bif154/proj-shared/mconery/tools/bin/plink"
     
     #Parse arguments
     args = parse_args()
@@ -116,7 +116,7 @@ def main():
             for plink_dir, pop, naming_conv in zip(plink_dirs, populations, naming_conventions):
                 plink_root = find_plink_root(plink_dir, naming_conv, chrom)
                 out_prefix = (matrix_root / pop / f"{locus_name}.raw_in-sample")
-                cmd = dedent(f"""{plink2} --bfile {plink_root} --chr {chrom} --from-bp {start} --to-bp {end} --r-unphased square --keep-allele-order --out {out_prefix}""")
+                cmd = dedent(f"""{plink} --bfile {plink_root} --chr {chrom} --from-bp {start} --to-bp {end} --r square --keep-allele-order --out {out_prefix}""")
                 commands.append(cmd)
     # Write all commands to file
     with open(args.cmd_out, "w") as out_fh:
