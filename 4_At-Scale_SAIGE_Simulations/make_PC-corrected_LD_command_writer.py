@@ -63,6 +63,8 @@ def parse_args():
                        help="Padding (bp) added upstream & downstream of each locus (default 250 kb).")
     parser.add_argument("--num_pcs", type=int, default=10,
                        help="Number of PCs to regress out (default 10).")
+    parser.add_argument("--variant-file-suffix", type=str, default="",
+                        help="Optional suffix to remove from variant file name when making matrix file (default [empty string]).")
 
     return parser.parse_args()
 
@@ -144,11 +146,11 @@ def main():
             
             variant_path = Path(variant_file)
             chrom, start, end = get_window(variant_path, args.padding)
-            locus_name = variant_path.stem  # base filename without extension
+            locus_name = variant_path.stem.rstrip(args.variant_file_suffix)  # base filename without extension
             
             for plink_dir, pop, naming_conv, pc_file in zip(plink_dirs, populations, naming_conventions, pc_files):
                 plink_root = find_plink_root(plink_dir, naming_conv, chrom)
-                out_prefix = matrix_root / pop / locus_name
+                out_prefix = (matrix_root / pop / f"{locus_name}.pc-corrected")
                 temp_prefix = matrix_root / pop / "temp" / locus_name
                 
                 # Extraction command - NOW USING --make-bed FOR BINARY FORMAT
