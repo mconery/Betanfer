@@ -1,35 +1,33 @@
 #!/usr/bin/env python3
 
 """
-residualize_and_compute_ld_gpu.py
+residualize_and_compute_ld_fixed_alleles.py
 
-GPU-accelerated version for OLCF Frontier (AMD MI250X) using CuPy with ROCm.
+Fixed version that handles allele encoding consistently with plink2 --r-unphased square.
 
-This script uses a single GPU to accelerate the genotype residualization and 
-correlation matrix computation using CuPy, which provides NumPy-like GPU operations
-for AMD ROCm on Frontier.
+The key fix: Uses count_A1=True to match plink2's ALT allele counting, ensuring
+correlations have consistent signs across all variants.
 
-Installation on Frontier:
--------------------------
-# Load modules
-module load PrgEnv-gnu cray-python rocm/6.2.4
+Output format matches plink2 --r-unphased square command:
+- {out_prefix}.unphased.vcor1: tab-delimited correlation matrix
+- {out_prefix}.unphased.vcor1.vars: variant list (one per line)
+- {out_prefix}.log: analysis log file
 
-# Create conda environment
-conda create -n cupy-frontier python=3.10 numpy=1.26.4 scipy -c conda-forge
-source activate cupy-frontier
+Usage
+-----
+python3 residualize_and_compute_ld_fixed_alleles.py \
+    --geno_file /path/to/genotypes \
+    --pc_file /path/to/pcs.eigenvec \
+    --out_prefix /path/to/output_prefix \
+    --num_pcs 10 \
+    --locus_name locus1 \
+    --population CEU \
+    --chrom 1 \
+    --start 1000000 \
+    --end 2000000 \
+    [--cleanup_temp]
 
-# Install CuPy for ROCm
-export CUPY_INSTALL_USE_HIP=1
-export ROCM_HOME=${ROCM_PATH}
-export HCC_AMDGPU_TARGET=gfx90a
-CC=gcc CXX=g++ pip install --no-cache-dir --no-binary=cupy cupy==12.3.0
-
-Usage:
-------
-# Set GPU device (0-7 on Frontier nodes)
-export ROCR_VISIBLE_DEVICES=0
-
-python3 residualize_and_compute_ld_gpu.py [arguments...]
+Note: geno_file should be the prefix for .bed/.bim/.fam files (without extension)
 """
 
 import argparse
@@ -37,7 +35,6 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 import sys
-import os
 
 try:
     from pysnptools.snpreader import Bed
@@ -45,34 +42,9 @@ except ImportError:
     print("Error: pysnptools package is required. Install with: pip install pysnptools", file=sys.stderr)
     sys.exit(1)
 
-# Import CuPy for GPU acceleration
-try:
-    import cupy as cp
-    print(f"CuPy version: {cp.__version__}")
-    print(f"ROCm available: {cp.cuda.runtime.getDeviceCount() > 0}")
-    
-    # Set memory pool to avoid memory fragmentation
-    mempool = cp.get_default_memory_pool()
-    pinned_mempool = cp.get_default_pinned_memory_pool()
-    
-    # Get GPU device info
-    if cp.cuda.runtime.getDeviceCount() > 0:
-        device_id = int(os.environ.get('ROCR_VISIBLE_DEVICES', '0'))
-        cp.cuda.Device(0).use()  # Use first visible device
-        props = cp.cuda.runtime.getDeviceProperties(0)
-        print(f"Using GPU: {props['name'].decode()}")
-        print(f"GPU memory: {props['totalGlobalMem'] / 1e9:.1f} GB")
-    
-    GPU_AVAILABLE = True
-except ImportError:
-    print("Warning: CuPy not available. Install with ROCm support for GPU acceleration.")
-    print("Falling back to CPU-only mode.")
-    GPU_AVAILABLE = False
-    cp = np  # Fallback to NumPy
-
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="GPU-accelerated genotype residualization and LD computation using CuPy."
+        description="Residualize genotypes using PCs and compute LD correlation matrix with correct allele encoding."
     )
     
     parser.add_argument("--geno_file", required=True,
@@ -95,50 +67,91 @@ def parse_args():
                        help="End position of the region.")
     parser.add_argument("--cleanup_temp", action="store_true",
                        help="Remove temporary genotype files after processing.")
-    parser.add_argument("--gpu_batch_size", type=int, default=1000,
-                       help="Number of SNPs to process per GPU batch (default: 1000).")
-    
+    parser.add_argument("--count_a1", action="store_true",
+                       help="Count A1 alleles (like plink2 ALT). Default: count A2 alleles (like plink1.9).")
+
     return parser.parse_args()
 
-def load_genotype_data(geno_file_prefix):
-    """Load PLINK binary format genotype data using pysnptools."""
+def load_genotype_data(geno_file_prefix, count_a1=False):
+    """Load PLINK binary format genotype data using pysnptools with correct allele encoding."""
     bed_file = f"{geno_file_prefix}.bed"
     if not Path(bed_file).exists():
         raise FileNotFoundError(f'Genotype file {bed_file} not found')
     
     print(f'Loading genotypes from {geno_file_prefix}')
+    print(f'Allele counting mode: {"A1 (minor/ALT)" if count_a1 else "A2 (major/REF)"}')
     
-    # Load using pysnptools
-    bed_reader = Bed(geno_file_prefix, count_A1=False)
+    # CRITICAL FIX: Use count_A1=True to match plink2 --r-unphased behavior
+    # This ensures consistent allele encoding and prevents sign flips
+    bed_reader = Bed(geno_file_prefix, count_A1=count_a1)
     snp_data = bed_reader.read()
     
-    # Debug info
+    # Debug: print the structure of the loaded data
     print(f"Debug - snp_data.iid shape: {snp_data.iid.shape}")
     print(f"Debug - snp_data.sid shape: {snp_data.sid.shape}")
     print(f"Debug - snp_data.pos shape: {snp_data.pos.shape}")
     
-    # Extract sample IDs
+    # Extract sample IDs more robustly
     if snp_data.iid.ndim == 2:
+        # Standard format with FID and IID columns
         sample_ids = pd.DataFrame({
             'FID': snp_data.iid[:, 0],
             'IID': snp_data.iid[:, 1]
         })
-    else:
+    elif snp_data.iid.ndim == 1:
+        # Single column format - use same value for both FID and IID
         sample_ids = pd.DataFrame({
             'FID': snp_data.iid,
             'IID': snp_data.iid
         })
+    else:
+        raise ValueError(f"Unexpected iid structure: shape {snp_data.iid.shape}")
     
-    genotypes = snp_data.val.astype(np.float32)  # Use float32 for GPU efficiency
+    # Extract SNP information more robustly
+    n_snps = len(snp_data.sid)
+    
+    # Handle sid (SNP IDs) - can be 1D or 2D
+    if snp_data.sid.ndim == 1:
+        snp_ids = snp_data.sid
+        chrom_info = [''] * n_snps  # No chromosome info available
+    elif snp_data.sid.ndim == 2:
+        if snp_data.sid.shape[1] >= 2:
+            chrom_info = snp_data.sid[:, 0]
+            snp_ids = snp_data.sid[:, 1]
+        else:
+            snp_ids = snp_data.sid[:, 0]
+            chrom_info = [''] * n_snps
+    else:
+        raise ValueError(f"Unexpected sid structure: shape {snp_data.sid.shape}")
+    
+    # Handle pos (positions) - can be 1D or 2D
+    if snp_data.pos.ndim == 1:
+        positions = snp_data.pos
+    elif snp_data.pos.ndim == 2:
+        # Usually pos has columns: [chr, pos] or [chr, cM, pos]
+        if snp_data.pos.shape[1] >= 2:
+            positions = snp_data.pos[:, -1]  # Take the last column as BP position
+        else:
+            positions = snp_data.pos[:, 0]
+    else:
+        positions = np.zeros(n_snps)  # Fallback
+    
+    snp_info = pd.DataFrame({
+        'CHR': chrom_info,
+        'SNP': snp_ids,
+        'BP': positions
+    })
+    
+    genotypes = snp_data.val  # This is samples x SNPs
     n_samples, n_snps = genotypes.shape
     print(f'Loaded {n_samples} samples, {n_snps} SNPs')
     
-    # Check for missing values
+    # Check for and handle missing values
     n_missing = np.isnan(genotypes).sum()
     if n_missing > 0:
         print(f'Found {n_missing} missing genotype calls')
     
-    return sample_ids, genotypes
+    return sample_ids, genotypes, snp_info
 
 def load_pc_data(pc_file, num_pcs):
     """Load PC data from PLINK eigenvec format."""
@@ -146,196 +159,123 @@ def load_pc_data(pc_file, num_pcs):
     pc_df = pd.read_csv(pc_file, sep=r'\s+', header=0,
                        names=['FID', 'IID'] + [f'PC{i}' for i in range(1, num_pcs + 1)])
     
+    # Select only the required number of PCs
     pc_cols = ['FID', 'IID'] + [f'PC{i}' for i in range(1, num_pcs + 1)]
     pc_df = pc_df[pc_cols]
     
     return pc_df
 
-def residualize_genotypes_gpu(sample_ids, genotypes, pc_df, num_pcs, batch_size=1000):
-    """GPU-accelerated genotype residualization using CuPy."""
-    print('Performing GPU-accelerated residualization...')
-    
-    # Merge genotype and PC data
+def residualize_genotypes(sample_ids, genotypes, pc_df, num_pcs):
+    """Residualize genotypes by regressing out PCs."""
+    # Merge genotype and PC data on sample IDs
     merged_df = sample_ids.merge(pc_df, on=['FID', 'IID'], how='left')
     if merged_df.isnull().any().any():
+        missing_samples = merged_df[merged_df.isnull().any(axis=1)][['FID', 'IID']]
+        print(f"Warning: Missing PC data for {len(missing_samples)} samples")
+        print("First few missing samples:")
+        print(missing_samples.head())
         raise ValueError('Missing PC data for some samples')
     
-    # Extract PC matrix and convert to float32 for GPU efficiency
-    pc_matrix = merged_df.iloc[:, 2:2+num_pcs].values.astype(np.float32)
+    # Extract PC matrix
+    pc_matrix = merged_df.iloc[:, 2:2+num_pcs].values
     print(f'Using {pc_matrix.shape[1]} PCs for residualization')
     
     n_samples, n_snps = genotypes.shape
     
-    if GPU_AVAILABLE:
-        # Transfer PC matrix to GPU
-        pc_matrix_gpu = cp.asarray(pc_matrix)
-        print(f"Transferred PC matrix to GPU: {pc_matrix_gpu.shape}")
-        
-        # Create design matrix with intercept on GPU
-        X_gpu = cp.column_stack([cp.ones((n_samples, 1), dtype=cp.float32), pc_matrix_gpu])
-        
-        # Precompute (X'X)^-1 X' for efficiency
-        try:
-            XtX_inv = cp.linalg.inv(X_gpu.T @ X_gpu)
-            XtX_inv_Xt = XtX_inv @ X_gpu.T
-            print("Precomputed (X'X)^-1 X' matrix on GPU")
-        except cp.linalg.LinAlgError:
-            print("Warning: Singular matrix, using pseudoinverse")
-            XtX_inv_Xt = cp.linalg.pinv(X_gpu).T
-        
-        # Process genotypes in batches to manage GPU memory
-        residual_genotypes = np.zeros_like(genotypes)
-        n_processed = 0
-        
-        for batch_start in range(0, n_snps, batch_size):
-            batch_end = min(batch_start + batch_size, n_snps)
-            batch_size_actual = batch_end - batch_start
-            
-            if batch_start % (batch_size * 10) == 0:
-                print(f'  Processing SNPs {batch_start}-{batch_end} / {n_snps}')
-            
-            # Transfer batch to GPU
-            genotype_batch = cp.asarray(genotypes[:, batch_start:batch_end])
-            residual_batch = cp.zeros_like(genotype_batch)
-            
-            for i in range(batch_size_actual):
-                y_gpu = genotype_batch[:, i]
-                
-                # Check for valid data
-                valid_mask = ~cp.isnan(y_gpu)
-                if cp.sum(valid_mask) < 10:
-                    residual_batch[:, i] = y_gpu
-                    continue
-                
-                # Check for invariant SNPs
-                if cp.var(y_gpu[valid_mask]) < 1e-8:
-                    residual_batch[:, i] = y_gpu
-                    continue
-                
-                # Compute residuals: y - X * beta
-                try:
-                    beta = XtX_inv_Xt @ y_gpu
-                    y_pred = X_gpu @ beta
-                    residuals = y_gpu - y_pred
-                    
-                    # Preserve missing values
-                    residuals = cp.where(valid_mask, residuals, y_gpu)
-                    residual_batch[:, i] = residuals
-                    n_processed += 1
-                    
-                except cp.linalg.LinAlgError:
-                    residual_batch[:, i] = y_gpu
-            
-            # Transfer results back to CPU
-            residual_genotypes[:, batch_start:batch_end] = cp.asnumpy(residual_batch)
-            
-            # Free GPU memory for this batch
-            del genotype_batch, residual_batch
-            if GPU_AVAILABLE:
-                mempool.free_all_blocks()
+    # Residualize each SNP
+    print('Residualizing genotypes...')
+    residual_genotypes = np.zeros_like(genotypes)
     
-    else:
-        # CPU fallback
-        print("Using CPU fallback for residualization")
-        X = np.column_stack([np.ones(n_samples), pc_matrix])
+    n_processed = 0
+    n_invariant = 0
+    n_insufficient_data = 0
+    
+    for snp_idx in range(n_snps):
+        if snp_idx % 1000 == 0 and snp_idx > 0:
+            print(f'  Processed {snp_idx}/{n_snps} SNPs ({n_processed} residualized, {n_invariant} invariant, {n_insufficient_data} insufficient data)')
+        
+        y = genotypes[:, snp_idx]
+        
+        # Skip if all genotypes are missing or invariant
+        valid_mask = ~np.isnan(y)
+        if valid_mask.sum() < 10:
+            residual_genotypes[:, snp_idx] = y
+            n_insufficient_data += 1
+            continue
+            
+        if np.var(y[valid_mask]) < 1e-8:
+            residual_genotypes[:, snp_idx] = y
+            n_invariant += 1
+            continue
+        
+        # Get valid observations
+        y_valid = y[valid_mask]
+        X_valid = np.column_stack([np.ones(valid_mask.sum()), pc_matrix[valid_mask, :]])
+        
+        # Solve least squares: beta = (X'X)^-1 X'y
         try:
-            XtX_inv_Xt = np.linalg.inv(X.T @ X) @ X.T
+            XtX_inv = np.linalg.inv(X_valid.T @ X_valid)
+            beta = XtX_inv @ X_valid.T @ y_valid
+            
+            # Compute residuals for all samples (including missing)
+            X_all = np.column_stack([np.ones(n_samples), pc_matrix])
+            y_pred = X_all @ beta
+            residuals = y - y_pred
+            
+            # Keep original missing values as missing
+            residuals[~valid_mask] = np.nan
+            residual_genotypes[:, snp_idx] = residuals
+            n_processed += 1
+            
         except np.linalg.LinAlgError:
-            XtX_inv_Xt = np.linalg.pinv(X).T
-        
-        residual_genotypes = np.zeros_like(genotypes)
-        n_processed = 0
-        
-        for i in range(n_snps):
-            if i % 1000 == 0:
-                print(f'  Processing SNP {i}/{n_snps}')
-            
-            y = genotypes[:, i]
-            valid_mask = ~np.isnan(y)
-            
-            if valid_mask.sum() < 10 or np.var(y[valid_mask]) < 1e-8:
-                residual_genotypes[:, i] = y
-                continue
-            
-            try:
-                beta = XtX_inv_Xt @ y
-                residuals = y - X @ beta
-                residuals[~valid_mask] = np.nan
-                residual_genotypes[:, i] = residuals
-                n_processed += 1
-            except:
-                residual_genotypes[:, i] = y
+            # If matrix is singular, keep original genotypes
+            residual_genotypes[:, snp_idx] = y
+            n_insufficient_data += 1
     
-    print(f'Residualization complete: {n_processed} SNPs processed')
+    print(f'Residualization complete: {n_processed} SNPs residualized, {n_invariant} invariant, {n_insufficient_data} insufficient data')
     return residual_genotypes
 
-def compute_correlation_matrix_gpu(residual_genotypes, batch_size=1000):
-    """GPU-accelerated correlation matrix computation."""
-    print('Computing correlation matrix on GPU...')
+def compute_correlation_matrix(residual_genotypes):
+    """Compute correlation matrix from residualized genotypes using vectorized operations."""
+    print('Computing correlation matrix from residuals...')
     
     n_samples, n_snps = residual_genotypes.shape
     
-    if GPU_AVAILABLE and n_snps <= 5000:  # For manageable matrix sizes
-        print(f'Using GPU for full {n_snps}x{n_snps} correlation matrix')
+    # For large numbers of SNPs, use numpy's corrcoef which is much faster
+    # but we need to handle missing values carefully
+    if n_snps <= 10000:  # For reasonable sized matrices, compute full correlation
+        # Transpose to get SNPs x samples for corrcoef
+        genotypes_t = residual_genotypes.T
         
-        # Transfer data to GPU
-        genotypes_gpu = cp.asarray(residual_genotypes.T, dtype=cp.float32)  # SNPs x samples
+        # Handle missing values by computing correlations pairwise
+        corr_matrix = np.full((n_snps, n_snps), np.nan)
         
-        # Compute correlation matrix on GPU
-        # Use CuPy's efficient correlation implementation
-        corr_matrix_gpu = cp.full((n_snps, n_snps), cp.nan, dtype=cp.float32)
-        
+        print(f'Computing {n_snps} x {n_snps} correlation matrix...')
         for i in range(n_snps):
-            if i % 100 == 0:
-                print(f'  Computing correlations for SNP {i+1}/{n_snps}')
+            if i % 100 == 0 and i > 0:
+                print(f'  Computing correlations for SNP {i}/{n_snps}')
             
             for j in range(i, n_snps):
-                x, y = genotypes_gpu[i], genotypes_gpu[j]
+                x, y = genotypes_t[i], genotypes_t[j]
+                valid = ~(np.isnan(x) | np.isnan(y))
                 
-                # Find valid observations
-                valid = ~(cp.isnan(x) | cp.isnan(y))
-                valid_count = cp.sum(valid)
-                
-                if valid_count > 10:
+                if valid.sum() > 10:
                     if i == j:
-                        corr_matrix_gpu[i, j] = 1.0
+                        corr_matrix[i, j] = 1.0
                     else:
-                        x_valid, y_valid = x[valid], y[valid]
-                        
-                        # Compute correlation manually for better control
-                        x_mean, y_mean = cp.mean(x_valid), cp.mean(y_valid)
-                        x_centered = x_valid - x_mean
-                        y_centered = y_valid - y_mean
-                        
-                        numerator = cp.sum(x_centered * y_centered)
-                        x_ss = cp.sum(x_centered * x_centered)
-                        y_ss = cp.sum(y_centered * y_centered)
-                        
-                        if x_ss > 0 and y_ss > 0:
-                            corr = numerator / cp.sqrt(x_ss * y_ss)
-                            corr = cp.where(cp.isnan(corr), 0.0, corr)
-                            corr_matrix_gpu[i, j] = corr_matrix_gpu[j, i] = corr
-                        else:
-                            corr_matrix_gpu[i, j] = corr_matrix_gpu[j, i] = 0.0
+                        corr = np.corrcoef(x[valid], y[valid])[0, 1]
+                        corr_matrix[i, j] = corr_matrix[j, i] = corr if not np.isnan(corr) else 0.0
                 else:
-                    corr_matrix_gpu[i, j] = corr_matrix_gpu[j, i] = 0.0
-        
-        # Transfer result back to CPU
-        corr_matrix = cp.asnumpy(corr_matrix_gpu)
-        
-        # Clean up GPU memory
-        del genotypes_gpu, corr_matrix_gpu
-        if GPU_AVAILABLE:
-            mempool.free_all_blocks()
-        
+                    corr_matrix[i, j] = corr_matrix[j, i] = 0.0
     else:
-        # CPU fallback for large matrices
-        print(f'Using CPU for large correlation matrix ({n_snps} SNPs)')
+        print(f"Large matrix ({n_snps} SNPs) - this may take some time...")
+        # For very large matrices, we might want to implement chunked processing
+        # or use sparse methods, but for now use the same approach
         corr_matrix = np.full((n_snps, n_snps), np.nan)
         
         for i in range(n_snps):
             if i % 500 == 0:
-                print(f'  Computing correlations for SNP {i+1}/{n_snps}')
+                print(f'  Computing correlations for SNP {i + 1}/{n_snps}')
             
             for j in range(i, n_snps):
                 x, y = residual_genotypes[:, i], residual_genotypes[:, j]
@@ -352,44 +292,41 @@ def compute_correlation_matrix_gpu(residual_genotypes, batch_size=1000):
     
     return corr_matrix
 
-def write_output_files(corr_matrix, out_prefix, args):
-    """Write LD matrix and log files."""
-    ld_file = f"{out_prefix}.ld"
-    print(f'Saving LD matrix to {ld_file}')
-    np.savetxt(ld_file, corr_matrix, fmt='%.6f', delimiter='\t')
+def write_output_files(corr_matrix, out_prefix, args, snp_info=None):
+    """Write LD matrix and variant files in plink2 --r-unphased square format."""
     
-    # Create log file
-    log_file = f"{out_prefix}.log"
-    n_samples, n_snps = corr_matrix.shape[0], corr_matrix.shape[1]
+    # File 1: Correlation matrix in plink2 format (.unphased.vcor1)
+    vcor_file = f"{out_prefix}.unphased.vcor1"
+    print(f'Saving LD correlation matrix to {vcor_file}')
+    np.savetxt(vcor_file, corr_matrix, fmt='%.6f', delimiter='\t')
     
-    with open(log_file, 'w') as f:
-        f.write(f'GPU-accelerated PC-residualized LD matrix for locus {args.locus_name}\n')
-        f.write(f'Population: {args.population}\n')
-        f.write(f'Chromosome: {args.chrom}\n')
-        f.write(f'Region: {args.start}-{args.end}\n')
-        f.write(f'Number of samples: {n_samples}\n')
-        f.write(f'Number of SNPs: {n_snps}\n')
-        f.write(f'Number of PCs regressed out: {args.num_pcs}\n')
-        f.write(f'PC file: {args.pc_file}\n')
-        f.write(f'Genotype file: {args.geno_file}\n')
-        f.write(f'Method: GPU-accelerated with CuPy on ROCm\n')
-        f.write(f'GPU available: {GPU_AVAILABLE}\n')
-        f.write(f'Batch size: {args.gpu_batch_size}\n')
+    # File 2: Variant list (.unphased.vcor1.vars)
+    vars_file = f"{out_prefix}.unphased.vcor1.vars"
+    print(f'Saving variant list to {vars_file}')
+    
+    if snp_info is not None and 'SNP' in snp_info.columns:
+        # Use SNP IDs from snp_info DataFrame
+        variant_ids = snp_info['SNP'].values
+    else:
+        # Fallback: create generic variant names if snp_info not available
+        n_snps = corr_matrix.shape[0]
+        variant_ids = [f"SNP_{i+1}" for i in range(n_snps)]
+        print("Warning: SNP info not available, using generic variant names")
+    
+    # Write variant list (one per line)
+    with open(vars_file, 'w') as f:
+        for variant_id in variant_ids:
+            f.write(f"{variant_id}\n")
         
-        # Matrix statistics
-        if not np.isnan(corr_matrix).all():
-            f.write(f'LD matrix mean: {np.nanmean(corr_matrix):.6f}\n')
-            f.write(f'LD matrix std: {np.nanstd(corr_matrix):.6f}\n')
-            off_diag_mask = ~np.eye(n_snps, dtype=bool)
-            f.write(f'Max LD (off-diagonal): {np.nanmax(corr_matrix[off_diag_mask]):.6f}\n')
-    
-    print(f'Successfully created GPU-accelerated LD matrix: {ld_file}')
+    print('Successfully created plink2-format LD files:')
+    print(f'  - Correlation matrix: {vcor_file}')
+    print(f'  - Variant list: {vars_file}')
 
 def cleanup_temp_files(geno_file_prefix):
     """Remove temporary genotype files."""
     temp_files = [
         f"{geno_file_prefix}.bed",
-        f"{geno_file_prefix}.bim", 
+        f"{geno_file_prefix}.bim",
         f"{geno_file_prefix}.fam",
         f"{geno_file_prefix}.log",
         f"{geno_file_prefix}.nosex"
@@ -398,7 +335,10 @@ def cleanup_temp_files(geno_file_prefix):
     for temp_file in temp_files:
         try:
             Path(temp_file).unlink(missing_ok=True)
-            print(f'Removed temporary file: {temp_file}')
+            if Path(temp_file).exists():
+                print(f'Warning: Could not remove {temp_file}')
+            else:
+                print(f'Removed temporary file: {temp_file}')
         except Exception as e:
             print(f'Warning: Could not remove {temp_file}: {e}')
 
@@ -406,39 +346,30 @@ def main():
     args = parse_args()
     
     try:
-        print("=" * 60)
-        print("GPU-ACCELERATED LD MATRIX COMPUTATION")
-        print("=" * 60)
+        print("=" * 70)
+        print("ALLELE-ENCODING-FIXED LD MATRIX COMPUTATION")
+        print("=" * 70)
+        print(f"Using {'A1' if args.count_a1 else 'A2'} allele counting to match plink2")
+        print()
         
-        if GPU_AVAILABLE:
-            print("GPU acceleration enabled with CuPy")
-        else:
-            print("Running in CPU mode")
-        
-        # Load data
-        sample_ids, genotypes = load_genotype_data(args.geno_file)
+        # Load data using pysnptools with correct allele encoding
+        sample_ids, genotypes, snp_info = load_genotype_data(args.geno_file, args.count_a1)
         pc_df = load_pc_data(args.pc_file, args.num_pcs)
         
-        # GPU-accelerated residualization
-        residual_genotypes = residualize_genotypes_gpu(
-            sample_ids, genotypes, pc_df, args.num_pcs, args.gpu_batch_size
-        )
+        # Residualize genotypes
+        residual_genotypes = residualize_genotypes(sample_ids, genotypes, pc_df, args.num_pcs)
         
-        # GPU-accelerated correlation computation
-        corr_matrix = compute_correlation_matrix_gpu(residual_genotypes, args.gpu_batch_size)
+        # Compute correlation matrix
+        corr_matrix = compute_correlation_matrix(residual_genotypes)
         
-        # Write output files
-        write_output_files(corr_matrix, args.out_prefix, args)
+        # Write output files in plink2 format
+        write_output_files(corr_matrix, args.out_prefix, args, snp_info)
         
         # Cleanup if requested
         if args.cleanup_temp:
             cleanup_temp_files(args.geno_file)
         
-        print("GPU-accelerated analysis completed successfully!")
-        
-        # Print memory usage if GPU was used
-        if GPU_AVAILABLE:
-            print(f"Peak GPU memory usage: {mempool.total_bytes() / 1e9:.2f} GB")
+        print("Analysis completed successfully!")
         
     except Exception as e:
         print(f"Error during analysis: {e}", file=sys.stderr)
