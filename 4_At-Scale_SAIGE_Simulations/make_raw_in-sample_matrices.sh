@@ -40,4 +40,9 @@ python $command_script --cmd_out $cmd_out_file --matrix_dir $matrix_dir --plink_
 mapfile -t cmds < ${cmd_out_file}
 srun -N ${num_nodes} -n ${num_nodes} -c 56 flux start \
     "flux resource list; mapfile -t cmds < ${cmd_out_file}; for ((i=0; i<${#cmds[@]}; i++)); do flux submit -N1 -n1 -c4 --output=flux_output/make_raw_matrix_\$i.txt \${cmds[\$i]}; done; flux queue drain;" 
+
+#Clean-up log and nosex files
+rm $matrix_dir/*/*.nosex
+rm $matrix_dir/*/*.log
+
 echo 'SUCCESS: All raw in-sample matrices created.'
