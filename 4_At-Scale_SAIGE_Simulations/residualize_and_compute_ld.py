@@ -506,7 +506,7 @@ def main():
         )
         
         # PyTorch-accelerated correlation computation
-        corr_matrix = compute_correlation_matrix_pytorch(residual_genotypes, args.gpu_batch_size)
+        corr_matrix = compute_correlation_matrix_pytorch(genotypes, args.gpu_batch_size)
         
         # Write output files
         write_output_files(corr_matrix, args.out_prefix, args, snp_info)
