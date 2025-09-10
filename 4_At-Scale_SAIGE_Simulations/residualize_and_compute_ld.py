@@ -92,7 +92,7 @@ def parse_args():
                        help="Start position of the region.")
     parser.add_argument("--end", type=int, required=True,
                        help="End position of the region.")
-    parser.add_argument("--gpu_batch_size", type=int, default=2000,
+    parser.add_argument("--gpu_batch_size", type=int, default=400000,
                        help="Number of SNPs to process per GPU batch (default: 2000).")
     parser.add_argument("--cleanup_temp", action="store_true",
                        help="Remove temporary genotype files after processing.")
