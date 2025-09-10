@@ -35,7 +35,7 @@ module load miniforge3
 source activate /lustre/orion/bif154/proj-shared/mconery/tools/environments/simulate_pheno
 
 #Make command file
-python $command_script --cmd_out $cmd_out_file --matrix_dir $matrix_dir --plink_dirs $plink_dirs --populations $populations --variant_lists_file $var_file
+python $command_script --cmd_out $cmd_out_file --matrix_dir $matrix_dir --plink_dirs $plink_dirs --populations $populations --variant_lists_file $var_file --variant-file-suffix ".variant_set"
 #Us flux to run matrix creation
 mapfile -t cmds < ${cmd_out_file}
 srun -N ${num_nodes} -n ${num_nodes} -c 56 flux start \
