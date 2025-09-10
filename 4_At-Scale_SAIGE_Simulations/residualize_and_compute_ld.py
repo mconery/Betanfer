@@ -35,7 +35,6 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 import sys
-import os
 
 try:
     from pysnptools.snpreader import Bed
@@ -462,7 +461,7 @@ def write_output_files(corr_matrix, out_prefix, args, snp_info=None):
         for variant_id in variant_ids:
             f.write(f"{variant_id}\n")
     
-    print(f'Successfully created plink2-format LD files:')
+    print('Successfully created plink2-format LD files:')
     print(f'  - Correlation matrix: {vcor_file}')
     print(f'  - Variant list: {vars_file}')
 
@@ -506,7 +505,7 @@ def main():
         )
         
         # PyTorch-accelerated correlation computation
-        corr_matrix = compute_correlation_matrix_pytorch(genotypes, args.gpu_batch_size)
+        corr_matrix = compute_correlation_matrix_pytorch(residual_genotypes, args.gpu_batch_size)
         
         # Write output files
         write_output_files(corr_matrix, args.out_prefix, args, snp_info)
