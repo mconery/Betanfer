@@ -166,7 +166,9 @@ def prepare_script_tasks(variant_files, plink_dirs, populations, naming_conventi
             for plink_dir, pop, naming_conv in zip(plink_dirs, populations, naming_conventions):
                 plink_root = find_plink_root(plink_dir, naming_conv, chrom)
                 out_prefix = (matrix_root / pop / f"{locus_name}.raw_in-sample")
-
+                #Check if output files exist and skip if it does
+                if os.path.exists(f"{out_prefix}.unphased.vcor1") and os.path.exists(f"{out_prefix}.unphased.vcor1.vars"):
+                    continue
                 cmd = f"{plink_path} --bfile {plink_root} --chr {chrom} --from-bp {start} --to-bp {end} --keep-allele-order --r square --make-just-bim --out {out_prefix}; "
                 cmd = cmd + f'mv {out_prefix}.ld {out_prefix}.unphased.vcor1; awk ' + "\'{print $1}\' " + f'{out_prefix}.bim > {out_prefix}.unphased.vcor1.vars; rm {out_prefix}.bim' 
 
