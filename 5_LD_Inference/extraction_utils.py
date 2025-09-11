@@ -15,8 +15,6 @@ import re
 from pathlib import Path
 import shutil
 import torch
-import glob
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 # Set up logging
@@ -270,6 +268,24 @@ def index_gwama_file(args):
         force=True
     )
 
+def index_gwama_file_with_variant_ids(args):
+    """
+    Parallel wrapper for bgzip_and_tbi_sumstats_with_variant_ids.
+    Expects: (input_path, output_dir, variant_col, chrom_col_label, pos_col_label, variant_id_format)
+    """
+    input_path, output_dir, variant_col, chrom_col_label, pos_col_label, variant_id_format = args
+    return bgzip_and_tbi_sumstats_with_variant_ids(
+        input_path=input_path,
+        output_dir=output_dir,
+        variant_col=variant_col,
+        chrom_col_label=chrom_col_label,
+        pos_col_label=pos_col_label,
+        variant_id_format=variant_id_format,
+        zero_based=False,
+        force=True
+    )
+
+
 def bgzip_and_tbi_sumstats_with_bim_merge(
     input_path: str,
     output_dir: str,
@@ -421,6 +437,110 @@ def bgzip_and_tbi_sumstats_with_bim_merge(
             os.remove(tbi_path)
         raise RuntimeError(f"Failed to create tabix index: {e}")
     
+    return str(bgzf_path), tbi_path
+
+def bgzip_and_tbi_sumstats_with_variant_ids(
+    input_path: str,
+    output_dir: str,
+    variant_col: str,
+    chrom_col_label: str = "CHR",
+    pos_col_label: str = "POS",
+    variant_id_format: str = "CHR:POS:REF:ALT",
+    zero_based: bool = False,
+    force: bool = True,
+) -> tuple[str, str]:
+    """
+    For GWAMA (or similar) summary stats: extract chromosome and position
+    from variant IDs, then bgzip and tabix-index. Does NOT require a .bim file.
+
+    Args:
+      input_path: GWAS/summary file path (tsv or space-delimited)
+      output_dir: Where to store output files
+      variant_col: Column name in input file with variant IDs
+      chrom_col_label: Output chromosome column name
+      pos_col_label: Output position column name
+      variant_id_format: Format string showing fields in variant ID (e.g., "CHR:POS:REF:ALT")
+      zero_based: Set True if positions are 0-based
+      force: If True, overwrite outputs
+
+    Returns:
+      (bgzf_path, tbi_path): output file paths
+    """
+    input_path = str(input_path)
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    # Identify the field indices
+    conv_parts = re.split(r'\W+', variant_id_format)
+    field_to_index = {field: idx for idx, field in enumerate(conv_parts)}
+    if "CHR" not in field_to_index or "POS" not in field_to_index:
+        raise ValueError("variant_id_format must contain 'CHR' and 'POS' fields.")
+    chr_index = field_to_index["CHR"]
+    pos_index = field_to_index["POS"]
+    # read file, infer delimiter
+    with open(input_path) as f:
+        first_line = f.readline()
+    delim = "\t" if ("\t" in first_line) else r"\s+"
+    df = pd.read_csv(input_path, sep=delim, dtype={variant_col: str})
+    # Parse each variant ID
+    def parse_variant_id(var_id):
+        if pd.isna(var_id) or var_id == '':
+            return pd.NA, pd.NA
+        try:
+            parts = re.split(r'\W+', str(var_id))
+            chr_val = parts[chr_index]
+            pos_val = int(parts[pos_index])
+            return chr_val, pos_val
+        except (IndexError, ValueError):
+            return pd.NA, pd.NA
+    parsed = df[variant_col].apply(parse_variant_id)
+    df[chrom_col_label] = [c[0] for c in parsed]
+    df[pos_col_label] = [c[1] for c in parsed]
+    df = df.dropna(subset=[chrom_col_label, pos_col_label])
+    df[chrom_col_label] = df[chrom_col_label].astype(str)
+    df[pos_col_label] = df[pos_col_label].astype(int)
+    # Sort by chromosome and position
+    def sort_key(chrom):
+        try:
+            return (0, int(chrom))
+        except ValueError:
+            return (1, chrom)
+    df['_sort_key'] = df[chrom_col_label].apply(sort_key)
+    df = df.sort_values(['_sort_key', pos_col_label]).drop('_sort_key', axis=1).reset_index(drop=True)
+    # Output header: add prepended "#" for tabix compatibility
+    in_name = Path(input_path).name
+    out_name = in_name + ".with_positions" if ".with_positions" not in in_name else in_name
+    merged_txt = output_dir / out_name
+    with open(merged_txt, 'w') as f:
+        f.write('#' + '\t'.join(df.columns) + '\n')
+        df.to_csv(f, sep='\t', index=False, header=False)
+    header_cols = list(df.columns)
+    del df
+    bgzf_path = output_dir / (out_name + ".gz")
+    tbi_path = str(bgzf_path) + ".tbi"
+    if bgzf_path.exists():
+        if force:
+            bgzf_path.unlink()
+        else:
+            raise FileExistsError(f"Output file already exists: {bgzf_path}")
+    if force and os.path.exists(tbi_path):
+        os.remove(tbi_path)
+    with open(merged_txt, "rb") as fin, pysam.BGZFile(bgzf_path, "w") as fout:
+        shutil.copyfileobj(fin, fout, length=1024*1024)
+    if os.path.exists(merged_txt):
+        os.remove(merged_txt)
+    chrom_col = header_cols.index(chrom_col_label)
+    pos_col = header_cols.index(pos_col_label)
+    pysam.tabix_index(
+        str(bgzf_path),
+        seq_col=chrom_col,
+        start_col=pos_col,
+        end_col=pos_col,
+        line_skip=0,
+        zerobased=zero_based,
+        meta_char='#'
+    )
+    if not os.path.exists(tbi_path):
+        raise RuntimeError(f"Tabix index file was not created: {tbi_path}")
     return str(bgzf_path), tbi_path
 
 def save_beta_matrix(beta_matrix: pd.DataFrame, output_path: str, 
