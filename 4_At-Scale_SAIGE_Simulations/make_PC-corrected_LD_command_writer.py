@@ -33,6 +33,7 @@ PC files should be in standard PLINK eigenvec format with FID, IID, PC1, PC2, ..
 import argparse
 from pathlib import Path
 import re
+import os
 
 VAR_RE = re.compile(r"^(\w+):(\d+):")
 
@@ -152,6 +153,9 @@ def main():
                 plink_root = find_plink_root(plink_dir, naming_conv, chrom)
                 out_prefix = (matrix_root / pop / f"{locus_name}.pc-corrected")
                 temp_prefix = matrix_root / pop / "temp" / locus_name
+                
+                if os.path.exists(f"{out_prefix}.unphased.vcor1") and os.path.exists(f"{out_prefix}.unphased.vcor1.vars"):
+                    continue
                 
                 # Extraction command - NOW USING --make-bed FOR BINARY FORMAT
                 extract_cmd = f"{plink2} --bfile {plink_root} --chr {chrom} --from-bp {start} --to-bp {end} --make-bed --out {temp_prefix}_extracted"
