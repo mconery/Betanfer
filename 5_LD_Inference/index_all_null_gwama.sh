@@ -1,10 +1,10 @@
 #!/bin/bash
-#SBATCH -A=bif154
-#SBATCH -J=index_gwama_mpi
+#SBATCH -A bif154
+#SBATCH -J index_gwama_mpi
 #SBATCH -o index_all_null_gwama.log
-#SBATCH -N=8
-#SBATCH -p=batch
-#SBATCH -T=1:00:00                    
+#SBATCH -N 8
+#SBATCH -p batch
+#SBATCH -T 1:00:00                    
 
 ################################################################################################################
 ###################################### Load Modules and Environment ############################################
