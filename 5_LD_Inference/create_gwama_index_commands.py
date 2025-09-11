@@ -132,12 +132,12 @@ def create_single_command(file_path, scratch_dir, variant_col, variant_id_format
     
     # Build the command for this file
     cmd = f"python {indexer_script}"
-    cmd += f" --input_file '{file_path}'"
-    cmd += f" --scratch_dir '{scratch_dir}'"
-    cmd += f" --variant_col '{variant_col}'"
-    cmd += f" --variant_id_format '{variant_id_format}'"
-    cmd += f" --chrom_col '{chrom_col}'"
-    cmd += f" --pos_col '{pos_col}'"
+    cmd += f" --input_file {file_path}"
+    cmd += f" --scratch_dir {scratch_dir}"
+    cmd += f" --variant_col {variant_col}"
+    cmd += f" --variant_id_format {variant_id_format}"
+    cmd += f" --chrom_col {chrom_col}"
+    cmd += f" --pos_col {pos_col}"
     
     return (file_path, cmd, None)
 
