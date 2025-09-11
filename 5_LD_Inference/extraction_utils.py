@@ -42,7 +42,7 @@ def load_variant_list(file_path: str, variant_col: str = 'variant_id', sep: str 
             raise ValueError(f"ERROR: Column '{variant_col}' not found in {file_path}")
         
         variant_set = set(df[variant_col].astype(str))
-        logger.info(f"ERROR: Loaded {len(variant_set)} variants from {file_path}")
+        logger.info(f"NOTE: Loaded {len(variant_set)} variants from {file_path}")
         return variant_set
     except Exception as e:
         logger.error(f"ERROR: Error loading variant list from {file_path}: {e}")
