@@ -507,7 +507,7 @@ def bgzip_and_tbi_sumstats_with_variant_ids(
     df = df.sort_values(['_sort_key', pos_col_label]).drop('_sort_key', axis=1).reset_index(drop=True)
     # Output header: add prepended "#" for tabix compatibility
     in_name = Path(input_path).name
-    out_name = in_name + ".with_positions" if ".with_positions" not in in_name else in_name
+    out_name = in_name
     merged_txt = output_dir / out_name
     with open(merged_txt, 'w') as f:
         f.write('#' + '\t'.join(df.columns) + '\n')
