@@ -2,8 +2,8 @@
 #SBATCH -A bif154
 #SBATCH -J index_gwama_mpi
 #SBATCH -o index_all_null_gwama.log
-#SBATCH -N 8
-#SBATCH -p batch
+#SBATCH -N 40
+#SBATCH -p debug
 #SBATCH -t 1:00:00                    
 
 ################################################################################################################
@@ -20,12 +20,26 @@ source activate /lustre/orion/bif154/proj-shared/mconery/tools/environments/infe
 ########################## Define directories and other key file/script locations ##############################
 ################################################################################################################
 
-mpi_index_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/5_LD_Inference/index_gwama_files_mpi.py"
-gwama_pattern="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/meta_analysis_results/*/Pheno*.meta.out"
-gwama_regex="^Pheno\\d+\\.(binary|continuous)\\.chr\\d+\\.meta\\.out$"
+#Set script locations
+command_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/5_LD_Inference/create_gwama_index_commands.py"
+indexer_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/5_LD_Inference/index_single_gwama_file.py"
 
-srun -N $SLURM_NNODES -n $SLURM_NNODES -c 56 "python $mpi_index_script \
-  --scratch_dir /lustre/orion/bif154/scratch/mconery/indexed_gwama_sumstats \
-  --pattern $gwama_pattern \
-  --filename_regex $gwama_regex \
-  --local_workers 56"
+#Set other file location
+scratch_dir="/lustre/orion/bif154/scratch/mconery/indexed_gwama_sumstats_testing"
+meta_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/meta_analysis_results"
+commands_file=$scratch_dir/gwama_index_commands.txt
+
+#Set number of nodes
+num_nodes=${SLURM_NNODES}
+
+################################################################################################################
+################################## Prep Commands and launch indexing ###########################################
+################################################################################################################
+
+#Prep commands file
+python $command_script --scratch_dir $scratch_dir --pattern $meta_dir/'*/Pheno*.meta.out' --commands_file $commands_file --filename_regex "^Pheno\\d+\\.(binary|continuous)\\.chr\\d+\\.meta\\.out$" --indexer_script $indexer_script
+
+#Execute commands
+mapfile -t cmds < $commands_file
+srun -N ${num_nodes} -n ${num_nodes} -c 56 flux start "flux resource list; mapfile -t cmds < ${commands_file}; for ((i=0; i<${#cmds[@]}; i++)); do flux submit -N1 -n1 -c2 --output=flux_output/index_gwama_\$i.txt \${cmds[\$i]}; done; flux queue drain;" 
+echo 'NOTE: All files indexed.'
