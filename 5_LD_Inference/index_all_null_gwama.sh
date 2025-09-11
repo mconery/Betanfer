@@ -3,7 +3,7 @@
 #SBATCH -J index_gwama_mpi
 #SBATCH -o index_all_null_gwama.log
 #SBATCH -N 40
-#SBATCH -p debug
+#SBATCH -q debug
 #SBATCH -t 1:00:00                    
 
 ################################################################################################################
