@@ -77,7 +77,7 @@ echo "Number of command sets: $(grep -c "python" $ld_cmd_out_file)"
 
 #Use flux to extract genotypes
 mapfile -t cmds < $extract_cmd_out_file
-srun -N ${num_nodes} -n ${num_nodes} -c 56 flux start "flux resource list; mapfile -t cmds < ${extract_cmd_out_file}; for ((i=0; i<${#cmds[@]}; i++)); do flux submit -N1 -n1 -c56 --output=flux_output/make_raw_matrix_\$i.txt \${cmds[\$i]}; done; flux queue drain;" 
+srun -N ${num_nodes} -n ${num_nodes} -c 56 flux start "flux resource list; mapfile -t cmds < ${extract_cmd_out_file}; for ((i=0; i<${#cmds[@]}; i++)); do flux submit -N1 -n1 -c56 --output=flux_output/extract_pc_geno_\$i.txt \${cmds[\$i]}; done; flux queue drain;" 
 echo 'NOTE: All genotypes extracted.'
 
 
