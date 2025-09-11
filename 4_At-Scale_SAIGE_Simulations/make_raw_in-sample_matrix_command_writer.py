@@ -167,7 +167,8 @@ def prepare_script_tasks(variant_files, plink_dirs, populations, naming_conventi
                 plink_root = find_plink_root(plink_dir, naming_conv, chrom)
                 out_prefix = (matrix_root / pop / f"{locus_name}.raw_in-sample")
 
-                cmd = f"{plink_path} --bfile {plink_root} --chr {chrom} --from-bp {start} --to-bp {end} --keep-allele-order --r square --make-just-bim --out {out_prefix}"
+                cmd = f"{plink_path} --bfile {plink_root} --chr {chrom} --from-bp {start} --to-bp {end} --keep-allele-order --r square --make-just-bim --out {out_prefix}; "
+                cmd = cmd + f'mv {out_prefix}.ld {out_prefix}.unphased.vcor1; awk ' + '\'\{print $1\}\' ' + f'{out_prefix}.bim > {out_prefix}.unphased.vcor1.vars; rm {out_prefix}.bim' 
 
                 # Add task to list
                 task = (script_counter, locus_name, pop, cmd, str(script_dir))
