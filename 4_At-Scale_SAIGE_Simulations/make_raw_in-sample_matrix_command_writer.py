@@ -116,7 +116,7 @@ def main():
             for plink_dir, pop, naming_conv in zip(plink_dirs, populations, naming_conventions):
                 plink_root = find_plink_root(plink_dir, naming_conv, chrom)
                 out_prefix = (matrix_root / pop / f"{locus_name}.raw_in-sample")
-                cmd = dedent(f"""\'{plink} --bfile {plink_root} --chr {chrom} --from-bp {start} --to-bp {end} --keep-allele-order --r square --make-just-bim --out {out_prefix}\'""")
+                cmd = dedent(f"""{plink} --bfile {plink_root} --chr {chrom} --from-bp {start} --to-bp {end} --keep-allele-order --r square --make-just-bim --out {out_prefix}""")
                 commands.append(cmd)
     # Write all commands to file
     with open(args.cmd_out, "w") as out_fh:
