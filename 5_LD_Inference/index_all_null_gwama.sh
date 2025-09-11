@@ -24,8 +24,8 @@ mpi_index_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_F
 gwama_pattern="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/meta_analysis_results/*/Pheno*.meta.out"
 gwama_regex="^Pheno\\d+\\.(binary|continuous)\\.chr\\d+\\.meta\\.out$"
 
-srun -N $SLURM_NNODES -n $SLURM_NNODES -c 60 "python $mpi_index_script \
+srun -N $SLURM_NNODES -n $SLURM_NNODES -c 56 "python $mpi_index_script \
   --scratch_dir /lustre/orion/bif154/scratch/mconery/indexed_gwama_sumstats \
   --pattern $gwama_pattern \
   --filename_regex $gwama_regex \
-  --local_workers 60"
+  --local_workers 56"
