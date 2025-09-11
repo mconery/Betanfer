@@ -285,7 +285,6 @@ def index_gwama_file_with_variant_ids(args):
         force=True
     )
 
-
 def bgzip_and_tbi_sumstats_with_bim_merge(
     input_path: str,
     output_dir: str,
