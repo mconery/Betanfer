@@ -101,13 +101,7 @@ def check_output_exists(file_path, scratch_dir):
         bool: True if both output files exist, False otherwise
     """
     input_basename = os.path.basename(file_path)
-    
-    # Expected output filenames based on the indexing function behavior
-    # The function adds ".with_positions" if not already present, then ".gz"
-    if ".with_positions" not in input_basename:
-        output_basename = input_basename + ".with_positions.gz"
-    else:
-        output_basename = input_basename + ".gz"
+    output_basename = input_basename + ".gz"
     
     bgzf_path = os.path.join(scratch_dir, output_basename)
     tbi_path = bgzf_path + ".tbi"
