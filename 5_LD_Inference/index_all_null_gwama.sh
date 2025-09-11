@@ -2,8 +2,8 @@
 #SBATCH --job-name=index_gwama_mpi
 #SBATCH --nodes=8                    
 #SBATCH --ntasks-per-node=1          
-#SBATCH --cpus-per-task=64           
-#SBATCH --time=02:00:00
+#SBATCH --cpus-per-task=60           
+#SBATCH --time=2:00:00
 #SBATCH --account=bif154             
 #SBATCH --partition=batch
 #SBATCH -o index_all_null_gwama.log
@@ -30,4 +30,4 @@ srun python $mpi_index_script \
   --scratch_dir /lustre/orion/bif154/scratch/mconery/indexed_gwama_sumstats \
   --pattern $gwama_pattern \
   --filename_regex $gwama_regex \
-  --local_workers 60  # Leave a few cores for system overhead
+  --local_workers 56  # Leave a few cores for system overhead
