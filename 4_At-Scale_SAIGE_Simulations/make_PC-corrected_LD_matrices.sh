@@ -3,7 +3,7 @@
 #SBATCH -A bif154
 #SBATCH -J make_PC_LD_matrix
 #SBATCH -o make_PC-corrected_LD_matrices.log
-#SBATCH -N 10
+#SBATCH -N 20
 #SBATCH -p batch
 #SBATCH -t 1:00:00
 
