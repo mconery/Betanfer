@@ -1,12 +1,10 @@
 #!/bin/bash
-#SBATCH --job-name=index_gwama_mpi
-#SBATCH --nodes=8                    
-#SBATCH --ntasks-per-node=1          
-#SBATCH --cpus-per-task=60           
-#SBATCH --time=2:00:00
-#SBATCH --account=bif154             
-#SBATCH --partition=batch
+#SBATCH -A=bif154
+#SBATCH -J=index_gwama_mpi
 #SBATCH -o index_all_null_gwama.log
+#SBATCH -N=8
+#SBATCH -p=batch
+#SBATCH -T=1:00:00                    
 
 ################################################################################################################
 ###################################### Load Modules and Environment ############################################
@@ -26,8 +24,8 @@ mpi_index_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_F
 gwama_pattern="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/meta_analysis_results/*/Pheno*.meta.out"
 gwama_regex="^Pheno\\d+\\.(binary|continuous)\\.chr\\d+\\.meta\\.out$"
 
-srun python $mpi_index_script \
+srun -N $SLURM_NNODES -n $SLURM_NNODES -c 60 python $mpi_index_script \
   --scratch_dir /lustre/orion/bif154/scratch/mconery/indexed_gwama_sumstats \
   --pattern $gwama_pattern \
   --filename_regex $gwama_regex \
-  --local_workers 56  # Leave a few cores for system overhead
+  --local_workers 60  # Leave a few cores for system overhead
