@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 
 """
-make_raw_matrix_command_writer.py
+make_raw_matrix_command_writer_parallel.py
+
+Parallelized version that creates individual shell scripts for LD matrix computation.
+Uses multiprocessing to speed up file writing operations across all available CPUs.
 
 For each text file whose first column contains variants in the form
 chrom:pos:ref:alt
@@ -19,7 +22,8 @@ python make_ld_commands.py \
 --plink_roots /path/CEU,/path/YRI \
 --populations CEU,YRI \
 --variant_lists_file list_of_variant_files.txt \
-[--padding 250000]
+[--padding 250000] \
+[--n_processes 0]  # 0 = use all available CPUs
 
 The file *list_of_variant_files.txt* should contain one path per line.
 """
@@ -28,12 +32,15 @@ import argparse
 from pathlib import Path
 import re
 from textwrap import dedent
+import multiprocessing as mp
+from functools import partial
+import os
 
 VAR_RE = re.compile(r"^(\w+):(\d+):")
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Generate individual shell scripts to compute LD matrices per locus."
+        description="Generate individual shell scripts to compute LD matrices per locus (parallelized)."
     )
 
     parser.add_argument("--script_dir", required=True,
@@ -54,6 +61,8 @@ def parse_args():
                         help="Padding (bp) added upstream & downstream of each locus (default 250 kb).")
     parser.add_argument("--variant-file-suffix", type=str, default="",
                         help="Optional suffix to remove from variant file name when making matrix file (default [empty string]).")
+    parser.add_argument("--n_processes", type=int, default=0,
+                        help="Number of processes to use (0 = use all available CPUs).")
 
     return parser.parse_args()
 
@@ -94,18 +103,115 @@ def get_window(variant_file, padding):
 
     return chrom, max(min_pos - padding, 0), max_pos + padding
 
+def write_script_batch(script_batch_info):
+    """
+    Write a batch of scripts. This function will be called by each worker process.
+
+    script_batch_info is a tuple containing:
+    (script_tasks, plink_path, matrix_root)
+
+    where script_tasks is a list of tuples:
+    (script_counter, locus_name, pop, cmd, script_dir)
+    """
+    script_tasks, plink_path, matrix_root = script_batch_info
+    written_scripts = []
+
+    for script_counter, locus_name, pop, cmd, script_dir in script_tasks:
+        try:
+            # Create individual shell script
+            script_name = f"make_matrix_{script_counter:06d}_{locus_name}_{pop}.sh"
+            script_path = Path(script_dir) / script_name
+
+            script_content = dedent(f"""#!/bin/bash
+            set -e
+
+            # Generated script for locus {locus_name}, population {pop}
+            # Command: {cmd}
+
+            {cmd}
+            """)
+
+            with open(script_path, 'w') as script_fh:
+                script_fh.write(script_content)
+
+            # Make script executable
+            script_path.chmod(0o755)
+
+            written_scripts.append(str(script_path))
+
+        except Exception as e:
+            print(f"Error writing script {script_counter}: {e}")
+            continue
+
+    return written_scripts
+
+def prepare_script_tasks(variant_files, plink_dirs, populations, naming_conventions, 
+                        matrix_root, script_dir, plink_path, padding, variant_file_suffix):
+    """
+    Prepare all script writing tasks without actually writing them.
+    Returns a list of tasks that can be distributed to worker processes.
+    """
+    all_tasks = []
+    script_counter = 0
+
+    for variant_file in variant_files:
+        if not variant_file.strip():
+            continue
+
+        try:
+            variant_path = Path(variant_file.strip())
+            chrom, start, end = get_window(variant_path, padding)
+            locus_name = variant_path.stem.rstrip(variant_file_suffix)
+
+            for plink_dir, pop, naming_conv in zip(plink_dirs, populations, naming_conventions):
+                plink_root = find_plink_root(plink_dir, naming_conv, chrom)
+                out_prefix = (matrix_root / pop / f"{locus_name}.raw_in-sample")
+
+                cmd = f"{plink_path} --bfile {plink_root} --chr {chrom} --from-bp {start} --to-bp {end} --keep-allele-order --r square --make-just-bim --out {out_prefix}"
+
+                # Add task to list
+                task = (script_counter, locus_name, pop, cmd, str(script_dir))
+                all_tasks.append(task)
+                script_counter += 1
+
+        except Exception as e:
+            print(f"Error processing variant file {variant_file}: {e}")
+            continue
+
+    return all_tasks
+
+def chunk_tasks(tasks, n_chunks):
+    """Split tasks into roughly equal chunks for parallel processing."""
+    chunk_size = max(1, len(tasks) // n_chunks)
+    chunks = []
+
+    for i in range(0, len(tasks), chunk_size):
+        chunk = tasks[i:i + chunk_size]
+        if chunk:  # Only add non-empty chunks
+            chunks.append(chunk)
+
+    return chunks
+
 def main():
-    # Set plink directories
+    # Set plink path
     plink = "/lustre/orion/bif154/proj-shared/mconery/tools/bin/plink"
 
     # Parse arguments
     args = parse_args()
 
+    # Determine number of processes
+    if args.n_processes <= 0:
+        n_processes = mp.cpu_count()
+    else:
+        n_processes = min(args.n_processes, mp.cpu_count())
+
+    print(f"Using {n_processes} processes for parallel script generation")
+
     plink_dirs = [p.strip() for p in args.plink_dirs.split(",") if p.strip()]
     populations = [p.strip() for p in args.populations.split(",") if p.strip()]
 
     if len(plink_dirs) != len(populations):
-        raise ValueError("plink_roots and populations must have the same length")
+        raise ValueError("plink_dirs and populations must have the same length")
 
     # Parse naming conventions
     temp = [p.strip() for p in args.naming_conventions.split(",") if p.strip()]
@@ -124,54 +230,60 @@ def main():
     for pop in populations:
         (matrix_root / pop).mkdir(parents=True, exist_ok=True)
 
-    script_paths = []
-    script_counter = 0
-
+    # Read all variant files
+    print("Reading variant files list...")
     with open(args.variant_lists_file) as list_fh:
-        for variant_file in map(str.strip, list_fh):
-            if not variant_file:
-                continue
+        variant_files = [line.strip() for line in list_fh if line.strip()]
 
-            variant_path = Path(variant_file)
-            chrom, start, end = get_window(variant_path, args.padding)
-            locus_name = variant_path.stem.rstrip(args.variant_file_suffix)  # base filename without extension
+    print(f"Processing {len(variant_files)} variant files...")
 
-            for plink_dir, pop, naming_conv in zip(plink_dirs, populations, naming_conventions):
-                plink_root = find_plink_root(plink_dir, naming_conv, chrom)
-                out_prefix = (matrix_root / pop / f"{locus_name}.raw_in-sample")
+    # Prepare all script writing tasks
+    print("Preparing script tasks...")
+    all_tasks = prepare_script_tasks(
+        variant_files, plink_dirs, populations, naming_conventions,
+        matrix_root, script_dir, plink, args.padding, args.variant_file_suffix
+    )
 
-                cmd = f"{plink} --bfile {plink_root} --chr {chrom} --from-bp {start} --to-bp {end} --keep-allele-order --r square --make-just-bim --out {out_prefix}"
+    print(f"Prepared {len(all_tasks)} script writing tasks")
 
-                # Create individual shell script
-                script_name = f"make_matrix_{script_counter:06d}_{locus_name}_{pop}.sh"
-                script_path = script_dir / script_name
+    if not all_tasks:
+        print("No tasks to process!")
+        return
 
-                script_content = dedent(f"""#!/bin/bash
-                set -e
+    # Split tasks into chunks for parallel processing
+    task_chunks = chunk_tasks(all_tasks, n_processes)
+    print(f"Split tasks into {len(task_chunks)} chunks")
 
-                # Generated script for locus {locus_name}, population {pop}
-                # Command: {cmd}
+    # Create batch info for each chunk (include shared data)
+    batch_infos = [(chunk, plink, matrix_root) for chunk in task_chunks]
 
-                {cmd};
-                rm {script_name}
-                """)
+    # Use multiprocessing to write scripts in parallel
+    print("Writing scripts in parallel...")
+    all_script_paths = []
 
-                with open(script_path, 'w') as script_fh:
-                    script_fh.write(script_content)
+    if n_processes == 1:
+        # Single process - no multiprocessing overhead
+        for batch_info in batch_infos:
+            script_paths = write_script_batch(batch_info)
+            all_script_paths.extend(script_paths)
+    else:
+        # Multiple processes
+        with mp.Pool(processes=n_processes) as pool:
+            results = pool.map(write_script_batch, batch_infos)
 
-                # Make script executable
-                script_path.chmod(0o755)
-
-                script_paths.append(str(script_path))
-                script_counter += 1
+            # Collect all script paths
+            for script_paths in results:
+                all_script_paths.extend(script_paths)
 
     # Write list of all script paths
+    print(f"Writing script list to {args.script_list_file}...")
     with open(args.script_list_file, 'w') as list_fh:
-        for script_path in script_paths:
+        for script_path in sorted(all_script_paths):  # Sort for consistent ordering
             list_fh.write(script_path + "\n")
 
-    print(f"Created {len(script_paths)} shell scripts in {args.script_dir}")
+    print(f"SUCCESS: Created {len(all_script_paths)} shell scripts in {args.script_dir}")
     print(f"Script list written to {args.script_list_file}")
+    print(f"Used {n_processes} processes for parallel generation")
 
 if __name__ == "__main__":
     main()
