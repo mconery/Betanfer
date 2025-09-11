@@ -157,9 +157,11 @@ def main():
                 if os.path.exists(f"{out_prefix}.unphased.vcor1") and os.path.exists(f"{out_prefix}.unphased.vcor1.vars"):
                     continue
                 
-                # Extraction command - NOW USING --make-bed FOR BINARY FORMAT
-                extract_cmd = f"{plink2} --bfile {plink_root} --chr {chrom} --from-bp {start} --to-bp {end} --make-bed --out {temp_prefix}_extracted"
-                extract_commands.append(extract_cmd)
+                #Check if extracted file exists or skip over 
+                if (not os.path.exists(f"{temp_prefix}_extracted.bed")) or (not os.path.exists(f"{temp_prefix}_extracted.bim")) or not (os.path.exists(f"{temp_prefix}_extracted.fam")):
+                    # Extraction command - NOW USING --make-bed FOR BINARY FORMAT
+                    extract_cmd = f"{plink2} --bfile {plink_root} --chr {chrom} --from-bp {start} --to-bp {end} --make-bed --out {temp_prefix}_extracted"
+                    extract_commands.append(extract_cmd)
                 
                 # LD computation command - UPDATED FOR BINARY INPUT
                 ld_cmd = f"python3 {args.residualize_script} "
