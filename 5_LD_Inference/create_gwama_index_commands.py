@@ -194,7 +194,7 @@ def create_indexing_commands_parallel(files, scratch_dir, variant_col, variant_i
         completed = 0
         for future in as_completed(future_to_file):
             completed += 1
-            if completed % 1000 == 0:  # Progress reporting every 100 files
+            if completed % 10000 == 0:  # Progress reporting every 100 files
                 print(f"  Processed {completed}/{len(files)} files...")
             
             try:
