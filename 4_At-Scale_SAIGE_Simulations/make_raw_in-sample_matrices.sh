@@ -21,7 +21,7 @@ script_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simula
 script_list_file="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/raw_in-sample/script_list.txt"
 
 # Set script locations
-command_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/make_raw_in-sample_matrix_command_writer_modified.py"
+command_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/make_raw_in-sample_matrix_command_writer.py"
 
 # Set populations
 populations=AFR,EUR
@@ -67,16 +67,12 @@ echo "Starting flux and submitting jobs..."
 mapfile -t script_paths < "${script_list_file}"
 
 srun -N ${num_nodes} -n ${num_nodes} -c 56 flux start \
-"flux resource list; \
-mapfile -t script_paths < ${script_list_file}; \
-for ((i=0; i<\${#script_paths[@]}; i++)); do \
-    flux submit -N1 -n1 -c4 --output=flux_output/make_raw_matrix_\$i.txt \${script_paths[\$i]}; \
-done; \
-flux queue drain;"
+"flux resource list; mapfile -t script_paths < ${script_list_file}; for ((i=0; i<\${#script_paths[@]}; i++)); do flux submit -N1 -n1 -c4 --output=flux_output/make_raw_matrix_\$i.txt \${script_paths[\$i]}; done; flux queue drain;"
 
 # Clean-up log and nosex files
 echo "Cleaning up temporary files..."
 rm -f $matrix_dir/*/*.nosex
 rm -f $matrix_dir/*/*.log
+rm -f $matrix_dir/scripts/*
 
 echo 'SUCCESS: All raw in-sample matrices created.'
