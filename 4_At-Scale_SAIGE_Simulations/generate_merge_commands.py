@@ -27,9 +27,8 @@ Usage:
         --output-commands commands.txt \
         --afr-sample-size 10000 \
         --eur-sample-size 15000 \
-        --combiner-script /path/to/combine_ld_matrices.py \
-        --threads 32
-
+        --combiner-script /path/to/combine_ld_matrices.py 
+        
 """
 
 import argparse
@@ -46,7 +45,7 @@ logger = logging.getLogger(__name__)
 class MergeCommandGenerator:
     def __init__(self, input_dirs: List[str], output_commands: str, 
                  afr_sample_size: int, eur_sample_size: int,
-                 combiner_script: str, threads: int = 32, 
+                 combiner_script: str, 
                  use_gpu: bool = False, verbose: bool = False):
         """
         Initialize the merge command generator.
@@ -57,7 +56,6 @@ class MergeCommandGenerator:
             afr_sample_size: Sample size for AFR populations
             eur_sample_size: Sample size for EUR populations  
             combiner_script: Path to the combine_ld_matrices.py script
-            threads: Number of threads to use for each merge operation
             use_gpu: Whether to use GPU acceleration
             verbose: Enable verbose logging
         """
@@ -66,7 +64,6 @@ class MergeCommandGenerator:
         self.afr_sample_size = afr_sample_size
         self.eur_sample_size = eur_sample_size
         self.combiner_script = Path(combiner_script)
-        self.threads = threads
         self.use_gpu = use_gpu
         self.verbose = verbose
 
@@ -76,7 +73,6 @@ class MergeCommandGenerator:
         logger.info(f"Initialized command generator for {len(input_dirs)} directories")
         logger.info(f"AFR sample size: {afr_sample_size}")
         logger.info(f"EUR sample size: {eur_sample_size}")
-        logger.info(f"Threads per job: {threads}")
         logger.info(f"GPU acceleration: {'Enabled' if use_gpu else 'Disabled'}")
 
     def _validate_inputs(self):
@@ -178,8 +174,7 @@ class MergeCommandGenerator:
             f"python {self.combiner_script}",
             f"--ld-files {afr_file} {eur_file}",
             f"--sample-sizes {self.afr_sample_size} {self.eur_sample_size}",
-            f"--output-prefix {output_prefix}",
-            f"--threads {self.threads}"
+            f"--output-prefix {output_prefix}"
         ]
 
         if self.use_gpu:
@@ -275,8 +270,6 @@ def main():
                        help='Sample size for EUR populations')
     parser.add_argument('--combiner-script', required=True,
                        help='Path to combine_ld_matrices.py script')
-    parser.add_argument('--threads', type=int, default=32,
-                       help='Number of threads per merge operation')
     parser.add_argument('--use-gpu', action='store_true',
                        help='Use GPU-accelerated version of combiner')
     parser.add_argument('--verbose', action='store_true',
@@ -299,7 +292,6 @@ def main():
         afr_sample_size=args.afr_sample_size,
         eur_sample_size=args.eur_sample_size,
         combiner_script=args.combiner_script,
-        threads=args.threads,
         use_gpu=args.use_gpu,
         verbose=args.verbose
     )
