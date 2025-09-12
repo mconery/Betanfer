@@ -95,7 +95,7 @@ class LDMatrixCombiner:
 
             variants = self.load_variants(vars_file)
             # Create unique identifier for each variant
-            variants['variant_id'] = variants[:,0]
+            variants['variant_id'] = variants[0]
             all_variants.append(variants)
             matrix_variant_sets.append(set(variants['variant_id']))
 
@@ -166,7 +166,7 @@ class LDMatrixCombiner:
             vars_file = ld_file + '.vars'
             ld_matrix = self.load_ld_matrix(ld_file)
             variants_df = self.load_variants(vars_file)
-            variants_df['variant_id'] = variants_df[:,0]
+            variants_df['variant_id'] = variants_df[0]
 
             matrix_data.append((ld_matrix, variants_df, self.sample_sizes[i]))
 
