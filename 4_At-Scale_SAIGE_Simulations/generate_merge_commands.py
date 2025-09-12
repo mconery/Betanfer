@@ -247,53 +247,14 @@ class MergeCommandGenerator:
     def write_slurm_array_job(self, commands: List[str]):
         """Write a SLURM array job script for running all commands."""
 
-        # Create array job script
-        array_script = self.output_commands.parent / f"{self.output_commands.stem}_array.sh"
-
-        with open(array_script, 'w') as f:
-            f.write(f"""#!/bin/bash
-#SBATCH --account=YOUR_PROJECT_ID
-#SBATCH --partition=batch
-#SBATCH --nodes=1
-#SBATCH --ntasks=1
-#SBATCH --cpus-per-task={self.threads}
-{'#SBATCH --gpus-per-node=1' if self.use_gpu else ''}
-#SBATCH --time=02:00:00
-#SBATCH --array=1-{len(commands)}
-#SBATCH --job-name=merge_ld_matrices
-#SBATCH --output=merge_ld_%A_%a.out
-#SBATCH --error=merge_ld_%A_%a.err
-
-# Load required modules
-module load python/3.9-anaconda3
-{'module load rocm/5.4.0  # For GPU support' if self.use_gpu else ''}
-
-# Read the command for this array task
-COMMAND=$(sed -n "${{SLURM_ARRAY_TASK_ID}}p" {self.output_commands.name})
-
-# Skip comment lines
-if [[ $COMMAND == \#* ]] || [[ -z "$COMMAND" ]]; then
-    echo "Skipping comment or empty line: $COMMAND"
-    exit 0
-fi
-
-echo "Running command ${{SLURM_ARRAY_TASK_ID}}: $COMMAND"
-eval $COMMAND
-
-echo "Command ${{SLURM_ARRAY_TASK_ID}} completed"
-""")
-
-        os.chmod(array_script, 0o755)
-        logger.info(f"SLURM array job script written to: {array_script}")
-
         # Also create a simple commands-only file (no comments) for the array job
-        commands_only_file = self.output_commands.parent / f"{self.output_commands.stem}_commands_only.txt"
+        commands_only_file = self.output_commands.parent / f"{self.output_commands.stem}.txt"
         with open(commands_only_file, 'w') as f:
             for command in commands:
                 f.write(f"{command}\n")
 
         logger.info(f"Commands-only file for array job: {commands_only_file}")
-        return array_script, commands_only_file
+        return commands_only_file
 
     def run(self):
         """Execute the complete command generation workflow."""
