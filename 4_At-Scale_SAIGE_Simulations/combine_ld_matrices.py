@@ -58,7 +58,7 @@ class LDMatrixCombiner:
         """Load variant information from .unphased.vcor1.vars file."""
         try:
             # The .vars file typically has columns: CHROM, POS, ID, REF, ALT
-            variants = pd.read_csv(vars_file, sep='\t', dtype=str)
+            variants = pd.read_csv(vars_file, sep='\t', dtype=str, header=None)
             logger.info(f"Loaded {len(variants)} variants from {vars_file}")
             return variants
         except Exception as e:
