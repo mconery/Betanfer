@@ -166,7 +166,7 @@ class LDMatrixCombiner:
             vars_file = ld_file + '.vars'
             ld_matrix = self.load_ld_matrix(ld_file)
             variants_df = self.load_variants(vars_file)
-            variants_df['variant_id'] = variants_df['CHROM'] + ':' + variants_df['POS'] + ':' + variants_df['REF'] + ':' + variants_df['ALT']
+            variants_df['variant_id'] = variants_df[:,0]
 
             matrix_data.append((ld_matrix, variants_df, self.sample_sizes[i]))
 
