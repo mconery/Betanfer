@@ -2,8 +2,8 @@
 #SBATCH -A bif154
 #SBATCH -J index_gwama_mpi
 #SBATCH -o index_all_null_gwama.log
-#SBATCH -N 100
-#SBATCH -q debug
+#SBATCH -N 40
+#SBATCH -p batch
 #SBATCH -t 1:00:00                    
 
 ################################################################################################################
