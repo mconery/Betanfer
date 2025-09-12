@@ -219,31 +219,7 @@ class MergeCommandGenerator:
 
         logger.info(f"Generated {len(all_commands)} merge commands for {total_pairs} matrix pairs")
         return all_commands
-
-    def write_commands_file(self, commands: List[str]):
-        """Write all commands to the output file."""
-
-        with open(self.output_commands, 'w') as f:
-            # Write header comment
-            f.write(f"#!/bin/bash\n")
-            f.write(f"# Generated merge commands for AFR-EUR LD matrix combination\n")
-            f.write(f"# Total commands: {len(commands)}\n")
-            f.write(f"# AFR sample size: {self.afr_sample_size}\n")
-            f.write(f"# EUR sample size: {self.eur_sample_size}\n")
-            f.write(f"# Threads per job: {self.threads}\n")
-            f.write(f"# Generated on: $(date)\n\n")
-
-            # Write each command
-            for i, command in enumerate(commands, 1):
-                f.write(f"# Command {i}\n")
-                f.write(f"{command}\n\n")
-
-        # Make the file executable
-        os.chmod(self.output_commands, 0o755)
-
-        logger.info(f"Commands written to: {self.output_commands}")
-        logger.info(f"File is executable - you can run: {self.output_commands}")
-
+    
     def write_slurm_array_job(self, commands: List[str]):
         """Write a SLURM array job script for running all commands."""
 
@@ -267,28 +243,15 @@ class MergeCommandGenerator:
             if not commands:
                 logger.warning("No commands generated - check input directories and file matching")
                 return
-
-            # Write commands file
-            self.write_commands_file(commands)
-
+            
             # Write SLURM array job script
-            array_script, commands_only_file = self.write_slurm_array_job(commands)
+            commands_only_file = self.write_slurm_array_job(commands)
 
             # Print summary
             logger.info("\n=== SUMMARY ===")
             logger.info(f"Input directories: {len(self.input_dirs)}")
             logger.info(f"Total commands generated: {len(commands)}")
-            logger.info(f"Commands file: {self.output_commands}")
-            logger.info(f"Array job script: {array_script}")
             logger.info(f"Commands-only file: {commands_only_file}")
-
-            logger.info("\n=== USAGE OPTIONS ===")
-            logger.info(f"1. Run all commands sequentially:")
-            logger.info(f"   {self.output_commands}")
-            logger.info(f"2. Submit as SLURM array job:")
-            logger.info(f"   sbatch {array_script}")
-            logger.info(f"3. Run individual commands manually from:")
-            logger.info(f"   {self.output_commands}")
 
             logger.info("\nWorkflow completed successfully!")
 
