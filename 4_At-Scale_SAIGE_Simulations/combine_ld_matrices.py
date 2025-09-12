@@ -223,7 +223,7 @@ class LDMatrixCombiner:
         logger.info(f"Saving variants information to {vars_file}")
         # Remove the variant_id column before saving
         output_variants = master_variants.drop('variant_id', axis=1)
-        output_variants.to_csv(vars_file, sep='\t', index=False)
+        output_variants.to_csv(vars_file, sep='\t', index=False, header=False)
 
         logger.info(f"Successfully saved combined matrix with {len(master_variants)} variants")
 
