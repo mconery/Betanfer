@@ -95,7 +95,7 @@ class LDMatrixCombiner:
 
             variants = self.load_variants(vars_file)
             # Create unique identifier for each variant
-            variants['variant_id'] = variants['CHROM'] + ':' + variants['POS'] + ':' + variants['REF'] + ':' + variants['ALT']
+            variants['variant_id'] = variants[:,0]
             all_variants.append(variants)
             matrix_variant_sets.append(set(variants['variant_id']))
 
