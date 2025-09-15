@@ -15,6 +15,7 @@ import re
 from pathlib import Path
 import shutil
 import torch
+import random
 
 
 # Set up logging
@@ -635,4 +636,32 @@ def compute_beta_correlation_matrix(
                 vf.write(f"{variant}\n")
     
     return corr_np
+
+def sample_traits(indexed_files, n_traits, random_seed, active_chromosome=None):
+    """
+    Sample a specified number of traits from available indexed files.
+    
+    Args:
+        indexed_files: List of (bgzf_file, tbi_file) tuples
+        n_traits: Number of traits to sample
+        random_seed: Random seed for reproducible sampling
+        
+    Returns:
+        List of selected bgzf file paths
+    """
+    if n_traits > len(indexed_files):
+        raise ValueError(f"Requested {n_traits} traits, but only {len(indexed_files)} indexed files available")
+    
+    # Set random seed for reproducible sampling
+    random.seed(random_seed)
+    
+    #Filter for chromosome if need be
+    if active_chromosome:
+        indexed_files = [x for x in indexed_files if f'chr{active_chromosome}' in x[0]]
+    
+    # Sample the specified number of files
+    sampled_files = random.sample(indexed_files, n_traits)
+    
+    # Return just the bgzf file paths
+    return [bgzf_file for bgzf_file, tbi_file in sampled_files]
 
