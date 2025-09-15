@@ -257,7 +257,7 @@ def main():
         variants_list = sorted(variants_to_extract)
         ld_df = pd.DataFrame(ld_matrix, index=variants_list, columns=variants_list)
         
-        save_beta_matrix(ld_df, args.output_file, compress=True)
+        save_beta_matrix(ld_df, args.output_file, compress=False)
         print(f"Saved LD matrix to: {args.output_file}")
         
         if args.save_binary_prefix:
