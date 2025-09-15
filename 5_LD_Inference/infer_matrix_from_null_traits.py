@@ -1,0 +1,317 @@
+#!/usr/bin/env python3
+"""
+infer_matrix_from_null_traits.py
+
+Create LD (linkage disequilibrium) matrices from tabix-indexed GWAS summary statistics
+using beta correlation inference. This script samples a specified number of traits
+from available indexed summary statistics files and computes correlations between
+their effect sizes to infer LD structure.
+
+This approach uses the correlation of effect sizes across multiple traits as a proxy
+for linkage disequilibrium, which can be useful when reference genotype data is not
+available or when working with summary statistics from diverse populations.
+
+Usage
+-----
+python create_ld_matrix_from_indexed_sumstats.py \
+  --indexed_dir /path/to/indexed/sumstats \
+  --variant_file /path/to/variants.txt \
+  --output_file /path/to/ld_matrix.tsv.gz \
+  --n_traits 100 \
+  [--random_seed 5] \
+  [--variant_col rs_number] \
+  [--beta_col beta] \
+  [--variant_id_format CHR:POS:REF:ALT] \
+  [--device cuda] \
+  [--save_binary_prefix /path/to/binary_output]
+
+Arguments
+---------
+--indexed_dir         Directory containing tabix-indexed summary statistics [REQUIRED]
+--variant_file        File containing variant IDs to extract (one per line) [REQUIRED]
+--output_file         Output file for the LD matrix [REQUIRED]
+--n_traits           Number of traits to sample for correlation inference [REQUIRED]
+--random_seed         Random seed for trait sampling [default: 5]
+--variant_col         Column name for variant IDs in summary stats [default: rs_number]
+--beta_col           Column name for beta values [default: beta]
+--variant_id_format   Format string for variant IDs [default: CHR:POS:REF:ALT]
+--device             Device for computation ('cuda' or 'cpu') [default: cuda]
+--save_binary_prefix  Optional prefix for PLINK binary format output
+
+Features
+--------
+- Automatically discovers tabix-indexed summary statistics files
+- Random sampling of traits with reproducible seeding
+- Parallel beta extraction using tabix indexing
+- GPU-accelerated correlation computation
+- Optional binary matrix output in PLINK format
+
+"""
+
+import os
+import glob
+import argparse
+import random
+import sys
+from pathlib import Path
+
+from extraction_utils import (
+    load_variant_list,
+    make_var_dict_for_positional_ids,
+    extract_betas_batch,
+    compute_beta_correlation_matrix,
+    save_beta_matrix
+)
+
+def find_indexed_sumstats_files(indexed_dir):
+    """
+    Find all tabix-indexed summary statistics files in the specified directory.
+    
+    Args:
+        indexed_dir: Directory containing indexed files
+        
+    Returns:
+        List of tuples: (bgzf_file_path, tbi_file_path) for valid pairs
+    """
+    indexed_files = []
+    
+    # Find all .gz files
+    gz_pattern = os.path.join(indexed_dir, "*.gz")
+    gz_files = glob.glob(gz_pattern)
+    
+    for gz_file in gz_files:
+        tbi_file = gz_file + ".tbi"
+        if os.path.exists(tbi_file):
+            indexed_files.append((gz_file, tbi_file))
+    
+    return indexed_files
+
+def sample_traits(indexed_files, n_traits, random_seed):
+    """
+    Sample a specified number of traits from available indexed files.
+    
+    Args:
+        indexed_files: List of (bgzf_file, tbi_file) tuples
+        n_traits: Number of traits to sample
+        random_seed: Random seed for reproducible sampling
+        
+    Returns:
+        List of selected bgzf file paths
+    """
+    if n_traits > len(indexed_files):
+        raise ValueError(f"Requested {n_traits} traits, but only {len(indexed_files)} indexed files available")
+    
+    # Set random seed for reproducible sampling
+    random.seed(random_seed)
+    
+    # Sample the specified number of files
+    sampled_files = random.sample(indexed_files, n_traits)
+    
+    # Return just the bgzf file paths
+    return [bgzf_file for bgzf_file, tbi_file in sampled_files]
+
+def main():
+    parser = argparse.ArgumentParser(description="Create LD matrix from tabix-indexed GWAS summary statistics using beta correlation inference.")
+    parser.add_argument("--indexed_dir", type=str, required=True,
+                        help="Directory containing tabix-indexed summary statistics files.")
+    parser.add_argument("--variant_file", type=str, required=True,
+                        help="File containing variant IDs to extract (one per line).")
+    parser.add_argument("--output_file", type=str, required=True,
+                        help="Output file for the LD matrix (will be compressed).")
+    parser.add_argument("--n_traits", type=int, required=True,
+                        help="Number of traits to sample for correlation inference.")
+    parser.add_argument("--random_seed", type=int, default=5,
+                        help="Random seed for trait sampling [default: 5]")
+    parser.add_argument("--variant_col", type=str, default="rs_number",
+                        help="Column name for variant IDs in summary stats [default: rs_number]")
+    parser.add_argument("--beta_col", type=str, default="beta",
+                        help="Column name for beta values [default: beta]")
+    parser.add_argument("--variant_id_format", type=str, default="CHR:POS:REF:ALT",
+                        help="Format string for variant IDs [default: CHR:POS:REF:ALT]")
+    parser.add_argument("--device", type=str, default="cuda", choices=["cuda", "cpu"],
+                        help="Device for computation [default: cuda]")
+    parser.add_argument("--save_binary_prefix", type=str, default=None,
+                        help="Optional prefix for PLINK binary format output (.vcor1 and .vcor1.vars)")
+    
+    args = parser.parse_args()
+    
+    # Validate inputs
+    if not os.path.exists(args.indexed_dir):
+        print(f"Error: Indexed directory does not exist: {args.indexed_dir}", file=sys.stderr)
+        sys.exit(1)
+    
+    if not os.path.exists(args.variant_file):
+        print(f"Error: Variant file does not exist: {args.variant_file}", file=sys.stderr)
+        sys.exit(1)
+    
+    if args.n_traits <= 0:
+        print(f"Error: Number of traits must be positive, got: {args.n_traits}", file=sys.stderr)
+        sys.exit(1)
+    
+    # Create output directory if it doesn't exist
+    output_dir = os.path.dirname(os.path.abspath(args.output_file))
+    os.makedirs(output_dir, exist_ok=True)
+    
+    print(f"Creating LD matrix from indexed summary statistics")
+    print(f"Input directory: {args.indexed_dir}")
+    print(f"Variant file: {args.variant_file}")
+    print(f"Output file: {args.output_file}")
+    print(f"Number of traits: {args.n_traits}")
+    print(f"Random seed: {args.random_seed}")
+    print(f"Device: {args.device}")
+    
+    # Step 1: Find indexed summary statistics files
+    print(f"\nStep 1: Discovering indexed summary statistics files...")
+    indexed_files = find_indexed_sumstats_files(args.indexed_dir)
+    
+    if not indexed_files:
+        print(f"Error: No tabix-indexed files found in {args.indexed_dir}", file=sys.stderr)
+        print("Expected to find pairs of .gz and .gz.tbi files.", file=sys.stderr)
+        sys.exit(1)
+    
+    print(f"Found {len(indexed_files)} indexed summary statistics files")
+    
+    # Show some examples
+    print("Sample files:")
+    for i, (gz_file, tbi_file) in enumerate(indexed_files[:5]):
+        print(f"  {os.path.basename(gz_file)}")
+    if len(indexed_files) > 5:
+        print(f"  ... and {len(indexed_files) - 5} more files")
+    
+    # Step 2: Load variants to extract
+    print(f"\nStep 2: Loading variants to extract...")
+    try:
+        # Assume the variant file has a single column with variant IDs
+        # Try to detect if it has a header
+        with open(args.variant_file, 'r') as f:
+            first_line = f.readline().strip()
+            
+        # Simple heuristic: if first line looks like a variant ID, assume no header
+        # Otherwise assume it's a header line
+        if ':' in first_line and len(first_line.split(':')) >= 2:
+            # No header, use default column name
+            variants_to_extract = load_variant_list(args.variant_file, variant_col='0', sep=None)
+        else:
+            # Has header, use first column name
+            import pandas as pd
+            df_peek = pd.read_csv(args.variant_file, nrows=1)
+            first_col = df_peek.columns[0]
+            variants_to_extract = load_variant_list(args.variant_file, variant_col=first_col)
+            
+    except Exception as e:
+        print(f"Error loading variant file: {e}", file=sys.stderr)
+        print("Trying alternative approach...", file=sys.stderr)
+        
+        # Fallback: read file as plain text, one variant per line
+        try:
+            with open(args.variant_file, 'r') as f:
+                lines = [line.strip() for line in f if line.strip() and not line.startswith('#')]
+            variants_to_extract = set(lines)
+            print(f"Loaded {len(variants_to_extract)} variants using fallback method")
+        except Exception as e2:
+            print(f"Error with fallback method: {e2}", file=sys.stderr)
+            sys.exit(1)
+    
+    if not variants_to_extract:
+        print(f"Error: No variants loaded from {args.variant_file}", file=sys.stderr)
+        sys.exit(1)
+    
+    print(f"Loaded {len(variants_to_extract)} variants to extract")
+    
+    # Step 3: Create variant position mapping
+    print(f"\nStep 3: Creating variant position mapping...")
+    try:
+        variant_map = make_var_dict_for_positional_ids(variants_to_extract, args.variant_id_format)
+        print(f"Created position mapping for {len(variant_map)} variants")
+    except Exception as e:
+        print(f"Error creating variant position mapping: {e}", file=sys.stderr)
+        sys.exit(1)
+    
+    # Step 4: Sample traits
+    print(f"\nStep 4: Sampling {args.n_traits} traits...")
+    try:
+        selected_files = sample_traits(indexed_files, args.n_traits, args.random_seed)
+        print(f"Selected {len(selected_files)} files for analysis")
+        print("Selected files:")
+        for i, file_path in enumerate(selected_files[:10]):
+            print(f"  {i+1:3d}: {os.path.basename(file_path)}")
+        if len(selected_files) > 10:
+            print(f"  ... and {len(selected_files) - 10} more files")
+            
+    except Exception as e:
+        print(f"Error sampling traits: {e}", file=sys.stderr)
+        sys.exit(1)
+    
+    # Step 5: Extract betas
+    print(f"\nStep 5: Extracting beta values...")
+    try:
+        beta_matrix = extract_betas_batch(
+            file_list=selected_files,
+            variant_col=args.variant_col,
+            beta_col=args.beta_col,
+            variants_to_extract=variants_to_extract,
+            variant_map=variant_map
+        )
+        print(f"Extracted betas: {beta_matrix.shape[0]} variants × {beta_matrix.shape[1]} traits")
+        
+        # Check for missing data
+        missing_fraction = beta_matrix.isna().sum().sum() / (beta_matrix.shape[0] * beta_matrix.shape[1])
+        print(f"Missing data fraction: {missing_fraction:.3f}")
+        
+    except Exception as e:
+        print(f"Error extracting beta values: {e}", file=sys.stderr)
+        sys.exit(1)
+    
+    # Step 6: Compute correlation matrix
+    print(f"\nStep 6: Computing LD matrix using beta correlations...")
+    try:
+        ld_matrix = compute_beta_correlation_matrix(
+            gwas_files=selected_files,
+            variants_to_extract=variants_to_extract,
+            variant_map=variant_map,
+            variant_col=args.variant_col,
+            beta_col=args.beta_col,
+            device=args.device,
+            save_prefix=args.save_binary_prefix
+        )
+        print(f"Computed LD matrix: {ld_matrix.shape[0]} × {ld_matrix.shape[1]}")
+        
+    except Exception as e:
+        print(f"Error computing correlation matrix: {e}", file=sys.stderr)
+        sys.exit(1)
+    
+    # Step 7: Save matrix
+    print(f"\nStep 7: Saving LD matrix...")
+    try:
+        # Convert numpy array back to DataFrame with proper row/column names
+        import pandas as pd
+        variants_list = sorted(variants_to_extract)
+        ld_df = pd.DataFrame(ld_matrix, index=variants_list, columns=variants_list)
+        
+        save_beta_matrix(ld_df, args.output_file, compress=True)
+        print(f"Saved LD matrix to: {args.output_file}")
+        
+        if args.save_binary_prefix:
+            print(f"Also saved binary format:")
+            print(f"  Matrix: {args.save_binary_prefix}.vcor1")
+            print(f"  Variants: {args.save_binary_prefix}.vcor1.vars")
+            
+    except Exception as e:
+        print(f"Error saving matrix: {e}", file=sys.stderr)
+        sys.exit(1)
+    
+    # Summary
+    print(f"\n{'='*60}")
+    print(f"LD MATRIX CREATION COMPLETE")
+    print(f"{'='*60}")
+    print(f"Input directory: {args.indexed_dir}")
+    print(f"Available files: {len(indexed_files)}")
+    print(f"Sampled traits: {args.n_traits}")
+    print(f"Variants analyzed: {len(variants_to_extract)}")
+    print(f"Output file: {args.output_file}")
+    print(f"Matrix dimensions: {ld_matrix.shape[0]} × {ld_matrix.shape[1]}")
+    print(f"Random seed used: {args.random_seed}")
+    print(f"{'='*60}")
+
+if __name__ == "__main__":
+    main()
