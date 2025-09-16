@@ -98,7 +98,7 @@ def create_matrix_inference_command(matrix_script, indexed_dir, variant_file, ou
         '--variant_file', variant_file,
         '--output_file', output_file,
         '--n_traits', str(n_traits),
-        '--variant_col', f"'{variant_col}'",
+        '--variant_col', f'{variant_col}"',
         '--beta_col', beta_col,
         '--device', device
     ]
