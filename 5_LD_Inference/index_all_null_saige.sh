@@ -3,7 +3,7 @@
 #SBATCH -A bif154
 #SBATCH -J index_saige_mpi
 #SBATCH -o index_all_null_saige.log
-#SBATCH -N 100
+#SBATCH -N 1882
 #SBATCH -q debug
 #SBATCH -t 1:00:00
 
