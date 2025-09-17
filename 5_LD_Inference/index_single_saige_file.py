@@ -85,11 +85,11 @@ def main():
         
         # Call the appropriate function from extraction_utils
         bgzf_path, tbi_path = bgzip_and_tbi_sumstats_with_label_cols(
-            inputpath=args.input_file,
-            outputdir=args.scratch_dir,
-            chromcollabel=args.chrom_col,
-            poscollabel=args.pos_col,
-            zerobased=args.zero_based,
+            input_path=args.input_file,
+            output_dir=args.scratch_dir,
+            chrom_col_label=args.chrom_col,
+            pos_col_label=args.pos_col,
+            zero_based=args.zero_based,
             force=args.force
         )
         
