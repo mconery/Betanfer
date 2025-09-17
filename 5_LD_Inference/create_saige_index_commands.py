@@ -46,20 +46,6 @@ Output
 ------
 Creates a text file with one command per line, where each command calls the
 single-file indexer script for one input file.
-
-Examples
---------
-# For EUR population
-python create_saige_index_commands.py \
---scratch_dir /lustre/orion/bif154/scratch/mconery/indexed_EUR_sumstats \
---pattern "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step2_results/EUR/Pheno*.txt" \
---commands_file EUR_indexing_commands.txt
-
-# For AFR population
-python create_saige_index_commands.py \
---scratch_dir /lustre/orion/bif154/scratch/mconery/indexed_AFR_sumstats \
---pattern "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step2_results/AFR/Pheno*.txt" \
---commands_file AFR_indexing_commands.txt
 """
 
 import os
