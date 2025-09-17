@@ -3,7 +3,7 @@
 #SBATCH -A bif154
 #SBATCH -J infer_2000-trait_ld
 #SBATCH -o infer_2000-trait_ld.log
-#SBATCH -N 1
+#SBATCH -N 15
 #SBATCH -p batch
 #SBATCH -t 1:00:00
 
