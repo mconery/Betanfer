@@ -558,9 +558,9 @@ def save_beta_matrix(beta_matrix: pd.DataFrame, output_path: str,
             output_path += '.gz'
         
         if output_path.endswith('.gz'):
-            beta_matrix.to_csv(output_path, sep='\t', compression='gzip')
+            beta_matrix.to_csv(output_path, sep='\t', compression='gzip', header=False, index=False)
         else:
-            beta_matrix.to_csv(output_path, sep='\t')
+            beta_matrix.to_csv(output_path, sep='\t', header=False, index=False)
         
         logger.info(f"Saved beta matrix to {output_path}")
         
