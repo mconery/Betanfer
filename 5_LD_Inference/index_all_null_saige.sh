@@ -3,9 +3,9 @@
 #SBATCH -A bif154
 #SBATCH -J index_saige_mpi
 #SBATCH -o index_all_null_saige.log
-#SBATCH -N 100
-#SBATCH -q debug
-#SBATCH -t 1:00:00
+#SBATCH -N 20
+#SBATCH -p extended
+#SBATCH -t 6:00:00
 
 ################################################################################################################
 ###################################### Load Modules and Environment ############################################
