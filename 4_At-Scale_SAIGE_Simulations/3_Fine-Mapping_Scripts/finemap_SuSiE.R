@@ -24,9 +24,8 @@ library(stringr)
 # 6) column name for effect size (beta) in summary stats [OPTIONAL; default is "beta"]
 # 7) column name for standard error in summary stats [OPTIONAL; default is "se"]
 # 8) column name for sample size in summary stats [OPTIONAL; default is "n"]
-# 9) column name for rsid in summary stats [OPTIONAL; default is "rsid"]
-# 10) flag indicating whether in-sample fine-mapping is being used [OPTIONAL; default is TRUE]
-# 11) random seed [OPTIONAL; default is 5]
+# 9) flag indicating whether in-sample fine-mapping is being used [OPTIONAL; default is TRUE]
+# 10) random seed [OPTIONAL; default is 5]
 
 args <- commandArgs(trailingOnly = TRUE);
 
@@ -47,14 +46,13 @@ if (length(args) >= 4) {
   beta_col <- if (length(args) >= 6) args[6] else "beta"
   se_col <- if (length(args) >= 7) args[7] else "se"
   n_col <- if (length(args) >= 8) args[8] else "n"
-  rsid_col <- if (length(args) >= 9) args[9] else "rsid"
-  in_sample_flag <- if (length(args) >= 10) as.logical(args[10]) else TRUE
-  random_seed <- if (length(args) >= 11) as.integer(args[11]) else 5
+  in_sample_flag <- if (length(args) >= 9) as.logical(args[9]) else TRUE
+  random_seed <- if (length(args) >= 10) as.integer(args[10]) else 5
   
   print(paste0("Necessary Parameters Input. Using ", length(pheno_files), " phenotype files."))
   
 } else {
-  print("Usage: Rscript finemap_SuSiE.R summary_stats_file pheno_files_comma_delimited ld_file out_file [markerid_col] [beta_col] [se_col] [n_col] [rsid_col] [in_sample_flag] [random_seed]");
+  print("Usage: Rscript finemap_SuSiE.R summary_stats_file pheno_files_comma_delimited ld_file out_file [markerid_col] [beta_col] [se_col] [n_col] [in_sample_flag] [random_seed]");
   print("Example: Rscript finemap_SuSiE.R sumstats.txt pheno1.txt,pheno2.txt,pheno3.txt matrix.vcor1 output.txt");
   quit(save="no");
 }
@@ -100,7 +98,7 @@ colnames(R) <- var_R
 summary_stats_raw <- read.table(summary_stats_file, header = TRUE)
 
 # Check if required columns exist
-required_cols <- c(markerid_col, beta_col, se_col, n_col, rsid_col)
+required_cols <- c(markerid_col, beta_col, se_col, n_col)
 missing_cols <- required_cols[!required_cols %in% colnames(summary_stats_raw)]
 if (length(missing_cols) > 0) {
   print(paste0("ERROR: Missing columns in summary stats file: ", paste(missing_cols, collapse=", ")))
@@ -178,7 +176,7 @@ check <- function(expression){
                         
                         #Write a partially empty output file and quit
                         out_data <- cbind.data.frame(
-                          RSID=summary_stats_raw[[rsid_col]], 
+                          VARIANT_ID=summary_stats_raw[[markerid_col]], 
                           Z=bhat/shat, 
                           PIP=rep(NA, nrow(summary_stats_raw)), 
                           converged=rep(NA, nrow(summary_stats_raw))
@@ -208,7 +206,7 @@ print("Extracting results and writing output...")
 
 #Extract Info
 out_data <- cbind.data.frame(
-  RSID=summary_stats_raw[[rsid_col]], 
+  VARIANT_ID=summary_stats_raw[[markerid_col]], 
   Z=bhat/shat, 
   PIP=fitted_rss1$pip, 
   converged=rep(fitted_rss1$converged, nrow(summary_stats_raw))
