@@ -83,7 +83,7 @@ if [ ! -f "$VARS_FILE" ]; then
 fi
 
 # Define z-scores file in the subdirectory
-Z_SCORES_FILE="${Z_SCORE_DIR}/$(basename $OUTPUT_FILE)
+Z_SCORES_FILE="${Z_SCORE_DIR}/$(basename $OUTPUT_FILE)"
 
 ################################################################################################################
 ########################## Step 1: Generate Z-scores file ####################################################
