@@ -41,7 +41,7 @@ if (length(args) >= 3) {
   in_sample_flag <- if (length(args) >= 8) as.logical(args[8]) else TRUE
   random_seed <- if (length(args) >= 9) as.integer(args[9]) else 5
   
-  print(paste0("Necessary Parameters Input.")
+  print("Necessary Parameters Input.")
   
 } else {
   print("Usage: Rscript finemap_SuSiE.R summary_stats_file ld_file out_file [markerid_col] [beta_col] [se_col] [n_col] [in_sample_flag] [random_seed]");
