@@ -140,7 +140,7 @@ for (i in 1:length(pheno_files)) {
   print(paste0("Processing phenotype file ", i, ": ", pheno_files[i]))
   
   # Read phenotype file
-  pheno_raw <- read.table(pheno_files[i], header = TRUE)
+  pheno_raw <- read.csv(pheno_files[i], header = TRUE, sep="\t")
   
   # Check that PHENO column exists
   if (!"PHENO" %in% colnames(pheno_raw)) {
