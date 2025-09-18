@@ -17,15 +17,14 @@ library(stringr)
 
 #Need to read in the following:
 # 1) summary stats file (not pruned - will be filtered using variant file)
-# 2) comma-delimited list of phenotype files (each must have column named "PHENO")
-# 3) ld matrix file in .vcor1 or similar format
-# 4) output file location
-# 5) column name for variant ID in summary stats [OPTIONAL; default is "markerid"]
-# 6) column name for effect size (beta) in summary stats [OPTIONAL; default is "beta"]
-# 7) column name for standard error in summary stats [OPTIONAL; default is "se"]
-# 8) column name for sample size in summary stats [OPTIONAL; default is "n"]
-# 9) flag indicating whether in-sample fine-mapping is being used [OPTIONAL; default is TRUE]
-# 10) random seed [OPTIONAL; default is 5]
+# 2) ld matrix file in .vcor1 or similar format
+# 3) output file location
+# 4) column name for variant ID in summary stats [OPTIONAL; default is "markerid"]
+# 5) column name for effect size (beta) in summary stats [OPTIONAL; default is "beta"]
+# 6) column name for standard error in summary stats [OPTIONAL; default is "se"]
+# 7) column name for sample size in summary stats [OPTIONAL; default is "n"]
+# 8) flag indicating whether in-sample fine-mapping is being used [OPTIONAL; default is TRUE]
+# 9) random seed [OPTIONAL; default is 5]
 
 args <- commandArgs(trailingOnly = TRUE);
 
@@ -42,7 +41,7 @@ if (length(args) >= 3) {
   in_sample_flag <- if (length(args) >= 8) as.logical(args[8]) else TRUE
   random_seed <- if (length(args) >= 9) as.integer(args[9]) else 5
   
-  print(paste0("Necessary Parameters Input. Using ", length(pheno_files), " phenotype files."))
+  print(paste0("Necessary Parameters Input.")
   
 } else {
   print("Usage: Rscript finemap_SuSiE.R summary_stats_file ld_file out_file [markerid_col] [beta_col] [se_col] [n_col] [in_sample_flag] [random_seed]");
