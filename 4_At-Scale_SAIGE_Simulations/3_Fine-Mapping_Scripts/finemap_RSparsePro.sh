@@ -2,7 +2,7 @@
 
 # Single-locus RSparsePro fine-mapping script
 # Modified from the original map_rsparsepro.sh to process a single locus
-# Usage: ./finemapping_rsparsepro.sh [locus_name] [gwas_file] [ld_file] [output_file] [varcol] [zscore_col] [beta_col] [se_col]
+# Usage: ./finemapping_rsparsepro.sh [gwas_file] [ld_file] [output_file] [varcol] [zscore_col] [beta_col] [se_col]
 
 # Activate conda environment
 source ~/.bashrc
@@ -14,10 +14,9 @@ conda activate rsparsepro
 
 # Check if minimum required arguments are provided
 if [ $# -lt 4 ]; then
-    echo "Usage: $0 <locus_name> <gwas_file> <ld_file> <output_file> [varcol] [zscore_col] [beta_col] [se_col]"
+    echo "Usage: $0 <gwas_file> <ld_file> <output_file> [varcol] [zscore_col] [beta_col] [se_col]"
     echo ""
     echo "Required arguments:"
-    echo "  locus_name    - Name identifier for the locus"
     echo "  gwas_file     - Path to GWAS summary statistics file"
     echo "  ld_file       - Path to LD matrix file (.vcor1 format)"
     echo "  output_file   - Full path for the final output file"
@@ -36,16 +35,15 @@ if [ $# -lt 4 ]; then
 fi
 
 # Required arguments
-LOCUS_NAME="$1"
-GWAS_FILE="$2"
-LD_FILE="$3"
-OUTPUT_FILE="$4"
+GWAS_FILE="$1"
+LD_FILE="$2"
+OUTPUT_FILE="$3"
 
 # Optional arguments with defaults (matching typical finemap parameter patterns)
-VARCOL_NAME="${5:-rsid}"
-ZSCORE_COL="${6:-}"
-BETA_COL="${7:-beta}"
-SE_COL="${8:-se}"
+VARCOL_NAME="${4:-rsid}"
+ZSCORE_COL="${5:-}"
+BETA_COL="${6:-beta}"
+SE_COL="${7:-se}"
 
 ################################################################################################################
 ########################## Define script locations ############################################################
@@ -89,14 +87,13 @@ if [ ! -f "$VARS_FILE" ]; then
 fi
 
 # Define z-scores file in the subdirectory
-Z_SCORES_FILE="${Z_SCORE_DIR}/${LOCUS_NAME}.z-scores.tsv"
+Z_SCORES_FILE="${Z_SCORE_DIR}/$(basename $OUTPUT_FILE)
 
 ################################################################################################################
 ########################## Step 1: Generate Z-scores file ####################################################
 ################################################################################################################
 
 echo "=== Step 1: Preparing Z-scores file ==="
-echo "Locus: $LOCUS_NAME"
 echo "GWAS file: $GWAS_FILE"
 echo "Variants file: $VARS_FILE"
 echo "Z-scores output: $Z_SCORES_FILE"
@@ -153,24 +150,4 @@ if [ ! -f "$OUTPUT_FILE" ]; then
     echo "RSparsePro fine-mapping completed successfully"
 else
     echo "RSparsePro output file already exists, skipping analysis"
-fi
-
-################################################################################################################
-########################## Summary and cleanup #################################################################
-################################################################################################################
-
-echo ""
-echo "=== Fine-mapping completed ==="
-echo "Locus: $LOCUS_NAME"
-echo "Z-scores file: $Z_SCORES_FILE"
-echo "Final results: $OUTPUT_FILE"
-
-# Check if output file was created and has content
-if [ -f "$OUTPUT_FILE" ] && [ -s "$OUTPUT_FILE" ]; then
-    echo "SUCCESS: Fine-mapping results saved to $OUTPUT_FILE"
-    echo "Number of variants processed: $(wc -l < $Z_SCORES_FILE)"
-    echo "Results file size: $(du -h $OUTPUT_FILE | cut -f1)"
-else
-    echo "WARNING: Output file is missing or empty"
-    exit 1
 fi
