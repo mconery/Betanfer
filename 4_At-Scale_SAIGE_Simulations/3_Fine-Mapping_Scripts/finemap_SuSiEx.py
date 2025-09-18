@@ -3,7 +3,7 @@
 """
 SuSiEx Multi-Population Fine-Mapping Script
 Updated to auto-detect chromosome and BP range from *.vars files
-and generate PLINK-format frequency files
+and generate PLINK-format frequency files with A1 frequency
 """
 
 import argparse
@@ -69,7 +69,7 @@ def read_vars_file(vars_file):
 
 def detect_columns(gwas_file, verbose=True):
     try:
-        df = pd.read_csv(gwas_file, nrows=0, sep='\t')
+        df = pd.read_csv(gwas_file, nrows=0, sep=' ')
         headers = df.columns.tolist()
         if verbose:
             print(f"  Headers in {os.path.basename(gwas_file)}: {headers}")
@@ -83,12 +83,19 @@ def detect_columns(gwas_file, verbose=True):
             'eff': ['BETA', 'beta', 'Beta', 'OR', 'or', 'effect', 'EFFECT', 'b'],
             'se': ['SE', 'se', 'standard_error', 'STANDARD_ERROR', 'stderr', 'STDERR'],
             'pval': ['P', 'p', 'pval', 'PVAL', 'p_value', 'P_VALUE', 'pvalue', 'PVALUE', 'p.value'],
-            # Add allele frequency and missing rate patterns
-            'af': ['AF_Allele2', 'af', 'AF', 'allele_freq', 'ALLELE_FREQ', 'freq', 'FREQ', 'EAF', 'eaf', 'A1_FREQ', 'FRQ_A1'],
             'missing': ['MissingRate', 'missing_rate', 'MISSING_RATE', 'missing', 'MISSING', 'miss', 'MISS', 'callrate', 'CALLRATE']
         }
 
+        # Enhanced allele frequency detection - look for allele-specific frequencies
+        af_patterns = {
+            'af_a1': ['AF_Allele1', 'A1_FREQ', 'FRQ_A1', 'AF_A1', 'freq_a1', 'FREQ_A1', 'EAF', 'eaf'],
+            'af_a2': ['AF_Allele2', 'A2_FREQ', 'FRQ_A2', 'AF_A2', 'freq_a2', 'FREQ_A2'],
+            'af_generic': ['af', 'AF', 'allele_freq', 'ALLELE_FREQ', 'freq', 'FREQ', 'frequency', 'FREQUENCY']
+        }
+
         detected_cols = {}
+
+        # Detect standard columns
         for col_type, patterns in column_patterns.items():
             col_num = None
             for i, header in enumerate(headers):
@@ -96,13 +103,49 @@ def detect_columns(gwas_file, verbose=True):
                     col_num = i + 1
                     break
             if col_num is None:
-                defaults = {'chr': 1, 'snp': 2, 'bp': 3, 'a1': 4, 'a2': 5, 'eff': 6, 'se': 7, 'pval': 8, 'af': None, 'missing': None}
+                defaults = {'chr': 1, 'snp': 2, 'bp': 3, 'a1': 4, 'a2': 5, 'eff': 6, 'se': 7, 'pval': 8, 'missing': None}
                 col_num = defaults.get(col_type, None)
-                if col_type in ['af', 'missing'] and col_num is None:
+                if col_type == 'missing' and col_num is None:
                     print(f'    WARNING: Could not detect {col_type} column')
-                elif col_type not in ['af', 'missing']:
+                elif col_type != 'missing':
                     print(f'    WARNING: Could not detect {col_type} column, using default {col_num}')
             detected_cols[col_type] = col_num
+
+        # Detect allele frequency columns with priority for allele-specific ones
+        af_col = None
+        af_type = None
+
+        # First, look for A1-specific frequency
+        for i, header in enumerate(headers):
+            if header in af_patterns['af_a1']:
+                af_col = i + 1
+                af_type = 'a1'
+                break
+
+        # If no A1 frequency found, look for A2-specific frequency
+        if af_col is None:
+            for i, header in enumerate(headers):
+                if header in af_patterns['af_a2']:
+                    af_col = i + 1
+                    af_type = 'a2'
+                    break
+
+        # Finally, look for generic frequency columns
+        if af_col is None:
+            for i, header in enumerate(headers):
+                if header in af_patterns['af_generic']:
+                    af_col = i + 1
+                    af_type = 'generic'
+                    print(f'    WARNING: Found generic frequency column {header}, assuming it refers to A1')
+                    break
+
+        detected_cols['af'] = af_col
+        detected_cols['af_type'] = af_type
+
+        if af_col is None:
+            print('    WARNING: Could not detect any allele frequency column')
+        else:
+            print(f'    Found allele frequency column: {headers[af_col-1]} (type: {af_type})')
 
         if verbose:
             print(f'  Detected columns: {detected_cols}')
@@ -114,6 +157,7 @@ def detect_columns(gwas_file, verbose=True):
 def generate_frequency_file(gwas_file, vars_file, ld_prefix, sample_size, detected_cols):
     """
     Generate PLINK-format frequency file from GWAS summary statistics.
+    The MAF column will contain the frequency of the A1 allele (not minor allele frequency).
     """
     print(f"  Generating frequency file for {os.path.basename(gwas_file)}")
 
@@ -123,10 +167,10 @@ def generate_frequency_file(gwas_file, vars_file, ld_prefix, sample_size, detect
 
     # Read GWAS data
     try:
-        gwas_df = pd.read_csv(gwas_file, sep='\t')
+        gwas_df = pd.read_csv(gwas_file, sep=' ')
     except:
         try:
-            gwas_df = pd.read_csv(gwas_file, sep=' ')
+            gwas_df = pd.read_csv(gwas_file, sep='\t')
         except:
             print(f"ERROR: Could not read GWAS file {gwas_file}")
             sys.exit(1)
@@ -150,7 +194,7 @@ def generate_frequency_file(gwas_file, vars_file, ld_prefix, sample_size, detect
     gwas_filtered = gwas_df[gwas_df[snp_col].isin(variant_ids)].copy()
 
     if len(gwas_filtered) == 0:
-        print(f"ERROR: No overlapping variants found between GWAS and LD matrix")
+        print("ERROR: No overlapping variants found between GWAS and LD matrix")
         sys.exit(1)
 
     # Create frequency dataframe in PLINK .frq format
@@ -160,13 +204,21 @@ def generate_frequency_file(gwas_file, vars_file, ld_prefix, sample_size, detect
     freq_df['A1'] = gwas_filtered[a1_col]
     freq_df['A2'] = gwas_filtered[a2_col]
 
-    # Calculate MAF from AF_Allele2 if available
+    # Calculate A1 frequency (not MAF)
     if af_col is not None and af_col in gwas_filtered.columns:
         af_values = gwas_filtered[af_col].astype(float)
-        # Convert to MAF (minor allele frequency)
-        freq_df['MAF'] = np.where(af_values > 0.5, 1 - af_values, af_values)
+        af_type = detected_cols['af_type']
+
+        if af_type == 'a1' or af_type == 'generic':
+            # Frequency is for A1, use as-is
+            freq_df['MAF'] = af_values
+            print(f"    Using A1 frequency from column {af_col}")
+        elif af_type == 'a2':
+            # Frequency is for A2, convert to A1 frequency
+            freq_df['MAF'] = 1 - af_values
+            print(f"    Converting A2 frequency to A1 frequency from column {af_col}")
     else:
-        print(f"    WARNING: No allele frequency column found, setting MAF to 0.5")
+        print("    WARNING: No allele frequency column found, setting A1 frequency to 0.5")
         freq_df['MAF'] = 0.5
 
     # Calculate NCHROBS from missing rate if available
@@ -360,7 +412,6 @@ def main():
     finally:
         # Clean up frequency files
         #cleanup_frequency_files(frq_files)
-        pass
 
 if __name__ == "__main__":
     main()
