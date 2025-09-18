@@ -29,31 +29,24 @@ library(stringr)
 
 args <- commandArgs(trailingOnly = TRUE);
 
-if (length(args) >= 4) {
+if (length(args) >= 3) {
   # Required parameters
   summary_stats_file <- args[1]
-  pheno_files_string <- args[2]
-  ld_file <- args[3]
-  out_file <- args[4]
-  
-  # Parse comma-delimited phenotype files
-  pheno_files <- strsplit(pheno_files_string, ",")[[1]]
-  # Remove any leading/trailing whitespace
-  pheno_files <- trimws(pheno_files)
-  
+  ld_file <- args[2]
+  out_file <- args[3]
   # Optional parameters with defaults
-  markerid_col <- if (length(args) >= 5) args[5] else "markerid"
-  beta_col <- if (length(args) >= 6) args[6] else "beta"
-  se_col <- if (length(args) >= 7) args[7] else "se"
-  n_col <- if (length(args) >= 8) args[8] else "n"
-  in_sample_flag <- if (length(args) >= 9) as.logical(args[9]) else TRUE
-  random_seed <- if (length(args) >= 10) as.integer(args[10]) else 5
+  markerid_col <- if (length(args) >= 4) args[4] else "markerid"
+  beta_col <- if (length(args) >= 5) args[5] else "beta"
+  se_col <- if (length(args) >= 6) args[6] else "se"
+  n_col <- if (length(args) >= 7) args[7] else "n"
+  in_sample_flag <- if (length(args) >= 8) as.logical(args[8]) else TRUE
+  random_seed <- if (length(args) >= 9) as.integer(args[9]) else 5
   
   print(paste0("Necessary Parameters Input. Using ", length(pheno_files), " phenotype files."))
   
 } else {
-  print("Usage: Rscript finemap_SuSiE.R summary_stats_file pheno_files_comma_delimited ld_file out_file [markerid_col] [beta_col] [se_col] [n_col] [in_sample_flag] [random_seed]");
-  print("Example: Rscript finemap_SuSiE.R sumstats.txt pheno1.txt,pheno2.txt,pheno3.txt matrix.vcor1 output.txt");
+  print("Usage: Rscript finemap_SuSiE.R summary_stats_file ld_file out_file [markerid_col] [beta_col] [se_col] [n_col] [in_sample_flag] [random_seed]");
+  print("Example: Rscript finemap_SuSiE.R sumstats.txt matrix.vcor1 output.txt");
   quit(save="no");
 }
 
@@ -68,13 +61,6 @@ if (file.exists(dirname(out_file)) == FALSE) {
 #Check input locations
 if (file.exists(summary_stats_file) == FALSE || file.exists(ld_file) == FALSE) {
   print("ERROR: Summary stats file or LD matrix file not found.")
-  quit(save="no");
-}
-
-# Check that all phenotype files exist
-missing_pheno_files <- pheno_files[!file.exists(pheno_files)]
-if (length(missing_pheno_files) > 0) {
-  print(paste0("ERROR: The following phenotype files not found: ", paste(missing_pheno_files, collapse=", ")))
   quit(save="no");
 }
 
@@ -132,38 +118,6 @@ n <- mean(summary_stats_raw[[n_col]], na.rm = TRUE)
 bhat <- summary_stats_raw[[beta_col]]
 shat <- summary_stats_raw[[se_col]]
 
-# Read in phenotype files and calculate var_y across all files
-print("Reading phenotype files and calculating variance...")
-all_phenotypes <- c()
-
-for (i in 1:length(pheno_files)) {
-  print(paste0("Processing phenotype file ", i, ": ", pheno_files[i]))
-  
-  # Read phenotype file
-  pheno_raw <- read.csv(pheno_files[i], header = TRUE, sep="\t")
-  
-  # Check that PHENO column exists
-  if (!"PHENO" %in% colnames(pheno_raw)) {
-    print(paste0("ERROR: PHENO column not found in phenotype file: ", pheno_files[i]))
-    quit(save="no");
-  }
-  
-  # Extract PHENO values and add to combined vector
-  pheno_values <- pheno_raw$PHENO
-  all_phenotypes <- c(all_phenotypes, pheno_values)
-  
-  print(paste0("  Added ", length(pheno_values), " phenotype values (", sum(!is.na(pheno_values)), " non-missing)"))
-}
-
-# Calculate variance across all phenotypes
-var_y <- var(all_phenotypes, na.rm = TRUE)
-print(paste0("Total phenotype values: ", length(all_phenotypes)))
-print(paste0("Non-missing phenotype values: ", sum(!is.na(all_phenotypes))))
-print(paste0("Calculated var_y: ", var_y))
-
-# Clean up phenotype data
-remove(pheno_raw, all_phenotypes)
-
 # 3) Create Error Handling function ====
 
 check <- function(expression){
@@ -197,7 +151,7 @@ set.seed(random_seed) #Nothing up until here has been random
 
 #Fit susie model
 print("Running SuSiE fine-mapping...")
-fitted_rss1 <- check(susie_rss(bhat = bhat, shat = shat, n = n, R = R, var_y = var_y, L = 10,
+fitted_rss1 <- check(susie_rss(bhat = bhat, shat = shat, n = n, R = R, L = 10,
                                estimate_residual_variance = in_sample_flag))
 
 # 5) Extract Needed Info and Export Output File ====
