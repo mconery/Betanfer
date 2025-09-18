@@ -359,7 +359,8 @@ def main():
         run_susiex(args, gwas_files, ld_files, n_gwas_list, col_strings, chrom, bp_start, bp_end)
     finally:
         # Clean up frequency files
-        cleanup_frequency_files(frq_files)
+        #cleanup_frequency_files(frq_files)
+        pass
 
 if __name__ == "__main__":
     main()
