@@ -4,10 +4,6 @@
 # Modified from the original map_rsparsepro.sh to process a single locus
 # Usage: ./finemapping_rsparsepro.sh [gwas_file] [ld_file] [output_file] [varcol] [zscore_col] [beta_col] [se_col]
 
-# Activate conda environment
-source ~/.bashrc
-conda activate rsparsepro
-
 ################################################################################################################
 ########################## Parse command line arguments ######################################################
 ################################################################################################################
