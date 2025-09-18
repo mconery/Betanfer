@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
-
 """
 SuSiEx Multi-Population Fine-Mapping Script
 Updated to auto-detect chromosome and BP range from *.vars files
 and generate PLINK-format frequency files with A1 frequency
+
+EXTENDED: Now also includes automatic conversion of text LD matrices to PLINK bin4 format for SuSiEx.
+
+Usage:
+ - Provide text-based LD matrices as LD prefix (no .ld.bin file)
+ - Script will convert .txt LD matrix to .ld.bin format automatically
+ - PLINK-format frequency files are auto-generated as before
+ - After running SuSiEx, bin4 files can optionally be deleted (code provided, commented out)
 """
 
 import argparse
@@ -16,18 +23,16 @@ import re
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        description='Multi-population fine-mapping using SuSiEx (auto chr/bp from LD matrix .vars)',
-        formatter_class=argparse.RawDescriptionHelpFormatter
-    )
-
+        description='Multi-population fine-mapping using SuSiEx (auto chr/bp from LD matrix .vars, LD text-to-bin4 conversion added)',
+        formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--gwas_files', '-g', required=True,
-                       help='Comma-delimited list of GWAS summary statistics files')
+                        help='Comma-delimited list of GWAS summary statistics files')
     parser.add_argument('--ld_files', '-l', required=True,
-                       help='Comma-delimited list of LD matrix file prefixes (each must have a corresponding .vars file)')
+                        help='Comma-delimited list of LD matrix file prefixes (each must have a corresponding .vars file, .ld.bin or .txt allowed)')
     parser.add_argument('--output_file', '-o', required=True,
-                       help='Full path for final output file')
+                        help='Full path for final output file')
     parser.add_argument('--n_gwas', '-n', required=True,
-                       help='Comma-delimited list of GWAS sample sizes, same order as GWAS files')
+                        help='Comma-delimited list of GWAS sample sizes, same order as GWAS files')
     parser.add_argument('--maf', type=float, default=0.005)
     parser.add_argument('--n_sig', type=int, default=10)
     parser.add_argument('--level', type=int, default=95)
@@ -38,15 +43,57 @@ def parse_arguments():
     parser.add_argument('--pval_thresh', type=float, default=1e-5)
     parser.add_argument('--max_iter', type=int, default=100)
     parser.add_argument('--tol', type=float, default=1e-4)
-    parser.add_argument('--susiex_bin', required=False,
-        default='/lustre/orion/bif154/proj-shared/mconery/tools/SuSiEx/bin/SuSiEx',
-        help='Path to SuSiEx executable')
+    parser.add_argument('--susiex_bin', required=False, default='/lustre/orion/bif154/proj-shared/mconery/tools/SuSiEx/bin/SuSiEx',
+                        help='Path to SuSiEx executable')
     return parser.parse_args()
 
+def convert_text_ld_to_bin4(text_file, output_prefix):
+    """
+    Convert a text LD matrix to PLINK bin4 format (single-precision float32 row-major).
+    Output is output_prefix.ld.bin. Returns True if successful, False otherwise.
+    """
+    print(f"[LD CONVERT] Reading LD matrix from: {text_file}")
+    if not os.path.exists(text_file):
+        print(f"[LD CONVERT] Error: Input file {text_file} not found!")
+        return False
+    try:
+        ld_matrix = np.loadtxt(text_file, dtype=np.float64)
+        print(f"[LD CONVERT] Successfully loaded matrix of size: {ld_matrix.shape}")
+    except Exception as e:
+        print(f"[LD CONVERT] Error reading file: {e}")
+        return False
+    if ld_matrix.shape[0] != ld_matrix.shape[1]:
+        print(f"[LD CONVERT] Error: Matrix is not square! Shape: {ld_matrix.shape}")
+        return False
+    # Basic checks
+    diag_values = np.diag(ld_matrix)
+    if not np.allclose(diag_values, 1.0, atol=0.01):
+        print("[LD CONVERT] Warning: Diagonal values are not close to 1.0")
+    if ld_matrix.min() < -1.1 or ld_matrix.max() > 1.1:
+        print("[LD CONVERT] Warning: LD values outside expected range [-1, 1]")
+    ld_matrix_f32 = ld_matrix.astype(np.float32)
+    output_bin = f"{output_prefix}.ld.bin"
+    print(f"[LD CONVERT] Writing binary file: {output_bin}")
+    try:
+        with open(output_bin, 'wb') as f:
+            f.write(ld_matrix_f32.tobytes('C'))
+        print("[LD CONVERT] Successfully converted to bin4 format!")
+        return True
+    except Exception as e:
+        print(f"[LD CONVERT] Error writing binary file: {e}")
+        return False
+
+def delete_bin4_files(ld_bin_files):
+    """Delete bin4 LD matrix files."""
+    print("\n=== Cleaning up bin4 LD files ===")
+    for binf in ld_bin_files:
+        if os.path.exists(binf):
+            #os.remove(binf)  # Uncomment to actually delete files
+            print(f"Would delete: {binf}")
+        else:
+            print(f"Not found (skip): {binf}")
+
 def read_vars_file(vars_file):
-    """
-    Reads variant IDs from .vars file. Returns chromosome, min_bp, max_bp.
-    """
     variant_ids = []
     with open(vars_file, 'r') as f:
         for line in f:
@@ -395,7 +442,27 @@ def main():
 
     # Validate inputs
     gwas_files, ld_files, n_gwas_list, n_pops = validate_inputs(args)
-
+    
+    #Create bin4 LD files if needed
+    bin4_created = []
+    for ld_prefix in ld_files:
+        ld_bin = f"{ld_prefix}.ld.bin"
+        ld_txt = f"{ld_prefix}"
+        if not os.path.exists(ld_bin):
+            if os.path.exists(ld_txt):
+                print(f"Converting {ld_txt} to {ld_bin} ...")
+                if convert_text_ld_to_bin4(ld_txt, ld_prefix):
+                    bin4_created.append(ld_bin)
+                else:
+                    print(f"Error converting {ld_txt} to bin4 format. Exiting.")
+                    sys.exit(1)
+            else:
+                print(f"Missing both {ld_bin} and {ld_txt} for LD matrix prefix {ld_prefix}")
+                sys.exit(1)
+        else:
+            print(f"Found existing bin4 LD matrix: {ld_bin}")
+            bin4_created.append(ld_bin)
+    
     # Detect columns
     col_strings, all_detected_cols = detect_all_columns(gwas_files)
 
@@ -412,6 +479,7 @@ def main():
     finally:
         # Clean up frequency files
         #cleanup_frequency_files(frq_files)
+        #delete_bin4_files()
         pass
 
 if __name__ == "__main__":
