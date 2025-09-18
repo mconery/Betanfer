@@ -412,6 +412,7 @@ def main():
     finally:
         # Clean up frequency files
         #cleanup_frequency_files(frq_files)
+        pass
 
 if __name__ == "__main__":
     main()
