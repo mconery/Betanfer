@@ -9,7 +9,6 @@ import sys
 import subprocess
 import pandas as pd
 import re
-from pathlib import Path
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
@@ -108,7 +107,7 @@ def validate_inputs(args):
     n_gwas_list = [int(n.strip()) for n in args.n_gwas.split(',')]
     n_pops = len(gwas_files)
     if len(ld_files) != n_pops or len(n_gwas_list) != n_pops:
-        print(f"ERROR: Number of populations must match across all inputs")
+        print("ERROR: Number of populations must match across all inputs")
         sys.exit(1)
     for i, gwas_file in enumerate(gwas_files):
         if not os.path.isfile(gwas_file):
@@ -117,10 +116,10 @@ def validate_inputs(args):
         print(f"Population {i+1} GWAS file: {gwas_file} ✓")
     for i, ld_prefix in enumerate(ld_files):
         vars_file = f"{ld_prefix}.vars"
-        if not os.path.isfile(f"{ld_prefix}.npy") or not os.path.isfile(vars_file):
-            print(f"ERROR: LD matrix ({ld_prefix}.npy) or vars file ({vars_file}) not found")
+        if not os.path.isfile(f"{ld_prefix}") or not os.path.isfile(vars_file):
+            print(f"ERROR: LD matrix ({ld_prefix}) or vars file ({vars_file}) not found")
             sys.exit(1)
-        print(f"Population {i+1} LD matrix: {ld_prefix}.npy, .vars ✓")
+        print(f"Population {i+1} LD matrix: {ld_prefix}, .vars ✓")
     output_dir = os.path.dirname(args.output_file)
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
