@@ -285,7 +285,7 @@ def generate_frequency_file(gwas_file, vars_file, ld_prefix, sample_size, detect
 
     # Save frequency file
     frq_file = f"{ld_prefix}_frq.frq"
-    freq_df.to_csv(frq_file, sep='\t', index=False)
+    freq_df.to_csv(frq_file, sep=' ', index=False)
 
     print(f"    Frequency file saved: {frq_file} ({len(freq_df)} variants)")
     return frq_file
