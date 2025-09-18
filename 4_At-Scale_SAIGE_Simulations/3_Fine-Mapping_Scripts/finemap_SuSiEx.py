@@ -69,7 +69,7 @@ def read_vars_file(vars_file):
 
 def detect_columns(gwas_file, verbose=True):
     try:
-        df = pd.read_csv(gwas_file, nrows=0, sep=' ')
+        df = pd.read_csv(gwas_file, nrows=0, sep='\t')
         headers = df.columns.tolist()
         if verbose:
             print(f"  Headers in {os.path.basename(gwas_file)}: {headers}")
@@ -123,10 +123,10 @@ def generate_frequency_file(gwas_file, vars_file, ld_prefix, sample_size, detect
 
     # Read GWAS data
     try:
-        gwas_df = pd.read_csv(gwas_file, sep=' ')
+        gwas_df = pd.read_csv(gwas_file, sep='\t')
     except:
         try:
-            gwas_df = pd.read_csv(gwas_file, sep='\t')
+            gwas_df = pd.read_csv(gwas_file, sep=' ')
         except:
             print(f"ERROR: Could not read GWAS file {gwas_file}")
             sys.exit(1)
