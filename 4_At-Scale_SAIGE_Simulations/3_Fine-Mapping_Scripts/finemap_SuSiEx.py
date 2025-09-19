@@ -221,7 +221,7 @@ def generate_plink_frequency_file(ld_prefix, vars_file, chrom, bp_start, bp_end,
         '--chr', str(chrom),
         '--from-bp', str(bp_start),
         '--to-bp', str(bp_end),
-        '--freq',
+        '--freq', '--keep-allele-order',
         '--out', freq_output
     ]
     
