@@ -34,7 +34,7 @@ def parse_arguments():
                         help='Comma-delimited list of GWAS sample sizes, same order as GWAS files')
     parser.add_argument('--maf', type=float, default=0.005)
     parser.add_argument('--n_sig', type=int, default=10)
-    parser.add_argument('--level', type=int, default=95)
+    parser.add_argument('--level', type=int, default=0.95)
     parser.add_argument('--min_purity', type=float, default=0.5)
     parser.add_argument('--threads', type=int, default=1)
     parser.add_argument('--keep_ambig', action='store_true')
