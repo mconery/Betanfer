@@ -47,48 +47,48 @@ mkdir -p flux_output
 ################################################################################################################
 ##################################### Prep Commands for EUR population #########################################
 ################################################################################################################
-
-echo "Generating indexing commands for EUR population..."
-python $command_script \
-    --scratch_dir $eur_scratch_dir \
-    --pattern $eur_input_dir/"Pheno*.txt" \
-    --commands_file $eur_commands_file \
-    --filename_regex "^Pheno\\d+\\.(binary|continuous)\\.chr\\d+\\.step2\\.txt$" \
-    --indexer_script $indexer_script \
-    --chrom_col CHR \
-    --pos_col POS
-
-# Check if EUR commands were generated
-if [ ! -f "$eur_commands_file" ] || [ ! -s "$eur_commands_file" ]; then
-    echo "ERROR: No EUR commands generated or file is empty: $eur_commands_file"
-    exit 1
-fi
-
-eur_cmd_count=$(wc -l < $eur_commands_file)
-echo "Generated $eur_cmd_count commands for EUR population"
+#
+#echo "Generating indexing commands for EUR population..."
+#python $command_script \
+#    --scratch_dir $eur_scratch_dir \
+#    --pattern $eur_input_dir/"Pheno*.txt" \
+#    --commands_file $eur_commands_file \
+#    --filename_regex "^Pheno\\d+\\.(binary|continuous)\\.chr\\d+\\.step2\\.txt$" \
+#    --indexer_script $indexer_script \
+#    --chrom_col CHR \
+#    --pos_col POS
+#
+## Check if EUR commands were generated
+#if [ ! -f "$eur_commands_file" ] || [ ! -s "$eur_commands_file" ]; then
+#    echo "ERROR: No EUR commands generated or file is empty: $eur_commands_file"
+#    exit 1
+#fi
+#
+#eur_cmd_count=$(wc -l < $eur_commands_file)
+#echo "Generated $eur_cmd_count commands for EUR population"
 
 ################################################################################################################
 ##################################### Prep Commands for AFR population #########################################
 ################################################################################################################
-
-echo "Generating indexing commands for AFR population..."
-python $command_script \
-    --scratch_dir $afr_scratch_dir \
-    --pattern $afr_input_dir/"Pheno*.txt" \
-    --commands_file $afr_commands_file \
-    --filename_regex "^Pheno\\d+\\.(binary|continuous)\\.chr\\d+\\.step2\\.txt$" \
-    --indexer_script $indexer_script \
-    --chrom_col CHR \
-    --pos_col POS
-
-# Check if AFR commands were generated
-if [ ! -f "$afr_commands_file" ] || [ ! -s "$afr_commands_file" ]; then
-    echo "ERROR: No AFR commands generated or file is empty: $afr_commands_file"
-    exit 1
-fi
-
-afr_cmd_count=$(wc -l < $afr_commands_file)
-echo "Generated $afr_cmd_count commands for AFR population"
+#
+#echo "Generating indexing commands for AFR population..."
+#python $command_script \
+#    --scratch_dir $afr_scratch_dir \
+#    --pattern $afr_input_dir/"Pheno*.txt" \
+#    --commands_file $afr_commands_file \
+#    --filename_regex "^Pheno\\d+\\.(binary|continuous)\\.chr\\d+\\.step2\\.txt$" \
+#    --indexer_script $indexer_script \
+#    --chrom_col CHR \
+#    --pos_col POS
+#
+## Check if AFR commands were generated
+#if [ ! -f "$afr_commands_file" ] || [ ! -s "$afr_commands_file" ]; then
+#    echo "ERROR: No AFR commands generated or file is empty: $afr_commands_file"
+#    exit 1
+#fi
+#
+#afr_cmd_count=$(wc -l < $afr_commands_file)
+#echo "Generated $afr_cmd_count commands for AFR population"
 
 ################################################################################################################
 ################################## Execute EUR population indexing #############################################
