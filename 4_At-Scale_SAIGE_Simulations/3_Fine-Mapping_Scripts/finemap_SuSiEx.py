@@ -7,6 +7,7 @@ and generate PLINK-format frequency files with A1 frequency
 EXTENDED: Now includes:
 - Automatic conversion of text LD matrices to PLINK bin4 format
 - PLINK-based frequency file generation for better SuSiEx compatibility
+- Generation of required _ref.bim files that SuSiEx expects
 - Optional cleanup of generated bin4 files after processing
 """
 
@@ -41,7 +42,7 @@ def parse_arguments():
     parser.add_argument('--pval_thresh', type=float, default=1e-5)
     parser.add_argument('--max_iter', type=int, default=100)
     parser.add_argument('--tol', type=float, default=1e-4)
-    parser.add_argument('--susiex_bin', required=False, 
+    parser.add_argument('--susiex_bin', required=False,
                         default='/lustre/orion/bif154/proj-shared/mconery/tools/SuSiEx/bin/SuSiEx',
                         help='Path to SuSiEx executable')
     parser.add_argument('--plink_bin', required=False,
@@ -100,6 +101,16 @@ def delete_bin4_files(ld_bin_files):
             print(f"Would delete: {binf}")
         else:
             print(f"Not found (skip): {binf}")
+
+def delete_ref_bim_files(ref_bim_files):
+    """Delete _ref.bim files created for SuSiEx."""
+    print("\n=== Cleaning up _ref.bim files ===")
+    for bim_file in ref_bim_files:
+        if os.path.exists(bim_file):
+            #os.remove(bim_file)  # Uncomment to actually delete files
+            print(f"Would delete: {bim_file}")
+        else:
+            print(f"Not found (skip): {bim_file}")
 
 def read_vars_file(vars_file):
     """Reads variant IDs from .vars file. Returns chromosome, min_bp, max_bp."""
@@ -174,6 +185,93 @@ def detect_columns(gwas_file, verbose=True):
         print(f"Detected columns: {detected_cols}")
     
     return detected_cols
+
+def generate_plink_ref_bim_file(ld_prefix, vars_file, chrom, bp_start, bp_end, plink_bin, ref_panel=None):
+    """
+    Generate the _ref.bim file that SuSiEx expects using PLINK.
+    This creates ld_prefix_ref.bim with the variants specified in the .vars file.
+    """
+    print(f"[PLINK REF.BIM] Generating _ref.bim file for {ld_prefix}")
+    
+    # If no reference panel provided, look for common patterns
+    if ref_panel is None:
+        possible_refs = [
+            ld_prefix,  # Same prefix as LD matrix
+            f"{ld_prefix}_ref",  # Common SuSiEx pattern
+            f"{os.path.dirname(ld_prefix)}/reference",
+            f"{os.path.dirname(ld_prefix)}/ref"
+        ]
+        
+        for ref_candidate in possible_refs:
+            if os.path.exists(f"{ref_candidate}.bed"):
+                ref_panel = ref_candidate
+                print(f"[PLINK REF.BIM] Found reference panel: {ref_panel}")
+                break
+        
+        if ref_panel is None:
+            print(f"[PLINK REF.BIM] ERROR: No reference panel found for {ld_prefix}")
+            print(f"[PLINK REF.BIM] Please provide --ref_panels argument or ensure reference files exist")
+            return False
+    
+    # Create SNP list from vars file
+    snp_list_file = f"{ld_prefix}_temp_snps.txt"
+    with open(vars_file, 'r') as f:
+        variant_ids = [line.strip() for line in f if line.strip()]
+    
+    with open(snp_list_file, 'w') as f:
+        for vid in variant_ids:
+            f.write(f"{vid}\n")
+    
+    # Run PLINK to generate reference subset that matches the LD matrix
+    ref_output = f"{ld_prefix}_ref"
+    plink_cmd = [
+        plink_bin,
+        '--bfile', ref_panel,
+        '--extract', snp_list_file,
+        '--chr', str(chrom),
+        '--from-bp', str(bp_start),
+        '--to-bp', str(bp_end),
+        '--keep-allele-order',
+        '--make-bed',
+        '--out', ref_output
+    ]
+    
+    print(f"[PLINK REF.BIM] Running: {' '.join(plink_cmd)}")
+    
+    try:
+        result = subprocess.run(plink_cmd, check=True, capture_output=True, text=True)
+        print(f"[PLINK REF.BIM] PLINK reference subset generation completed")
+        
+        # Check if _ref.bim file was created
+        ref_bim_file = f"{ref_output}.bim"
+        if os.path.exists(ref_bim_file):
+            # Count variants
+            with open(ref_bim_file, 'r') as f:
+                n_variants = sum(1 for line in f)
+            print(f"[PLINK REF.BIM] Generated _ref.bim file: {ref_bim_file} ({n_variants} variants)")
+            
+            # Clean up temporary files, but keep the _ref.bim file
+            for temp_file in [snp_list_file, f"{ref_output}.log", f"{ref_output}.nosex"]:
+                if os.path.exists(temp_file):
+                    os.remove(temp_file)
+            
+            # Remove .bed and .fam files as SuSiEx only needs .bim
+            for temp_file in [f"{ref_output}.bed", f"{ref_output}.fam"]:
+                if os.path.exists(temp_file):
+                    os.remove(temp_file)
+            
+            return ref_bim_file
+        else:
+            print(f"[PLINK REF.BIM] ERROR: Expected _ref.bim file {ref_bim_file} was not created")
+            return False
+            
+    except subprocess.CalledProcessError as e:
+        print(f"[PLINK REF.BIM] ERROR: PLINK failed with return code {e.returncode}")
+        if e.stdout:
+            print(f"[PLINK REF.BIM] STDOUT: {e.stdout}")
+        if e.stderr:
+            print(f"[PLINK REF.BIM] STDERR: {e.stderr}")
+        return False
 
 def generate_plink_frequency_file(ld_prefix, vars_file, chrom, bp_start, bp_end, plink_bin, ref_panel=None):
     """
@@ -366,16 +464,19 @@ def process_ld_matrices(ld_files):
     
     return bin4_created
 
-def generate_all_frequency_files(ld_files, chrom, bp_start, bp_end, plink_bin, ref_panels):
-    """Generate PLINK frequency files for all populations."""
-    print("=== Generating frequency files ===")
+def generate_all_frequency_and_ref_files(ld_files, chrom, bp_start, bp_end, plink_bin, ref_panels):
+    """Generate PLINK frequency files and _ref.bim files for all populations."""
+    print("=== Generating frequency files and _ref.bim files ===")
     frq_files = []
+    ref_bim_files = []
     
     for i, ld_prefix in enumerate(ld_files):
         vars_file = f"{ld_prefix}.vars"
         ref_panel = ref_panels[i] if ref_panels else None
         
         print(f"Population {i+1}:")
+        
+        # Generate frequency file
         frq_file = generate_plink_frequency_file(
             ld_prefix, vars_file, chrom, bp_start, bp_end, plink_bin, ref_panel
         )
@@ -385,8 +486,19 @@ def generate_all_frequency_files(ld_files, chrom, bp_start, bp_end, plink_bin, r
         else:
             print(f"ERROR: Failed to generate frequency file for {ld_prefix}")
             sys.exit(1)
+        
+        # Generate _ref.bim file
+        ref_bim_file = generate_plink_ref_bim_file(
+            ld_prefix, vars_file, chrom, bp_start, bp_end, plink_bin, ref_panel
+        )
+        
+        if ref_bim_file:
+            ref_bim_files.append(ref_bim_file)
+        else:
+            print(f"ERROR: Failed to generate _ref.bim file for {ld_prefix}")
+            sys.exit(1)
     
-    return frq_files
+    return frq_files, ref_bim_files
 
 def run_susiex(args, gwas_files, ld_files, n_gwas_list, col_strings, chrom, bp_start, bp_end):
     """Run SuSiEx fine-mapping."""
@@ -452,7 +564,7 @@ def cleanup_frequency_files(frq_files):
             print(f"Deleted: {frq_file}")
 
 def main():
-    print("=== SuSiEx Multi-Population Fine-Mapping (PLINK frequency generation) ===")
+    print("=== SuSiEx Multi-Population Fine-Mapping (PLINK frequency + _ref.bim generation) ===")
     args = parse_arguments()
     
     # Validate inputs
@@ -469,8 +581,8 @@ def main():
     bin4_created = process_ld_matrices(ld_files)
     
     try:
-        # Generate frequency files using PLINK
-        frq_files = generate_all_frequency_files(
+        # Generate frequency files and _ref.bim files using PLINK
+        frq_files, ref_bim_files = generate_all_frequency_and_ref_files(
             ld_files, chrom, bp_start, bp_end, args.plink_bin, ref_panels
         )
         
@@ -480,14 +592,15 @@ def main():
     finally:
         # Clean up frequency files
         if 'frq_files' in locals():
-            #cleanup_frequency_files(frq_files)
-            pass
+            cleanup_frequency_files(frq_files)
+        
+        # Clean up _ref.bim files (commented out for safety)
+        if 'ref_bim_files' in locals():
+            delete_ref_bim_files(ref_bim_files)
         
         # Clean up bin4 files (commented out for safety)
         if bin4_created:
-            #delete_bin4_files(bin4_created)
-            pass
-
+            delete_bin4_files(bin4_created)
 
 if __name__ == '__main__':
     main()
