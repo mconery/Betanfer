@@ -129,7 +129,7 @@ echo "Final output file: $OUTPUT_FILE"
 
 # Extract the base name for RSparsePro save parameter (without extension)
 OUTPUT_BASE=$(basename "$OUTPUT_FILE" .txt)
-OUTPUT_BASE=$(basename "$OUTPUT_BASE" .rsparsepro)
+OUTPUT_BASE=$(basename "$OUTPUT_BASE")
 
 # Build the RSparsePro command
 RSPARSEPRO_CMD="python $RSPARSEPRO_SCRIPT --z $Z_SCORES_FILE --ld $LD_FILE --save ${OUTPUT_DIR}/${OUTPUT_BASE}"
@@ -147,3 +147,6 @@ if [ ! -f "$OUTPUT_FILE" ]; then
 else
     echo "RSparsePro output file already exists, skipping analysis"
 fi
+
+#Clean up log file and set file formatting
+
