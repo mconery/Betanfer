@@ -519,9 +519,9 @@ def run_susiex(args, gwas_files, ld_files, n_gwas_list, col_strings, chrom, bp_s
     ]
     
     if args.keep_ambig:
-        cmd.append('--keep-ambig')
+        cmd.append('--keep-ambig True')
     if args.mult_step:
-        cmd.append('--mult-step')
+        cmd.append('--mult-step True')
     
     print(' '.join(cmd))
     
