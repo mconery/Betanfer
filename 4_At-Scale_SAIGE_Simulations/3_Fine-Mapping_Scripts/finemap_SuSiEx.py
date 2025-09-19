@@ -509,7 +509,7 @@ def run_susiex(args, gwas_files, ld_files, n_gwas_list, col_strings, chrom, bp_s
         '--pval_col', col_strings['pval'],
         '--maf', str(args.maf),
         #'--n_sig', str(args.n_sig),
-        '--mult-step', True,
+        '--mult-step', 'True',
         '--level', str(args.level),
         '--min_purity', str(args.min_purity),
         '--pval_thresh', str(args.pval_thresh),
