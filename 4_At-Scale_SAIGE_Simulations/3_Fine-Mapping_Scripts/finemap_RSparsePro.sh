@@ -151,3 +151,4 @@ fi
 #Clean up log file and set file formatting
 rm "${OUTPUT_DIR}/${OUTPUT_BASE}".rsparsepro.log
 mv "${OUTPUT_DIR}/${OUTPUT_BASE}".rsparsepro.txt "${OUTPUT_DIR}/${OUTPUT_BASE}".txt 
+sed -i 's/RSID/VARIANT_ID/g' "${OUTPUT_DIR}/${OUTPUT_BASE}".txt 
