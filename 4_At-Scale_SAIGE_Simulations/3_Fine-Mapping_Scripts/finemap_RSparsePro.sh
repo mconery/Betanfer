@@ -129,7 +129,7 @@ echo "Final output file: $OUTPUT_FILE"
 
 # Extract the base name for RSparsePro save parameter (without extension)
 OUTPUT_BASE=$(basename "$OUTPUT_FILE" .txt)
-OUTPUT_BASE=$(basename "$OUTPUT_BASE")
+OUTPUT_BASE=$(basename "$OUTPUT_BASE" .rsparsepro)
 
 # Build the RSparsePro command
 RSPARSEPRO_CMD="python $RSPARSEPRO_SCRIPT --z $Z_SCORES_FILE --ld $LD_FILE --save ${OUTPUT_DIR}/${OUTPUT_BASE}"
@@ -149,4 +149,5 @@ else
 fi
 
 #Clean up log file and set file formatting
-
+rm ${OUTPUT_DIR}/${OUTPUT_BASE}".log
+mv ${OUTPUT_DIR}/${OUTPUT_BASE}".rsparsepro.txt ${OUTPUT_DIR}/${OUTPUT_BASE}".txt 
