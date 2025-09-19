@@ -144,11 +144,12 @@ if [ ! -f "$OUTPUT_FILE" ]; then
         exit 1
     fi
     echo "RSparsePro fine-mapping completed successfully"
+    #Clean up log file and set file formatting
+    rm "${OUTPUT_DIR}/${OUTPUT_BASE}".rsparsepro.log
+    mv "${OUTPUT_DIR}/${OUTPUT_BASE}".rsparsepro.txt "${OUTPUT_DIR}/${OUTPUT_BASE}".txt 
+    sed -i 's/RSID/VARIANT_ID/g' "${OUTPUT_DIR}/${OUTPUT_BASE}".txt 
 else
     echo "RSparsePro output file already exists, skipping analysis"
 fi
 
-#Clean up log file and set file formatting
-rm "${OUTPUT_DIR}/${OUTPUT_BASE}".rsparsepro.log
-mv "${OUTPUT_DIR}/${OUTPUT_BASE}".rsparsepro.txt "${OUTPUT_DIR}/${OUTPUT_BASE}".txt 
-sed -i 's/RSID/VARIANT_ID/g' "${OUTPUT_DIR}/${OUTPUT_BASE}".txt 
+
