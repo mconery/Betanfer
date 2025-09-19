@@ -514,7 +514,8 @@ def run_susiex(args, gwas_files, ld_files, n_gwas_list, col_strings, chrom, bp_s
         '--pval_thresh', str(args.pval_thresh),
         '--max_iter', str(args.max_iter),
         '--tol', str(args.tol),
-        '--threads', str(args.threads)
+        '--threads', str(args.threads),
+        '--plink', str(args.plink_bin)
     ]
     
     if args.keep_ambig:
