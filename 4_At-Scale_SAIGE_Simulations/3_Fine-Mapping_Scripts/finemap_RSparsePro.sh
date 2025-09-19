@@ -150,4 +150,4 @@ fi
 
 #Clean up log file and set file formatting
 rm "${OUTPUT_DIR}/${OUTPUT_BASE}".rsparsepro.log
-mv "${OUTPUT_DIR}/${OUTPUT_BASE}".rsparsepro.txt ${OUTPUT_DIR}/${OUTPUT_BASE}".txt 
+mv "${OUTPUT_DIR}/${OUTPUT_BASE}".rsparsepro.txt "${OUTPUT_DIR}/${OUTPUT_BASE}".txt 
