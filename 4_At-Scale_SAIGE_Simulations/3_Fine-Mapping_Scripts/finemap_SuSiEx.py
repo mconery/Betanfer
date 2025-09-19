@@ -419,6 +419,7 @@ def get_chr_and_bp_range(ld_files):
         print(f"ERROR: Chromosomes differ across populations: {chrs}")
         sys.exit(1)
     
+    return 1, str(min(min_pos)), str(max(max_pos)), all_variant_ids
     return chrs[0], str(min(min_pos)), str(max(max_pos)), all_variant_ids
 
 def process_ld_matrices(ld_files):
