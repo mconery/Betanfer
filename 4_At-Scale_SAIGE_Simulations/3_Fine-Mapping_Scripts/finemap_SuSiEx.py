@@ -97,8 +97,8 @@ def delete_bin4_files(ld_bin_files):
     print("\n=== Cleaning up bin4 LD files ===")
     for binf in ld_bin_files:
         if os.path.exists(binf):
-            #os.remove(binf)  # Uncomment to actually delete files
-            print(f"Would delete: {binf}")
+            os.remove(binf)  # Uncomment to actually delete files
+            print(f"Deleted: {binf}")
         else:
             print(f"Not found (skip): {binf}")
 
@@ -107,8 +107,8 @@ def delete_ref_bim_files(ref_bim_files):
     print("\n=== Cleaning up _ref.bim files ===")
     for bim_file in ref_bim_files:
         if os.path.exists(bim_file):
-            #os.remove(bim_file)  # Uncomment to actually delete files
-            print(f"Would delete: {bim_file}")
+            os.remove(bim_file)  # Uncomment to actually delete files
+            print(f"Deleted: {bim_file}")
         else:
             print(f"Not found (skip): {bim_file}")
 
