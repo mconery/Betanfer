@@ -213,21 +213,12 @@ def generate_plink_ref_bim_file(ld_prefix, vars_file, chrom, bp_start, bp_end, p
             print(f"[PLINK REF.BIM] Please provide --ref_panels argument or ensure reference files exist")
             return False
     
-    # Create SNP list from vars file
-    snp_list_file = f"{ld_prefix}_temp_snps.txt"
-    with open(vars_file, 'r') as f:
-        variant_ids = [line.strip() for line in f if line.strip()]
-    
-    with open(snp_list_file, 'w') as f:
-        for vid in variant_ids:
-            f.write(f"{vid}\n")
-    
     # Run PLINK to generate reference subset that matches the LD matrix
     ref_output = f"{ld_prefix}_ref"
     plink_cmd = [
         plink_bin,
         '--bfile', ref_panel,
-        '--extract', snp_list_file,
+        '--extract', vars_file,
         '--chr', str(chrom),
         '--from-bp', str(bp_start),
         '--to-bp', str(bp_end),
@@ -251,7 +242,7 @@ def generate_plink_ref_bim_file(ld_prefix, vars_file, chrom, bp_start, bp_end, p
             print(f"[PLINK REF.BIM] Generated _ref.bim file: {ref_bim_file} ({n_variants} variants)")
             
             # Clean up temporary files, but keep the _ref.bim file
-            for temp_file in [snp_list_file, f"{ref_output}.log", f"{ref_output}.nosex"]:
+            for temp_file in [f"{ref_output}.log", f"{ref_output}.nosex"]:
                 if os.path.exists(temp_file):
                     os.remove(temp_file)
             
@@ -300,22 +291,13 @@ def generate_plink_frequency_file(ld_prefix, vars_file, chrom, bp_start, bp_end,
             print(f"[PLINK FREQ] ERROR: No reference panel found for {ld_prefix}")
             print(f"[PLINK FREQ] Please provide --ref_panels argument or ensure reference files exist")
             return False
-    
-    # Create SNP list from vars file
-    snp_list_file = f"{ld_prefix}_temp_snps.txt"
-    with open(vars_file, 'r') as f:
-        variant_ids = [line.strip() for line in f if line.strip()]
-    
-    with open(snp_list_file, 'w') as f:
-        for vid in variant_ids:
-            f.write(f"{vid}\n")
-    
+        
     # Run PLINK to generate frequency file
     freq_output = f"{ld_prefix}_frq"
     plink_cmd = [
         plink_bin,
         '--bfile', ref_panel,
-        '--extract', snp_list_file,
+        '--extract', vars_file,
         '--chr', str(chrom),
         '--from-bp', str(bp_start),
         '--to-bp', str(bp_end),
@@ -338,7 +320,7 @@ def generate_plink_frequency_file(ld_prefix, vars_file, chrom, bp_start, bp_end,
             print(f"[PLINK FREQ] Generated frequency file: {freq_file} ({n_variants} variants)")
             
             # Clean up temporary files
-            for temp_file in [snp_list_file, f"{freq_output}.log", f"{freq_output}.nosex"]:
+            for temp_file in [f"{freq_output}.log", f"{freq_output}.nosex"]:
                 if os.path.exists(temp_file):
                     os.remove(temp_file)
             
@@ -446,7 +428,7 @@ def process_ld_matrices(ld_files):
     
     for ld_prefix in ld_files:
         ld_bin = f"{ld_prefix}.ld.bin"
-        ld_txt = f"{ld_prefix}.txt"
+        ld_txt = f"{ld_prefix}"
         
         if not os.path.exists(ld_bin):
             if os.path.exists(ld_txt):
