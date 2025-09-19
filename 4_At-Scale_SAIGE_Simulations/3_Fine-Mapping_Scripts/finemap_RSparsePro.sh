@@ -149,5 +149,5 @@ else
 fi
 
 #Clean up log file and set file formatting
-rm ${OUTPUT_DIR}/${OUTPUT_BASE}".log
-mv ${OUTPUT_DIR}/${OUTPUT_BASE}".rsparsepro.txt ${OUTPUT_DIR}/${OUTPUT_BASE}".txt 
+rm "${OUTPUT_DIR}/${OUTPUT_BASE}".log
+mv "${OUTPUT_DIR}/${OUTPUT_BASE}".rsparsepro.txt ${OUTPUT_DIR}/${OUTPUT_BASE}".txt 
