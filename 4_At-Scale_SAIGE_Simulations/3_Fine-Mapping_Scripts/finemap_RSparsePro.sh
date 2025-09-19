@@ -37,9 +37,8 @@ OUTPUT_FILE="$3"
 
 # Optional arguments with defaults (matching typical finemap parameter patterns)
 VARCOL_NAME="${4:-rsid}"
-ZSCORE_COL="${5:-}"
-BETA_COL="${6:-beta}"
-SE_COL="${7:-se}"
+BETA_COL="${5:-beta}"
+SE_COL="${6:-se}"
 
 ################################################################################################################
 ########################## Define script locations ############################################################
@@ -95,13 +94,7 @@ echo "Variants file: $VARS_FILE"
 echo "Z-scores output: $Z_SCORES_FILE"
 
 # Build the z-score preparation command
-if [ -n "$ZSCORE_COL" ]; then
-    # Use existing Z-score column
-    Z_CMD="python $Z_SCRIPT -v $VARS_FILE -g $GWAS_FILE -o $Z_SCORES_FILE --varcol=$VARCOL_NAME --zscore=$ZSCORE_COL"
-else
-    # Calculate Z-scores from beta and SE
-    Z_CMD="python $Z_SCRIPT -v $VARS_FILE -g $GWAS_FILE -o $Z_SCORES_FILE --varcol=$VARCOL_NAME --beta=$BETA_COL --se=$SE_COL"
-fi
+Z_CMD="python $Z_SCRIPT -v $VARS_FILE -g $GWAS_FILE -o $Z_SCORES_FILE --varcol=$VARCOL_NAME --beta=$BETA_COL --se=$SE_COL"
 
 echo "Command: $Z_CMD"
 
