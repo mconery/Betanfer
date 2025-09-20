@@ -184,11 +184,7 @@ def plot_susiex_results(results_file, causal_file, output_file):
     # Place legend on the top subplot
     if legend_elements:
         axes[0].legend(handles=legend_elements, bbox_to_anchor=(1.05, 1), loc='upper left')
-    
-    # Add overall title
-    fig.suptitle(f'SuSiEx Multi-Population Fine-Mapping Results\\nchr{chrom}:{min_pos:,}-{max_pos:,}', 
-                 fontsize=14, y=0.98)
-    
+        
     plt.tight_layout()
     plt.subplots_adjust(top=0.95)  # Make room for suptitle
     
