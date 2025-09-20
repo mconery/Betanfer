@@ -112,6 +112,42 @@ def delete_ref_bim_files(ref_bim_files):
         else:
             print(f"Not found (skip): {bim_file}")
 
+def delete_susiex_output_files(output_file):
+    """
+    Delete SuSiEx's default output files after creating the SuSiE-format output.
+    
+    SuSiEx creates three main output files:
+    - {output_name}.snp: Contains PIPs and LogBF values
+    - {output_name}.cs: Contains credible set information  
+    - {output_name}.summary: Contains summary information
+    """
+    print("\n=== Cleaning up SuSiEx output files ===")
+    
+    # Determine output file paths
+    output_base = output_file.replace('.txt', '').replace('.susiex', '')
+    susiex_files = [
+        f"{output_base}.snp",
+        f"{output_base}.cs", 
+        f"{output_base}.summary"
+    ]
+    
+    deleted_count = 0
+    for susiex_file in susiex_files:
+        if os.path.exists(susiex_file):
+            try:
+                os.remove(susiex_file)
+                print(f"Deleted: {susiex_file}")
+                deleted_count += 1
+            except Exception as e:
+                print(f"Error deleting {susiex_file}: {e}")
+        else:
+            print(f"Not found (skip): {susiex_file}")
+    
+    if deleted_count > 0:
+        print(f"Successfully deleted {deleted_count} SuSiEx output files")
+    else:
+        print("No SuSiEx output files found to delete")
+
 def read_vars_file(vars_file):
     """Reads variant IDs from .vars file. Returns chromosome, min_bp, max_bp."""
     variant_ids = []
@@ -733,8 +769,12 @@ def main():
         # Run SuSiEx
         run_susiex(args, gwas_files, ld_files, n_gwas_list, col_strings, chrom, bp_start, bp_end)
         
-        # CREATE SUSIE FORMAT OUTPUT - ADD THIS LINE
-        create_susie_format_output(args.output_file, gwas_files, all_detected_cols)
+        # CREATE SUSIE FORMAT OUTPUT
+        susie_output = create_susie_format_output(args.output_file, gwas_files, all_detected_cols)
+        
+        # DELETE SUSIEX OUTPUT FILES (only if SuSiE format was created successfully)
+        if susie_output:
+            delete_susiex_output_files(args.output_file)
         
     finally:
         # Clean up frequency files
