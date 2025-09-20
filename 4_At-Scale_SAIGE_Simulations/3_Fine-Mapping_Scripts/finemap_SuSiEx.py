@@ -337,6 +337,167 @@ def generate_plink_frequency_file(ld_prefix, vars_file, chrom, bp_start, bp_end,
             print(f"[PLINK FREQ] STDERR: {e.stderr}")
         return False
 
+def extract_population_names(gwas_files):
+    """Extract population names from GWAS file paths."""
+    pop_names = []
+    for gwas_file in gwas_files:
+        # Extract directory structure to find population name
+        # Example: "/path/to/AFR/file.txt" -> "AFR"
+        path_parts = gwas_file.split('/')
+        for part in path_parts:
+            # Look for common population codes
+            if part.upper() in ['AFR', 'EUR', 'EAS', 'SAS', 'AMR', 'ASN', 'HISPANIC', 'LATINO'] or (len(part) == 3 and part.isupper()):
+                pop_names.append(part.upper())
+                break
+        else:
+            # If no clear population name found, use directory name containing the file
+            dir_name = os.path.basename(os.path.dirname(gwas_file))
+            pop_names.append(dir_name)
+    
+    return pop_names
+
+def calculate_z_scores(gwas_files, all_detected_cols):
+    """Calculate Z-scores for each population from GWAS files."""
+    z_scores_by_pop = {}
+    
+    for i, gwas_file in enumerate(gwas_files):
+        print(f"[Z-SCORE] Calculating Z-scores for population {i+1}: {gwas_file}")
+        
+        try:
+            df = pd.read_csv(gwas_file, sep='\t')
+        except:
+            try:
+                df = pd.read_csv(gwas_file, sep=' ')
+            except Exception as e:
+                print(f"[Z-SCORE] Error reading GWAS file {gwas_file}: {e}")
+                continue
+        
+        detected = all_detected_cols[i]
+        
+        # Get column names (convert from 1-based to 0-based indexing)
+        snp_col = detected['snp'] - 1
+        eff_col = detected['eff'] - 1
+        se_col = detected['se'] - 1
+        
+        # Calculate Z-score = effect / SE
+        df['Z_SCORE'] = df.iloc[:, eff_col] / df.iloc[:, se_col]
+        
+        # Create variant ID key using SNP column
+        variant_key = df.iloc[:, snp_col]
+        
+        # Store Z-scores with variant ID as key
+        z_scores_by_pop[i] = dict(zip(variant_key, df['Z_SCORE']))
+        
+        print(f"[Z-SCORE] Calculated {len(z_scores_by_pop[i])} Z-scores for population {i+1}")
+    
+    return z_scores_by_pop
+
+def create_susie_format_output(output_file, gwas_files, all_detected_cols):
+    """Create final output file in SuSiE format combining SuSiEx results with summary statistics."""
+    
+    print("=== Creating SuSiE-format output file ===")
+    
+    # Determine output file paths
+    output_base = output_file.replace('.txt', '').replace('.susiex', '')
+    susiex_snp_file = f"{output_base}.snp"
+    susiex_cs_file = f"{output_base}.cs" 
+    susiex_summary_file = f"{output_base}.summary"
+    final_output_file = f"{output_base}.txt"
+    
+    # Check if SuSiEx output files exist
+    required_files = [susiex_snp_file, susiex_cs_file, susiex_summary_file]
+    for req_file in required_files:
+        if not os.path.exists(req_file):
+            print(f"[SUSIE FORMAT] ERROR: Required SuSiEx output file not found: {req_file}")
+            return False
+    
+    # Extract population names
+    pop_names = extract_population_names(gwas_files)
+    print(f"[SUSIE FORMAT] Population names: {pop_names}")
+    
+    # Calculate Z-scores from GWAS files
+    z_scores_by_pop = calculate_z_scores(gwas_files, all_detected_cols)
+    
+    # Read SuSiEx .snp file
+    print(f"[SUSIE FORMAT] Reading {susiex_snp_file}")
+    try:
+        snp_df = pd.read_csv(susiex_snp_file, sep='\t')
+        print(f"[SUSIE FORMAT] Loaded {len(snp_df)} variants from .snp file")
+    except Exception as e:
+        print(f"[SUSIE FORMAT] Error reading .snp file: {e}")
+        return False
+    
+    # Identify CS columns and LogBF columns
+    pip_cols = [col for col in snp_df.columns if col.startswith('PIP(CS')]
+    logbf_cols = [col for col in snp_df.columns if col.startswith('LogBF(CS')]
+    
+    print(f"[SUSIE FORMAT] Found {len(pip_cols)} PIP columns and {len(logbf_cols)} LogBF columns")
+    
+    # Calculate overall PIP (sum of CS-specific PIPs)
+    if pip_cols:
+        snp_df['PIP'] = snp_df[pip_cols].sum(axis=1)
+    else:
+        snp_df['PIP'] = 0.0
+    
+    # Create output dataframe
+    output_df = pd.DataFrame()
+    output_df['VARIANT_ID'] = snp_df['SNP']
+    
+    # Add Z-scores for each population (ALWAYS separate columns regardless of number of populations)
+    n_pops = len(gwas_files)
+    for i in range(n_pops):
+        pop_name = pop_names[i] if i < len(pop_names) else f"Pop{i+1}"
+        z_col_name = f"Z_{pop_name}"
+        
+        z_col_data = []
+        for variant in output_df['VARIANT_ID']:
+            z_score = z_scores_by_pop.get(i, {}).get(variant, 'NA')
+            z_col_data.append(z_score)
+        output_df[z_col_name] = z_col_data
+    
+    # Add PIP column
+    output_df['PIP'] = snp_df['PIP']
+    
+    # Add converged column (all NA as specified)
+    output_df['converged'] = 'NA'
+    
+    # Determine credible set membership
+    cs_col_data = []
+    for idx, row in snp_df.iterrows():
+        # Check if variant is in any credible set (PIP > some threshold, e.g., 0.01)
+        in_cs = 0
+        for pip_col in pip_cols:
+            if pd.notna(row[pip_col]) and row[pip_col] > 0.01:
+                # Extract CS number from column name like 'PIP(CS1)' 
+                cs_num = int(pip_col.replace('PIP(CS', '').replace(')', ''))
+                in_cs = cs_num
+                break
+        cs_col_data.append(in_cs)
+    
+    output_df['cs'] = cs_col_data
+    
+    # Add LogBF columns with population names
+    for logbf_col in logbf_cols:
+        # Parse column name like 'LogBF(CS1,Pop1)' to 'LogBF_CS1_PopName'
+        match = re.match(r'LogBF\(CS(\d+),Pop(\d+)\)', logbf_col)
+        if match:
+            cs_num = match.group(1)
+            pop_idx = int(match.group(2)) - 1  # Convert to 0-based
+            pop_name = pop_names[pop_idx] if pop_idx < len(pop_names) else f"Pop{pop_idx+1}"
+            new_col_name = f"LogBF_CS{cs_num}_{pop_name}"
+            output_df[new_col_name] = snp_df[logbf_col]
+    
+    # Write output file
+    print(f"[SUSIE FORMAT] Writing output to: {final_output_file}")
+    try:
+        output_df.to_csv(final_output_file, sep='\t', index=False, na_rep='NA')
+        print(f"[SUSIE FORMAT] Successfully created output file with {len(output_df)} variants")
+        print(f"[SUSIE FORMAT] Output columns: {list(output_df.columns)}")
+        return final_output_file
+    except Exception as e:
+        print(f"[SUSIE FORMAT] Error writing output file: {e}")
+        return False
+
 def validate_inputs(args):
     """Validate input files and arguments."""
     print("=== Validating inputs ===")
@@ -571,6 +732,9 @@ def main():
         
         # Run SuSiEx
         run_susiex(args, gwas_files, ld_files, n_gwas_list, col_strings, chrom, bp_start, bp_end)
+        
+        # CREATE SUSIE FORMAT OUTPUT - ADD THIS LINE
+        create_susie_format_output(args.output_file, gwas_files, all_detected_cols)
         
     finally:
         # Clean up frequency files
