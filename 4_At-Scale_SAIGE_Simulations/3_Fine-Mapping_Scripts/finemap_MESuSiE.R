@@ -11,6 +11,7 @@ library(argparse)
 library(data.table)
 library(dplyr)
 library(MESuSiE)
+library(stringr)
 
 # Parse command line arguments
 parse_arguments <- function() {
@@ -23,7 +24,7 @@ parse_arguments <- function() {
   parser$add_argument('--ld_files', '-l', required = TRUE,
                       help = 'Comma-delimited list of LD matrix file prefixes (each must have a corresponding .vars file)')
   parser$add_argument('--output_file', '-o', required = TRUE,
-                      help = 'Full path for final output file')
+                      help = 'Full path for final output txt file')
   parser$add_argument('--n_gwas', '-n', required = TRUE,
                       help = 'Comma-delimited list of GWAS sample sizes, same order as GWAS files')
   parser$add_argument('--ancestry_labels', '-a', required = TRUE,
@@ -579,7 +580,7 @@ run_mesusie <- function(validated_inputs, args) {
     })
   }
   
-  return(c(mesusie_result, organized_gwas))
+  return(list(mesusie_result, organized_gwas))
 }
 
 # Save results
@@ -591,10 +592,15 @@ save_results <- function(mesusie_result, organized_gwas, ancestry_labels, output
   if (output_dir != "." && !dir.exists(output_dir)) {
     dir.create(output_dir, recursive = TRUE)
   }
+  rds_dir = paste0(output_dir, "/", "rds_files")
+  if (rds_dir != "." && !dir.exists(rds_dir)) {
+    dir.create(rds_dir, recursive = TRUE)
+  }
   
   # Save the complete MESuSiE result object as RDS for reference
-  saveRDS(mesusie_result, file = paste0(output_file, ".rds"))
-  cat(sprintf("Saved complete results to: %s.rds\n", output_file))
+  rds_file=paste0(rds_dir, "/", str_replace(basename(output_file), pattern = ".txt", replacement = ".rds"))
+  saveRDS(mesusie_result, file = rds_file)
+  cat(sprintf("Saved complete results to: %s\n", rds_file))
   
   # Get variant IDs from the first population (all should have same variants after organization)
   variant_ids <- organized_gwas[[1]]$SNP
@@ -627,7 +633,7 @@ save_results <- function(mesusie_result, organized_gwas, ancestry_labels, output
   # Add overall PIP column
   if (!is.null(mesusie_result$pip)) {
     # Match PIPs to variant order
-    pip_values <- mesusie_result$pip[match(variant_ids, names(mesusie_result$pip))]
+    pip_values <- mesusie_result$pip
     result_df$PIP <- ifelse(is.na(pip_values), 0, pip_values)
   } else {
     result_df$PIP <- rep(0, n_variants)
@@ -635,13 +641,7 @@ save_results <- function(mesusie_result, organized_gwas, ancestry_labels, output
   }
   
   # Add converged column
-  converged_status <- TRUE  # Default to TRUE
-  if (!is.null(mesusie_result$converged)) {
-    converged_status <- mesusie_result$converged
-  } else if (!is.null(mesusie_result$elbo_res)) {
-    # Check if ELBO converged (alternative convergence check)
-    converged_status <- mesusie_result$elbo_res$converged
-  }
+  converged_status <- NA  # Default to NA since is missing from MESuSiE
   result_df$converged <- rep(converged_status, n_variants)
   
   # Add credible set column
@@ -757,8 +757,8 @@ main <- function() {
     
     # Run MESuSiE analysis
     temp <- run_mesusie(validated_inputs, args)
-    mesusie_result <- temp[1]
-    organized_gwas <- temp[2]
+    mesusie_result <- temp[[1]]
+    organized_gwas <- temp[[2]]
     
     # Save results
     save_results(mesusie_result, organized_gwas, validated_inputs$ancestry_labels, args$output_file, args)
