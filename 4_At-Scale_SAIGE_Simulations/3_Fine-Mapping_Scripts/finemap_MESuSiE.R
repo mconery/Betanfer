@@ -685,9 +685,9 @@ save_results <- function(mesusie_result, organized_gwas, ancestry_labels, output
       
       # Match PIPs to variant order
       if (is.matrix(pip_config)) {
-        pip_values <- pip_config[match(variant_ids, rownames(pip_config)), config_name]
+        pip_values <- pip_config[, config_name]
       } else {
-        pip_values <- pip_config[[config_name]][match(variant_ids, names(pip_config[[config_name]]))]
+        pip_values <- pip_config[[config_name]]
       }
       
       result_df[[pip_col_name]] <- ifelse(is.na(pip_values), 0, pip_values)
