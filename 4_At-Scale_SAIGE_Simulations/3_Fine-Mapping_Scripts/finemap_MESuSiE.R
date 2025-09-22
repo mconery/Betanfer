@@ -39,7 +39,7 @@ parse_arguments <- function() {
                       help = 'Minimum purity for credible sets (default: 0.5)')
   parser$add_argument('--estimate_residual_variance', action = 'store_true',
                       help = 'Estimate residual variance (default: FALSE)')
-  parser$add_argument('--cor_method', default = 'min_abs_corr',
+  parser$add_argument('--cor_method', default = 'min.abs.corr',
                       help = 'Correlation method for credible sets (default: min_abs_corr)')
   parser$add_argument('--cor_threshold', type = 'double', default = 0.5,
                       help = 'Correlation threshold for credible sets (default: 0.5)')
