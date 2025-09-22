@@ -1,10 +1,10 @@
 #!/usr/bin/env Rscript
 
 #' MESuSiE Multi-Population Fine-Mapping Script
-#' 
+#'
 #' R script designed to take input files and parameters and use them to run MESuSiE
 #' Equivalent functionality to the Python SuSiEx script
-#' 
+#'
 #' @author Generated based on SuSiEx Python script structure
 
 library(argparse)
@@ -92,6 +92,62 @@ read_vars_file <- function(vars_file) {
   ))
 }
 
+# Find intersection of variants across all populations
+find_common_variants <- function(ld_files, gwas_files, ancestry_labels) {
+  cat("\n=== Finding common variants across all populations ===\n")
+  
+  # Get variants from all LD matrices
+  all_ld_variants <- list()
+  for (i in seq_along(ld_files)) {
+    vars_file <- paste0(ld_files[i], ".vars")
+    vars_info <- read_vars_file(vars_file)
+    all_ld_variants[[ancestry_labels[i]]] <- vars_info$variant_ids
+    cat(sprintf("Population %s LD matrix: %d variants\n", ancestry_labels[i], length(vars_info$variant_ids)))
+  }
+  
+  # Get variants from all GWAS files
+  all_gwas_variants <- list()
+  for (i in seq_along(gwas_files)) {
+    # Detect columns
+    detected_cols <- detect_columns(gwas_files[i], verbose = FALSE)
+    
+    # Read GWAS file
+    gwas_df <- fread(gwas_files[i])
+    snp_col <- detected_cols$snp
+    if (is.null(snp_col) || !snp_col %in% colnames(gwas_df)) {
+      stop(sprintf("ERROR: Could not find SNP column in GWAS file: %s", gwas_files[i]))
+    }
+    
+    gwas_variants <- gwas_df[[snp_col]]
+    all_gwas_variants[[ancestry_labels[i]]] <- gwas_variants
+    cat(sprintf("Population %s GWAS: %d variants\n", ancestry_labels[i], length(gwas_variants)))
+  }
+  
+  # Find intersection of all LD variants
+  common_ld_variants <- all_ld_variants[[1]]
+  for (i in 2:length(all_ld_variants)) {
+    common_ld_variants <- intersect(common_ld_variants, all_ld_variants[[i]])
+  }
+  cat(sprintf("Common LD variants across all populations: %d\n", length(common_ld_variants)))
+  
+  # Find intersection of all GWAS variants  
+  common_gwas_variants <- all_gwas_variants[[1]]
+  for (i in 2:length(all_gwas_variants)) {
+    common_gwas_variants <- intersect(common_gwas_variants, all_gwas_variants[[i]])
+  }
+  cat(sprintf("Common GWAS variants across all populations: %d\n", length(common_gwas_variants)))
+  
+  # Find final intersection of LD and GWAS variants
+  final_common_variants <- intersect(common_ld_variants, common_gwas_variants)
+  cat(sprintf("Final common variants (LD ∩ GWAS): %d\n", length(final_common_variants)))
+  
+  if (length(final_common_variants) == 0) {
+    stop("ERROR: No variants are common across all LD matrices and GWAS files")
+  }
+  
+  return(final_common_variants)
+}
+
 # Detect columns in GWAS file
 detect_columns <- function(gwas_file, verbose = TRUE) {
   if (verbose) {
@@ -154,26 +210,30 @@ detect_columns <- function(gwas_file, verbose = TRUE) {
   })
 }
 
-# Load and process GWAS data
-load_gwas_data <- function(gwas_file, detected_cols, variant_ids, n_gwas) {
+# Load and process GWAS data (now filtered to common variants)
+load_gwas_data <- function(gwas_file, detected_cols, common_variants, n_gwas) {
   cat(sprintf(" Loading GWAS data from %s\n", basename(gwas_file)))
   
   # Read the full GWAS file
   gwas_df <- fread(gwas_file)
   
-  # Filter to variants in LD matrix
+  # Filter to common variants
   snp_col <- detected_cols$snp
   if (is.null(snp_col) || !snp_col %in% colnames(gwas_df)) {
     stop("ERROR: Could not find SNP column in GWAS file")
   }
   
-  gwas_filtered <- gwas_df[get(snp_col) %in% variant_ids]
+  gwas_filtered <- gwas_df[get(snp_col) %in% common_variants]
   
   if (nrow(gwas_filtered) == 0) {
-    stop("ERROR: No overlapping variants found between GWAS and LD matrix")
+    stop("ERROR: No overlapping variants found between GWAS and common variant set")
   }
   
   cat(sprintf(" Found %d overlapping variants\n", nrow(gwas_filtered)))
+  
+  # Order by common_variants to ensure consistent ordering
+  gwas_filtered <- gwas_filtered[match(common_variants, gwas_filtered[[snp_col]])]
+  gwas_filtered <- gwas_filtered[!is.na(gwas_filtered[[snp_col]])]
   
   # Create standard format data frame
   result_df <- data.frame(
@@ -207,33 +267,54 @@ load_gwas_data <- function(gwas_file, detected_cols, variant_ids, n_gwas) {
   return(result_df)
 }
 
-# Load LD matrix
-load_ld_matrix <- function(ld_file, variant_ids) {
+# Load LD matrix (now pruned to common variants)
+load_ld_matrix <- function(ld_file, vars_file, common_variants) {
   cat(sprintf(" Loading LD matrix from %s\n", basename(ld_file)))
   
   if (!file.exists(ld_file)) {
     stop(sprintf("ERROR: LD matrix file not found: %s", ld_file))
   }
   
-  # Try to read as matrix (assuming it's in a standard format)
+  # Read the full LD matrix and variant IDs
   ld_matrix <- tryCatch({
     as.matrix(fread(ld_file, header = FALSE))
   }, error = function(e) {
     stop(sprintf("ERROR: Could not read LD matrix from %s: %s", ld_file, e$message))
   })
   
-  # Check dimensions
-  n_variants <- length(variant_ids)
-  if (nrow(ld_matrix) != n_variants || ncol(ld_matrix) != n_variants) {
-    stop(sprintf("ERROR: LD matrix dimensions (%d x %d) do not match number of variants (%d)", 
-                 nrow(ld_matrix), ncol(ld_matrix), n_variants))
+  # Read variant IDs from .vars file
+  all_variant_ids <- readLines(vars_file)
+  all_variant_ids <- all_variant_ids[all_variant_ids != ""]
+  
+  # Check original dimensions
+  n_all_variants <- length(all_variant_ids)
+  if (nrow(ld_matrix) != n_all_variants || ncol(ld_matrix) != n_all_variants) {
+    stop(sprintf("ERROR: LD matrix dimensions (%d x %d) do not match .vars file variants (%d)", 
+                 nrow(ld_matrix), ncol(ld_matrix), n_all_variants))
   }
   
-  # Set row and column names
-  rownames(ld_matrix) <- variant_ids
-  colnames(ld_matrix) <- variant_ids
+  # Find indices of common variants in the full matrix
+  common_indices <- which(all_variant_ids %in% common_variants)
+  if (length(common_indices) == 0) {
+    stop("ERROR: No common variants found in LD matrix")
+  }
   
-  return(ld_matrix)
+  cat(sprintf(" Pruning LD matrix from %d to %d variants\n", n_all_variants, length(common_indices)))
+  
+  # Subset the LD matrix to common variants
+  ld_matrix_pruned <- ld_matrix[common_indices, common_indices, drop = FALSE]
+  common_variant_ids <- all_variant_ids[common_indices]
+  
+  # Set row and column names
+  rownames(ld_matrix_pruned) <- common_variant_ids
+  colnames(ld_matrix_pruned) <- common_variant_ids
+  
+  # Reorder to match common_variants order
+  variant_order <- match(common_variants, common_variant_ids)
+  variant_order <- variant_order[!is.na(variant_order)]
+  ld_matrix_final <- ld_matrix_pruned[variant_order, variant_order, drop = FALSE]
+  
+  return(ld_matrix_final)
 }
 
 # Validate inputs
@@ -294,11 +375,14 @@ run_mesusie <- function(validated_inputs, args) {
   n_gwas_list <- validated_inputs$n_gwas_list
   ancestry_labels <- validated_inputs$ancestry_labels
   
-  # Read variant information from first .vars file
+  # Find common variants across all populations
+  common_variants <- find_common_variants(ld_files, gwas_files, ancestry_labels)
+  
+  # Get chromosome and BP info from first .vars file
   vars_info <- read_vars_file(paste0(ld_files[1], ".vars"))
   cat(sprintf("Chromosome: %s, BP range: %d-%d\n", vars_info$chrom, vars_info$min_bp, vars_info$max_bp))
   
-  # Process each population
+  # Process each population with common variants
   summ_stat_list <- list()
   LD_list <- list()
   
@@ -309,11 +393,12 @@ run_mesusie <- function(validated_inputs, args) {
     # Detect columns
     detected_cols <- detect_columns(gwas_files[i])
     
-    # Load GWAS data
-    gwas_data <- load_gwas_data(gwas_files[i], detected_cols, vars_info$variant_ids, n_gwas_list[i])
+    # Load GWAS data (filtered to common variants)
+    gwas_data <- load_gwas_data(gwas_files[i], detected_cols, common_variants, n_gwas_list[i])
     
-    # Load LD matrix
-    ld_matrix <- load_ld_matrix(ld_files[i], vars_info$variant_ids)
+    # Load LD matrix (pruned to common variants)
+    vars_file <- paste0(ld_files[i], ".vars")
+    ld_matrix <- load_ld_matrix(ld_files[i], vars_file, common_variants)
     
     # Store in lists with ancestry labels
     summ_stat_list[[ancestry]] <- gwas_data
