@@ -15,8 +15,7 @@ library(MESuSiE)
 # Parse command line arguments
 parse_arguments <- function() {
   parser <- ArgumentParser(
-    description = 'Multi-population fine-mapping using MESuSiE (auto chr/bp from LD matrix .vars)',
-    formatter_class = 'RawDescriptionHelpFormatter'
+    description = 'Multi-population fine-mapping using MESuSiE (auto chr/bp from LD matrix .vars)'
   )
   
   parser$add_argument('--gwas_files', '-g', required = TRUE,
