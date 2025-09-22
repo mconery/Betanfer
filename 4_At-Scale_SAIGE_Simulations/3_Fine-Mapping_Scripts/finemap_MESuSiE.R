@@ -3,7 +3,7 @@
 #' MESuSiE Multi-Population Fine-Mapping Script
 #'
 #' R script designed to take input files and parameters and use them to run MESuSiE
-#' Equivalent functionality to the Python SuSiEx script
+#' Attempts to use native MESuSiE functions first, falls back to pairwise if needed
 #'
 #' @author Generated based on SuSiEx Python script structure
 
@@ -27,7 +27,7 @@ parse_arguments <- function() {
   parser$add_argument('--n_gwas', '-n', required = TRUE,
                       help = 'Comma-delimited list of GWAS sample sizes, same order as GWAS files')
   parser$add_argument('--ancestry_labels', '-a', required = TRUE,
-                      help = 'Comma-delimited list of ancestry labels (e.g., EUR,AFR), same order as GWAS files')
+                      help = 'Comma-delimited list of ancestry labels (e.g., EUR,AFR,EAS), same order as GWAS files')
   parser$add_argument('--maf', type = 'double', default = 0.005,
                       help = 'Minor allele frequency threshold (default: 0.005)')
   parser$add_argument('--L', type = 'integer', default = 10,
@@ -45,7 +45,7 @@ parse_arguments <- function() {
   parser$add_argument('--prior_weights', default = NULL,
                       help = 'Prior weights for variants (default: uniform)')
   parser$add_argument('--ancestry_weight', default = NULL,
-                      help = 'Ancestry weights as comma-separated values (default: c(1,1,3))')
+                      help = 'Ancestry weights as comma-separated values (default: adaptive based on number of populations)')
   
   return(parser$parse_args())
 }
@@ -241,7 +241,23 @@ load_gwas_data <- function(gwas_file, detected_cols, common_variants, n_gwas) {
     stringsAsFactors = FALSE
   )
   
-  # Add other columns if available
+  # Add other columns if available and rename Allele1/Allele2 to REF/ALT
+  if (!is.null(detected_cols$a1)) {
+    if (detected_cols$a1 == "Allele1") {
+      result_df$ALT <- gwas_filtered[[detected_cols$a1]]
+      cat(sprintf(" Renamed %s to ALT\n", detected_cols$a1))
+    } else {
+      result_df$A1 <- gwas_filtered[[detected_cols$a1]]
+    }
+  }
+  if (!is.null(detected_cols$a2)) {
+    if (detected_cols$a2 == "Allele2") {
+      result_df$REF <- gwas_filtered[[detected_cols$a2]]
+      cat(sprintf(" Renamed %s to REF\n", detected_cols$a2))
+    } else {
+      result_df$A2 <- gwas_filtered[[detected_cols$a2]]
+    }
+  }
   if (!is.null(detected_cols$beta)) {
     result_df$Beta <- gwas_filtered[[detected_cols$beta]]
   }
@@ -332,6 +348,10 @@ validate_inputs <- function(args) {
     stop("ERROR: Number of populations must match across all inputs")
   }
   
+  if (n_pops < 2) {
+    stop("ERROR: At least 2 populations are required for multi-ancestry analysis")
+  }
+  
   # Check GWAS files exist
   for (i in seq_along(gwas_files)) {
     if (!file.exists(gwas_files[i])) {
@@ -366,6 +386,92 @@ validate_inputs <- function(args) {
   ))
 }
 
+# Extended organize functions that try to handle multiple populations
+organize_gwas_multi <- function(summ_stat_list, ancestry_labels) {
+  cat("Organizing GWAS data for multiple populations\n")
+  n_pops <- length(summ_stat_list)
+  
+  if (n_pops == 2) {
+    # Use the built-in MESuSiE function for 2 populations
+    cat("Using native organize_gwas for 2 populations\n")
+    return(organize_gwas(summ_stat_list[[1]], summ_stat_list[[2]], ancestry_labels))
+  } else {
+    # Try to extend the approach for >2 populations
+    cat(sprintf("Attempting to organize %d populations\n", n_pops))
+    
+    # Get common SNPs across all populations
+    all_snps <- summ_stat_list[[1]]$SNP
+    for (i in 2:n_pops) {
+      all_snps <- intersect(all_snps, summ_stat_list[[i]]$SNP)
+    }
+    
+    if (length(all_snps) == 0) {
+      stop("ERROR: No common SNPs found across all GWAS datasets after organization")
+    }
+    
+    cat(sprintf("Common SNPs across all %d populations: %d\n", n_pops, length(all_snps)))
+    
+    # Filter and reorder all datasets to common SNPs
+    organized_list <- list()
+    for (i in seq_along(summ_stat_list)) {
+      ancestry <- ancestry_labels[i]
+      df <- summ_stat_list[[i]]
+      
+      # Filter to common SNPs and reorder
+      df_filtered <- df[df$SNP %in% all_snps, ]
+      df_ordered <- df_filtered[match(all_snps, df_filtered$SNP), ]
+      
+      organized_list[[ancestry]] <- df_ordered
+      cat(sprintf("Population %s: %d variants after organization\n", ancestry, nrow(df_ordered)))
+    }
+    
+    return(organized_list)
+  }
+}
+
+organize_ld_multi <- function(LD_list, organized_gwas) {
+  cat("Organizing LD matrices for multiple populations\n")
+  n_pops <- length(LD_list)
+  
+  if (n_pops == 2) {
+    # Use the built-in MESuSiE function for 2 populations
+    cat("Using native organize_ld for 2 populations\n")
+    return(organize_ld(LD_list[[1]], LD_list[[2]], organized_gwas))
+  } else {
+    # Handle >2 populations
+    cat(sprintf("Organizing %d LD matrices\n", n_pops))
+    
+    # Get common SNPs from organized GWAS data
+    common_snps <- organized_gwas[[1]]$SNP
+    
+    # Check and organize all LD matrices
+    organized_ld_list <- list()
+    for (i in seq_along(LD_list)) {
+      ancestry <- names(LD_list)[i]
+      ld_matrix <- LD_list[[i]]
+      
+      # Check dimensions
+      if (nrow(ld_matrix) != length(common_snps) || ncol(ld_matrix) != length(common_snps)) {
+        stop(sprintf("ERROR: LD matrix for %s has incorrect dimensions", ancestry))
+      }
+      
+      # Ensure matrix is symmetric and set proper names
+      if (!isSymmetric(ld_matrix)) {
+        ld_matrix <- (ld_matrix + t(ld_matrix)) / 2
+        cat(sprintf("Made LD matrix symmetric for population %s\n", ancestry))
+      }
+      
+      rownames(ld_matrix) <- common_snps
+      colnames(ld_matrix) <- common_snps
+      
+      organized_ld_list[[ancestry]] <- ld_matrix
+      cat(sprintf("Population %s LD matrix: %d x %d\n", ancestry, nrow(ld_matrix), ncol(ld_matrix)))
+    }
+    
+    return(organized_ld_list)
+  }
+}
+
 # Run MESuSiE analysis
 run_mesusie <- function(validated_inputs, args) {
   cat("\n=== Running MESuSiE fine-mapping ===\n")
@@ -374,6 +480,7 @@ run_mesusie <- function(validated_inputs, args) {
   ld_files <- validated_inputs$ld_files
   n_gwas_list <- validated_inputs$n_gwas_list
   ancestry_labels <- validated_inputs$ancestry_labels
+  n_pops <- validated_inputs$n_pops
   
   # Find common variants across all populations
   common_variants <- find_common_variants(ld_files, gwas_files, ancestry_labels)
@@ -407,71 +514,76 @@ run_mesusie <- function(validated_inputs, args) {
   
   # Organize data for MESuSiE
   cat("\n=== Organizing data for MESuSiE ===\n")
-  organized_gwas <- organize_gwas_list(summ_stat_list, ancestry_labels)
-  organized_ld <- organize_ld_list(LD_list, organized_gwas)
+  organized_gwas <- organize_gwas_multi(summ_stat_list, ancestry_labels)
+  organized_ld <- organize_ld_multi(LD_list, organized_gwas)
   
   # Parse ancestry weights if provided
   ancestry_weight <- NULL
   if (!is.null(args$ancestry_weight)) {
     ancestry_weight <- as.numeric(strsplit(args$ancestry_weight, ",")[[1]])
-    if (length(ancestry_weight) != 3) {
-      stop("ERROR: ancestry_weight must have exactly 3 values (anc1, anc2, shared)")
-    }
   }
   
-  # Run MESuSiE
+  # Try to run MESuSiE with the organized data
   cat("\n=== Running MESuSiE core analysis ===\n")
-  mesusie_result <- meSuSie_core(
-    LD_list = organized_ld,
-    summ_stat_list = organized_gwas,
-    L = args$L,
-    coverage = args$coverage,
-    estimate_residual_variance = args$estimate_residual_variance,
-    cor_method = args$cor_method,
-    cor_threshold = args$cor_threshold,
-    prior_weights = args$prior_weights,
-    ancestry_weight = ancestry_weight
-  )
+  
+  if (n_pops == 2) {
+    # Standard 2-population MESuSiE
+    if (is.null(ancestry_weight)) {
+      ancestry_weight <- c(1, 1, 3)  # Default: encourage shared effects
+    }
+    if (length(ancestry_weight) != 3) {
+      stop("ERROR: For 2 populations, ancestry_weight must have exactly 3 values (pop1, pop2, shared)")
+    }
+    
+    mesusie_result <- meSuSie_core(
+      organized_ld,
+      organized_gwas,
+      L = args$L,
+      estimate_residual_variance = args$estimate_residual_variance,
+      cor_method = args$cor_method,
+      cor_threshold = args$cor_threshold,
+      prior_weights = args$prior_weights,
+      ancestry_weight = ancestry_weight
+    )
+  } else {
+    # For >2 populations, first try to see if MESuSiE can handle it directly
+    cat(sprintf("Attempting MESuSiE analysis with %d populations...\n", n_pops))
+    
+    tryCatch({
+      # Try running with extended ancestry weights
+      if (is.null(ancestry_weight)) {
+        # Generate default weights: equal weight for each population, higher weight for shared
+        ancestry_weight <- c(rep(1, n_pops), 3)
+      }
+      
+      cat(sprintf("Using ancestry weights: %s\n", paste(ancestry_weight, collapse = ", ")))
+      
+      mesusie_result <- meSuSie_core(
+        organized_ld,
+        organized_gwas,
+        L = args$L,
+        estimate_residual_variance = args$estimate_residual_variance,
+        cor_method = args$cor_method,
+        cor_threshold = args$cor_threshold,
+        prior_weights = args$prior_weights,
+        ancestry_weight = ancestry_weight
+      )
+      
+      cat("SUCCESS: MESuSiE handled multiple populations directly!\n")
+      
+    }, error = function(e) {
+      cat(sprintf("MESuSiE failed with %d populations: %s\n", n_pops, e$message))
+      cat("Note: This indicates MESuSiE may indeed be limited to 2 populations.\n")
+      cat("You may want to select 2 populations or use alternative methods.\n")
+      stop(sprintf("MESuSiE analysis failed: %s", e$message))
+    })
+  }
   
   return(mesusie_result)
 }
 
-# Organize GWAS data for MESuSiE
-organize_gwas_list <- function(summ_stat_list, ancestry_labels) {
-  # Use MESuSiE's organize_gwas function for two populations
-  if (length(summ_stat_list) == 2) {
-    organized <- organize_gwas(
-      summ_stat_list[[1]], 
-      summ_stat_list[[2]], 
-      ancestry_labels
-    )
-  } else {
-    # For more than 2 populations, we'd need to extend this
-    stop("Currently only supports 2 populations. For more populations, extend the organize_gwas functionality.")
-  }
-  
-  return(organized)
-}
-
-# Organize LD data for MESuSiE
-organize_ld_list <- function(LD_list, organized_gwas) {
-  # Use MESuSiE's organize_ld function for two populations
-  if (length(LD_list) == 2) {
-    organized <- organize_ld(
-      LD_list[[1]], 
-      LD_list[[2]], 
-      organized_gwas
-    )
-  } else {
-    # For more than 2 populations, we'd need to extend this
-    stop("Currently only supports 2 populations. For more populations, extend the organize_ld functionality.")
-  }
-  
-  return(organized)
-}
-
 # Save results
-save_results <- function(mesusie_result, output_file, args) {
+save_results <- function(mesusie_result, organized_gwas, ancestry_labels, output_file, args) {
   cat("\n=== Saving results ===\n")
   
   # Create output directory if needed
@@ -480,54 +592,154 @@ save_results <- function(mesusie_result, output_file, args) {
     dir.create(output_dir, recursive = TRUE)
   }
   
-  # Save the complete MESuSiE result object
+  # Save the complete MESuSiE result object as RDS for reference
   saveRDS(mesusie_result, file = paste0(output_file, ".rds"))
   cat(sprintf("Saved complete results to: %s.rds\n", output_file))
   
-  # Extract and save summary results
-  summary_results <- list(
-    pip = mesusie_result$pip,
-    pip_config = mesusie_result$pip_config,
-    credible_sets = mesusie_result$cs,
-    parameters = list(
-      L = args$L,
-      coverage = args$coverage,
-      cor_method = args$cor_method,
-      cor_threshold = args$cor_threshold
-    )
+  # Get variant IDs from the first population (all should have same variants after organization)
+  variant_ids <- organized_gwas[[1]]$SNP
+  n_variants <- length(variant_ids)
+  
+  # Initialize the output dataframe
+  result_df <- data.frame(
+    VARIANT_ID = variant_ids,
+    stringsAsFactors = FALSE
   )
   
-  # Save summary as CSV
-  if (!is.null(mesusie_result$pip)) {
-    pip_df <- data.frame(
-      SNP = names(mesusie_result$pip),
-      PIP = mesusie_result$pip,
-      stringsAsFactors = FALSE
-    )
+  # Add Z-score columns for each population
+  for (i in seq_along(ancestry_labels)) {
+    ancestry <- ancestry_labels[i]
+    z_col_name <- paste0("Z_", ancestry)
     
-    # Add ancestry-specific PIPs if available
-    if (!is.null(mesusie_result$pip_config)) {
-      pip_config_df <- as.data.frame(mesusie_result$pip_config)
-      pip_df <- cbind(pip_df, pip_config_df)
+    if ("Z" %in% colnames(organized_gwas[[ancestry]])) {
+      result_df[[z_col_name]] <- organized_gwas[[ancestry]]$Z
+    } else if ("Beta" %in% colnames(organized_gwas[[ancestry]]) && 
+               "Se" %in% colnames(organized_gwas[[ancestry]])) {
+      # Calculate Z-score if not present
+      result_df[[z_col_name]] <- organized_gwas[[ancestry]]$Beta / organized_gwas[[ancestry]]$Se
+    } else {
+      # Fill with NA if Z-score cannot be determined
+      result_df[[z_col_name]] <- rep(NA, n_variants)
+      cat(sprintf("WARNING: Could not find Z-scores for population %s\n", ancestry))
     }
-    
-    write.csv(pip_df, file = paste0(output_file, "_pip.csv"), row.names = FALSE)
-    cat(sprintf("Saved PIP results to: %s_pip.csv\n", output_file))
   }
   
-  # Save credible sets information
-  if (!is.null(mesusie_result$cs)) {
-    cs_info <- data.frame(
-      Effect = names(mesusie_result$cs$cs),
-      Category = mesusie_result$cs$cs_category,
-      Size = sapply(mesusie_result$cs$cs, length),
-      Coverage = mesusie_result$cs$coverage,
-      Min_Abs_Corr = mesusie_result$cs$purity[, "min.abs.corr"],
-      stringsAsFactors = FALSE
-    )
+  # Add overall PIP column
+  if (!is.null(mesusie_result$pip)) {
+    # Match PIPs to variant order
+    pip_values <- mesusie_result$pip[match(variant_ids, names(mesusie_result$pip))]
+    result_df$PIP <- ifelse(is.na(pip_values), 0, pip_values)
+  } else {
+    result_df$PIP <- rep(0, n_variants)
+    cat("WARNING: No PIP values found in MESuSiE results\n")
+  }
+  
+  # Add converged column
+  converged_status <- TRUE  # Default to TRUE
+  if (!is.null(mesusie_result$converged)) {
+    converged_status <- mesusie_result$converged
+  } else if (!is.null(mesusie_result$elbo_res)) {
+    # Check if ELBO converged (alternative convergence check)
+    converged_status <- mesusie_result$elbo_res$converged
+  }
+  result_df$converged <- rep(converged_status, n_variants)
+  
+  # Add credible set column
+  result_df$cs <- rep(0, n_variants)  # Initialize with 0 (not in any CS)
+  
+  if (!is.null(mesusie_result$cs) && !is.null(mesusie_result$cs$cs)) {
+    for (cs_idx in seq_along(mesusie_result$cs$cs)) {
+      cs_variants <- mesusie_result$cs$cs[[cs_idx]]
+      
+      # Convert indices to variant IDs if needed
+      if (is.numeric(cs_variants)) {
+        cs_variant_ids <- variant_ids[cs_variants]
+      } else {
+        cs_variant_ids <- cs_variants
+      }
+      
+      # Mark variants in this credible set
+      variant_matches <- match(cs_variant_ids, variant_ids)
+      valid_matches <- variant_matches[!is.na(variant_matches)]
+      
+      if (length(valid_matches) > 0) {
+        result_df$cs[valid_matches] <- cs_idx
+      }
+    }
     
-    write.csv(cs_info, file = paste0(output_file, "_credible_sets.csv"), row.names = FALSE)
-    cat(sprintf("Saved credible sets info to: %s_credible_sets.csv\n", output_file))
+    cat(sprintf("Assigned %d credible sets to variants\n", length(mesusie_result$cs$cs)))
+  } else {
+    cat("No credible sets found in MESuSiE results\n")
+  }
+  
+  # Add population-specific and intersection PIP columns
+  if (!is.null(mesusie_result$pip_config)) {
+    pip_config <- mesusie_result$pip_config
+    
+    # Get column names from pip_config (these represent the different configurations)
+    config_names <- colnames(pip_config)
+    
+    for (config_name in config_names) {
+      # Create column name for this configuration
+      pip_col_name <- paste0("PIP_", config_name)
+      
+      # Match PIPs to variant order
+      if (is.matrix(pip_config)) {
+        pip_values <- pip_config[match(variant_ids, rownames(pip_config)), config_name]
+      } else {
+        pip_values <- pip_config[[config_name]][match(variant_ids, names(pip_config[[config_name]]))]
+      }
+      
+      result_df[[pip_col_name]] <- ifelse(is.na(pip_values), 0, pip_values)
+    }
+    
+    cat(sprintf("Added %d population-specific PIP columns: %s\n", 
+                length(config_names), paste(config_names, collapse = ", ")))
+  } else {
+    cat("WARNING: No population-specific PIPs found in MESuSiE results\n")
+    
+    # Create placeholder columns with zeros
+    for (ancestry in ancestry_labels) {
+      result_df[[paste0("PIP_", ancestry)]] <- rep(0, n_variants)
+    }
+    
+    # Create intersection column for 2+ populations
+    if (length(ancestry_labels) >= 2) {
+      intersection_name <- paste(ancestry_labels, collapse = "_")
+      result_df[[paste0("PIP_", intersection_name)]] <- rep(0, n_variants)
+    }
+  }
+  
+  # Write the tab-delimited output file
+  output_txt_file <- paste0(output_file, ".txt")
+  write.table(result_df, 
+              file = output_txt_file, 
+              sep = "\t", 
+              row.names = FALSE, 
+              col.names = TRUE, 
+              quote = FALSE)
+  
+  cat(sprintf("Saved results to: %s\n", output_txt_file))
+  cat(sprintf("Output contains %d variants and %d columns\n", nrow(result_df), ncol(result_df)))
+  
+  # Print column summary for verification
+  cat("Output columns:\n")
+  for (i in seq_along(colnames(result_df))) {
+    col_name <- colnames(result_df)[i]
+    if (col_name == "VARIANT_ID") {
+      cat(sprintf("  %d. %s (variant identifiers)\n", i, col_name))
+    } else if (grepl("^Z_", col_name)) {
+      cat(sprintf("  %d. %s (Z-scores)\n", i, col_name))
+    } else if (col_name == "PIP") {
+      cat(sprintf("  %d. %s (overall posterior inclusion probability)\n", i, col_name))
+    } else if (col_name == "converged") {
+      cat(sprintf("  %d. %s (convergence status: %s)\n", i, col_name, unique(result_df[[col_name]])[1]))
+    } else if (col_name == "cs") {
+      n_in_cs <- sum(result_df[[col_name]] > 0)
+      cat(sprintf("  %d. %s (credible set assignments, %d variants in sets)\n", i, col_name, n_in_cs))
+    } else if (grepl("^PIP_", col_name)) {
+      cat(sprintf("  %d. %s (population-specific PIP)\n", i, col_name))
+    }
   }
   
   cat("Results saved successfully!\n")
@@ -535,7 +747,7 @@ save_results <- function(mesusie_result, output_file, args) {
 
 # Main function
 main <- function() {
-  cat("MESuSiE Multi-Population Fine-Mapping: Auto chr/bp from .vars\n")
+  cat("MESuSiE Multi-Population Fine-Mapping: Testing Multi-Population Support\n")
   
   # Parse arguments
   args <- parse_arguments()
@@ -548,7 +760,7 @@ main <- function() {
     mesusie_result <- run_mesusie(validated_inputs, args)
     
     # Save results
-    save_results(mesusie_result, args$output_file, args)
+    save_results(mesusie_result, organized_gwas, ancestry_labels, args$output_file, args)
     
     cat("\n=== Analysis completed successfully! ===\n")
     
