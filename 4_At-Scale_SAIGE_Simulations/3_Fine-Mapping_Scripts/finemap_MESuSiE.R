@@ -579,7 +579,7 @@ run_mesusie <- function(validated_inputs, args) {
     })
   }
   
-  return(mesusie_result)
+  return(c(mesusie_result, organized_gwas))
 }
 
 # Save results
@@ -757,7 +757,9 @@ main <- function() {
     validated_inputs <- validate_inputs(args)
     
     # Run MESuSiE analysis
-    mesusie_result <- run_mesusie(validated_inputs, args)
+    temp <- run_mesusie(validated_inputs, args)
+    mesusie_result <- temp[1]
+    organized_gwas <- temp[2]
     
     # Save results
     save_results(mesusie_result, organized_gwas, ancestry_labels, args$output_file, args)
