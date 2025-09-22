@@ -711,15 +711,14 @@ save_results <- function(mesusie_result, organized_gwas, ancestry_labels, output
   }
   
   # Write the tab-delimited output file
-  output_txt_file <- paste0(output_file, ".txt")
   write.table(result_df, 
-              file = output_txt_file, 
+              file = output_file, 
               sep = "\t", 
               row.names = FALSE, 
               col.names = TRUE, 
               quote = FALSE)
   
-  cat(sprintf("Saved results to: %s\n", output_txt_file))
+  cat(sprintf("Saved results to: %s\n", output_file))
   cat(sprintf("Output contains %d variants and %d columns\n", nrow(result_df), ncol(result_df)))
   
   # Print column summary for verification
