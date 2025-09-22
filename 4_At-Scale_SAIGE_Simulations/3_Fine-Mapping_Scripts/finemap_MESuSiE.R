@@ -762,7 +762,7 @@ main <- function() {
     organized_gwas <- temp[2]
     
     # Save results
-    save_results(mesusie_result, organized_gwas, ancestry_labels, args$output_file, args)
+    save_results(mesusie_result, organized_gwas, validated_inputs$ancestry_labels, args$output_file, args)
     
     cat("\n=== Analysis completed successfully! ===\n")
     
