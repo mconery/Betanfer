@@ -2,7 +2,7 @@
 #SBATCH -A bif154
 #SBATCH -J CARMA_finemap
 #SBATCH -o finemap_CARMA.log
-#SBATCH -N 10
+#SBATCH -N 40
 #SBATCH -p batch
 #SBATCH -t 1:00:00
 
