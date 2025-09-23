@@ -191,7 +191,10 @@ def process_causal_dir(args_tuple):
 
         # Construct output directory and file
         output_dir = os.path.join(output_base_dir, matrix_type)
-        output_filename = f"{pheno_causal}.{subfolder}.txt"
+
+        # FIXED: Include trait_type in output filename
+        # Format: Pheno#.#_causal.continuous/binary_0.25.weighted/Meta.txt
+        output_filename = f"{pheno_causal}.{trait_type}.{subfolder}.txt"
         output_path = os.path.join(output_dir, output_filename)
 
         # Check if output file already exists and is complete
@@ -210,7 +213,7 @@ def process_causal_dir(args_tuple):
         # Usage: Rscript finemap_SuSiE.R summary_stats_file ld_file out_file [optional_params]
         susie_cmd = f"Rscript {wrapper_script} {meta_file} {matrix_path} {output_path}"
 
-        commands.append((susie_cmd, output_dir, matrix_type, pheno_causal, trait_type, chromosome, os.path.basename(matrix_path)))
+        commands.append((susie_cmd, output_dir, matrix_type, pheno_causal, trait_type, chromosome, os.path.basename(matrix_path), output_filename))
 
     return commands, warnings, skipped_info
 
@@ -338,7 +341,7 @@ def create_susie_commands(gwas_dir, ld_base_dir, output_base_dir, wrapper_script
         # Show a few examples
         print(f"  Examples:")
         for i, skipped in enumerate(all_skipped[:3]):
-            print(f"    {skipped['pheno_causal']} -> {skipped['matrix_type']} (already complete)")
+            print(f"    {skipped['pheno_causal']}.{skipped['trait_type']} -> {skipped['matrix_type']} (already complete)")
         if len(all_skipped) > 3:
             print(f"    ... and {len(all_skipped) - 3} more")
 
@@ -350,10 +353,11 @@ def create_susie_commands(gwas_dir, ld_base_dir, output_base_dir, wrapper_script
         print(f"  New commands needed: {len(all_commands)}")
 
     for cmd_info in all_commands[:5]:  # Show first 5 as examples
-        if len(cmd_info) >= 7:
-            _, _, matrix_type, pheno_causal, trait_type, chromosome, matrix_file = cmd_info
+        if len(cmd_info) >= 8:  # Updated to include output_filename
+            _, _, matrix_type, pheno_causal, trait_type, chromosome, matrix_file, output_filename = cmd_info
             print(f"  {pheno_causal} ({trait_type}, {chromosome}) -> {matrix_type}")
             print(f"    Matrix: {matrix_file}")
+            print(f"    Output: {output_filename}")
 
     if len(all_commands) > 5:
         print(f"    ... and {len(all_commands) - 5} more commands")
