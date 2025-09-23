@@ -1,5 +1,5 @@
 '''
-plot_rsparsepro_results.py
+plot_rsparsepro_results.single-pop.py
 
 This script plots the results of an RSparsePro fine-mapping given a results file
 and a list of the causal variants used to simulate the GWAS. 
