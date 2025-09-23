@@ -150,7 +150,7 @@ def check_output_completeness(output_path, min_file_size=100):
         file_size = os.path.getsize(output_path)
         if file_size < min_file_size:
             return False
-        # For CARMA output files, check if they have a header and at least one data row
+        # For RSparsePro output files, check if they have a header and at least one data row
         with open(output_path, 'r') as f:
             lines = f.readlines()
         # Should have at least 2 lines (header + 1 data row)
@@ -224,10 +224,10 @@ def process_causal_dir(args_tuple):
                 'matrix_file': os.path.basename(matrix_path)
             })
             continue
-        # Create the CARMA command
+        # Create the RSparsePro command
         # Usage: finemap_RSparsePro.sh summary_stats_file ld_file out_file [optional_params]
-        carma_cmd = f"{wrapper_script} {meta_file} {matrix_path} {output_path}"
-        commands.append((carma_cmd, output_dir, matrix_type, pheno_causal, trait_type, chromosome, heritability, os.path.basename(matrix_path), output_filename))
+        rsparsepro_cmd = f"{wrapper_script} {meta_file} {matrix_path} {output_path}"
+        commands.append((rsparsepro_cmd, output_dir, matrix_type, pheno_causal, trait_type, chromosome, heritability, os.path.basename(matrix_path), output_filename))
     return commands, warnings, skipped_info
 
 def parse_matrix_filter(matrix_string):
@@ -254,7 +254,7 @@ def create_rsparsepro_commands(gwas_dir, ld_base_dir, output_base_dir, wrapper_s
     - gwas_dir: Directory containing GWAS summary statistics
     - ld_base_dir: Base directory containing LD matrices
     - output_base_dir: Base directory for fine-mapping results
-    - wrapper_script: Path to finemap_CARMA.R script
+    - wrapper_script: Path to finemap_RSparsePro.sh script
     - output_commands_file: File to write commands to
     - matrix_filter: Optional list of matrix subdirectory names to include
     - n_processes: Number of processes to use (None = use all available cores)
@@ -362,13 +362,13 @@ def create_rsparsepro_commands(gwas_dir, ld_base_dir, output_base_dir, wrapper_s
 
 def main():
     """Main function with command line argument parsing."""
-    parser = argparse.ArgumentParser(description='Generate CARMA fine-mapping commands (optimized for HPC)')
-    # Define default paths - update these to point to CARMA scripts
+    parser = argparse.ArgumentParser(description='Generate RSparsePro fine-mapping commands (optimized for HPC)')
+    # Define default paths - update these to point to RSparsePro scripts
     default_wrapper = "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/finemap_RSparsePro.sh"
     default_gwas = "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/meta_analysis_results"
     default_ld = "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices"
     default_output = "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/fine-mapping_results/rsparsepro_results"
-    default_commands = f"{default_output}/carma_commands.txt"
+    default_commands = f"{default_output}/rsparsepro_commands.txt"
     parser.add_argument('--wrapper-script', '-w', default=default_wrapper,
                         help=f'Path to finemap_RSparsePro.sh script (default: {default_wrapper})')
     parser.add_argument('--gwas-dir', '-g', default=default_gwas,
@@ -435,7 +435,7 @@ def main():
         print(f"Error: Number of processes must be >= 1, got {args.processes}")
         return 1
     # Generate commands
-    commands = create_carma_commands(
+    commands = rsparsepro_commands(
         gwas_dir=args.gwas_dir,
         ld_base_dir=args.ld_dir,
         output_base_dir=args.output_dir,
