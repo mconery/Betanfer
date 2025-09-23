@@ -4,7 +4,7 @@
 MultiSuSiE Multi-Population Fine-Mapping Script
 
 Python script designed to take input files and parameters and use them to run MultiSuSiE
-Updated: Subsets the summary statistics for each population to only match its own LD variant list (from the .vars file), NOT the intersection across all populations.
+Updated: Uses phenotype files to extract sample sizes and phenotype variances automatically
 """
 
 import argparse
@@ -22,8 +22,8 @@ def parse_arguments():
     )
     parser.add_argument('--gwas_files', '-g', required=True, help='Comma-delimited list of GWAS summary statistics files')
     parser.add_argument('--ld_files', '-l', required=True, help='Comma-delimited list of LD matrix file prefixes (each must have a corresponding .vars file)')
+    parser.add_argument('--pheno_files', '-p', required=True, help='Comma-delimited list of phenotype files with PHENO column')
     parser.add_argument('--output_file', '-o', required=True, help='Full path for output txt file')
-    parser.add_argument('--n_gwas', '-n', required=True, help='Comma-delimited list of GWAS sample sizes, same order as GWAS files')
     parser.add_argument('--ancestry_labels', '-a', required=True, help='Comma-delimited list of ancestry labels')
     parser.add_argument('--maf', type=float, default=0.005, help='Minor allele frequency threshold (default: 0.005)')
     parser.add_argument('--L', type=int, default=10, help='Maximum number of causal effects (default: 10)')
@@ -34,10 +34,10 @@ def parse_arguments():
     parser.add_argument('--estimate_residual_variance', action='store_true', help='Estimate residual variance')
     parser.add_argument('--standardize', action='store_true', default=True, help='Standardize inputs')
     parser.add_argument('--prior_weights', default=None, help='Prior weights for variants')
-    parser.add_argument('--var_y', default=None, help='Comma-delimited phenotype variances (optional)')
     return parser.parse_args()
 
 def read_vars_file(vars_file: str) -> Tuple[str, int, int, List[str]]:
+    """Read variant IDs from .vars file and extract chromosome/position info."""
     if not os.path.exists(vars_file):
         raise FileNotFoundError(f"ERROR: .vars file not found: {vars_file}")
     with open(vars_file) as f:
@@ -54,6 +54,7 @@ def read_vars_file(vars_file: str) -> Tuple[str, int, int, List[str]]:
     return chrom, min(positions), max(positions), variant_ids
 
 def detect_columns(gwas_file: str) -> Dict[str, str]:
+    """Detect column names in GWAS file."""
     try:
         df = pd.read_csv(gwas_file, nrows=0, sep='\t')
         headers = df.columns.tolist()
@@ -62,13 +63,13 @@ def detect_columns(gwas_file: str) -> Dict[str, str]:
         headers = df.columns.tolist()
     column_patterns = {
         'chr': ['CHR', 'chr', 'chromosome', '#CHROM', 'chrom'],
-        'snp': ['SNP', 'snp', 'rsid', 'RSID', 'ID', 'id', 'variant_id', 'VARIANT_ID', 'MarkerName', 'MarkerID'],
+        'snp': ['SNP', 'snp', 'rsid', 'RSID', 'ID', 'id', 'variant_id', 'VARIANT_ID', 'MarkerName'],
         'bp': ['BP', 'bp', 'pos', 'POS', 'position', 'POSITION', 'base_pair_location'],
         'a1': ['A1', 'a1', 'effect_allele', 'ALT', 'Allele1'],
         'a2': ['A2', 'a2', 'other_allele', 'REF', 'Allele2'],
         'beta': ['BETA', 'beta', 'Beta', 'OR', 'effect'],
         'se': ['SE', 'se', 'standard_error', 'stderr', 'STDERR'],
-        'pval': ['P', 'p', 'pval', 'PVAL', 'p_value', "p.value"],
+        'pval': ['P', 'p', 'pval', 'PVAL', 'p_value'],
         'n': ['N', 'n', 'sample_size', 'SAMPLE_SIZE', 'nobs', 'NOBS']
     }
     detected_cols = {}
@@ -77,7 +78,57 @@ def detect_columns(gwas_file: str) -> Dict[str, str]:
         detected_cols[col_type] = col_name
     return detected_cols
 
+def load_phenotype_data(pheno_file: str, ancestry_label: str) -> Tuple[int, float]:
+    """
+    Load phenotype data and extract sample size and phenotype variance.
+    
+    Returns:
+        n_samples: Number of samples (rows in phenotype file)
+        var_y: Variance of the PHENO column
+    """
+    print(f"Loading phenotype data for {ancestry_label} from {os.path.basename(pheno_file)}")
+    
+    if not os.path.exists(pheno_file):
+        raise FileNotFoundError(f"ERROR: Phenotype file not found: {pheno_file}")
+    
+    # Try different separators
+    try:
+        pheno_df = pd.read_csv(pheno_file, sep='\t')
+    except:
+        try:
+            pheno_df = pd.read_csv(pheno_file, sep=' ')
+        except Exception as e:
+            raise ValueError(f"ERROR: Could not read phenotype file {pheno_file}: {e}")
+    
+    # Check for PHENO column
+    if 'PHENO' not in pheno_df.columns:
+        # Try other common phenotype column names
+        pheno_cols = [col for col in pheno_df.columns if col.upper() in ['PHENO', 'PHENOTYPE', 'Y', 'VALUE']]
+        if not pheno_cols:
+            raise ValueError(f"ERROR: No PHENO column found in {pheno_file}. Available columns: {list(pheno_df.columns)}")
+        pheno_col = pheno_cols[0]
+        print(f"  Using column '{pheno_col}' as phenotype")
+    else:
+        pheno_col = 'PHENO'
+    
+    # Extract phenotype values (remove missing values)
+    pheno_values = pheno_df[pheno_col].dropna()
+    
+    if len(pheno_values) == 0:
+        raise ValueError(f"ERROR: No valid phenotype values found in {pheno_file}")
+    
+    n_samples = len(pheno_values)
+    var_y = np.var(pheno_values, ddof=1)  # Sample variance
+    
+    print(f"  Sample size: {n_samples}")
+    print(f"  Phenotype variance: {var_y:.6f}")
+    print(f"  Phenotype mean: {np.mean(pheno_values):.6f}")
+    print(f"  Phenotype std: {np.std(pheno_values, ddof=1):.6f}")
+    
+    return n_samples, var_y
+
 def load_gwas_data_to_ld_variants(gwas_file: str, detected_cols: Dict[str, str], ld_variant_ids: List[str], n_gwas: int) -> pd.DataFrame:
+    """Load GWAS data filtered to match LD matrix variants."""
     try:
         gwas_df = pd.read_csv(gwas_file, sep='\t')
     except:
@@ -85,25 +136,40 @@ def load_gwas_data_to_ld_variants(gwas_file: str, detected_cols: Dict[str, str],
     snp_col = detected_cols['snp']
     if snp_col is None or snp_col not in gwas_df.columns:
         raise ValueError(f'SNP column not found in GWAS file: {gwas_file}')
+    
+    # Filter to LD variants
     gwas_sub = gwas_df[gwas_df[snp_col].isin(ld_variant_ids)]
     if gwas_sub.empty:
         raise ValueError(f'No overlapping variants found in GWAS and LD set')
+    
+    # Order by LD variant list to ensure consistent ordering
     gwas_sub = gwas_sub.set_index(snp_col).reindex(ld_variant_ids).reset_index()
+    gwas_sub = gwas_sub.dropna(subset=[snp_col])  # Remove variants not in GWAS
+    
+    # Create standardized output dataframe
     result_df = pd.DataFrame({'SNP': gwas_sub[snp_col]})
+    
+    # Add other columns
     if detected_cols['a1']: result_df['A1'] = gwas_sub[detected_cols['a1']]
     if detected_cols['a2']: result_df['A2'] = gwas_sub[detected_cols['a2']]
     if detected_cols['beta']: result_df['Beta'] = gwas_sub[detected_cols['beta']]
     if detected_cols['se']: result_df['Se'] = gwas_sub[detected_cols['se']]
     if detected_cols['pval']: result_df['P'] = gwas_sub[detected_cols['pval']]
+    
+    # Calculate Z-scores
     if detected_cols['beta'] and detected_cols['se']:
         result_df['Z'] = result_df['Beta'] / result_df['Se']
+    
+    # Add sample size
     if detected_cols['n']:
         result_df['N'] = gwas_sub[detected_cols['n']]
     else:
         result_df['N'] = n_gwas
+    
     return result_df
 
 def load_ld_matrix(ld_file: str, vars_file: str, variant_ids: List[str]) -> np.ndarray:
+    """Load LD matrix."""
     if not os.path.exists(ld_file):
         raise FileNotFoundError(f'LD matrix file not found: {ld_file}')
     try:
@@ -113,67 +179,176 @@ def load_ld_matrix(ld_file: str, vars_file: str, variant_ids: List[str]) -> np.n
     _, _, _, all_variant_ids = read_vars_file(vars_file)
     if ld_matrix.shape[0] != len(all_variant_ids):
         raise ValueError('LD matrix size does not match its .vars list')
-    # Prune to just variant_ids (which is all_variant_ids here)
     return ld_matrix
 
 def validate_inputs(args):
+    """Validate input files and arguments."""
     gwas_files = [f.strip() for f in args.gwas_files.split(',')]
     ld_files = [f.strip() for f in args.ld_files.split(',')]
-    n_gwas_list = [int(n.strip()) for n in args.n_gwas.split(',')]
+    pheno_files = [f.strip() for f in args.pheno_files.split(',')]
     ancestry_labels = [a.strip() for a in args.ancestry_labels.split(',')]
-    if not (len(gwas_files) == len(ld_files) == len(n_gwas_list) == len(ancestry_labels)):
-        raise ValueError('Mismatch between number of populations across input lists.')
-    return gwas_files, ld_files, n_gwas_list, ancestry_labels
+    
+    if not (len(gwas_files) == len(ld_files) == len(pheno_files) == len(ancestry_labels)):
+        raise ValueError('ERROR: Number of populations must match across GWAS files, LD files, phenotype files, and ancestry labels')
+    
+    if len(gwas_files) < 2:
+        raise ValueError('ERROR: At least 2 populations are required for multi-ancestry analysis')
+    
+    # Check file existence
+    for i, (gwas_file, ld_file, pheno_file) in enumerate(zip(gwas_files, ld_files, pheno_files)):
+        ancestry = ancestry_labels[i]
+        
+        if not os.path.exists(gwas_file):
+            raise FileNotFoundError(f"ERROR: GWAS file not found for {ancestry}: {gwas_file}")
+        
+        vars_file = f"{ld_file}.vars"
+        if not os.path.exists(ld_file) or not os.path.exists(vars_file):
+            raise FileNotFoundError(f"ERROR: LD matrix ({ld_file}) or .vars file ({vars_file}) not found for {ancestry}")
+        
+        if not os.path.exists(pheno_file):
+            raise FileNotFoundError(f"ERROR: Phenotype file not found for {ancestry}: {pheno_file}")
+        
+        print(f"Population {i+1} ({ancestry}) files validated ✓")
+    
+    # Create output directory if needed
+    output_dir = os.path.dirname(args.output_file)
+    if output_dir and not os.path.exists(output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+    
+    return gwas_files, ld_files, pheno_files, ancestry_labels
 
-def run_multisusie(gwas_files, ld_files, n_gwas_list, ancestry_labels, args):
+def run_multisusie(gwas_files, ld_files, pheno_files, ancestry_labels, args):
+    """Run MultiSuSiE fine-mapping analysis."""
+    print("\n=== Running MultiSuSiE fine-mapping ===")
+    
     try:
         import MultiSuSiE
     except ImportError:
-        raise ImportError("Please install MultiSuSiE: pip install git+https://github.com/jordanero/MultiSuSiE.git")
-    b_list, s_list, R_list, summ_stat_list, varY_list = [], [], [], [], []
+        raise ImportError("ERROR: Please install MultiSuSiE: pip install git+https://github.com/jordanero/MultiSuSiE.git")
+    
+    b_list, s_list, R_list, summ_stat_list, varY_list, n_gwas_list = [], [], [], [], [], []
+    
     for i in range(len(gwas_files)):
+        ancestry = ancestry_labels[i]
+        print(f"\nProcessing population {i+1} ({ancestry}):")
+        
+        # Load phenotype data to get sample size and variance
+        n_samples, var_y = load_phenotype_data(pheno_files[i], ancestry)
+        n_gwas_list.append(n_samples)
+        varY_list.append(var_y)
+        
+        # Load LD matrix variants
         vars_file = ld_files[i] + ".vars"
         _, _, _, ld_variant_ids = read_vars_file(vars_file)
+        print(f"  LD matrix contains {len(ld_variant_ids)} variants")
+        
+        # Load and process GWAS data
         detected_cols = detect_columns(gwas_files[i])
-        gwas_df = load_gwas_data_to_ld_variants(gwas_files[i], detected_cols, ld_variant_ids, n_gwas_list[i])
+        gwas_df = load_gwas_data_to_ld_variants(gwas_files[i], detected_cols, ld_variant_ids, n_samples)
+        print(f"  GWAS data filtered to {len(gwas_df)} variants")
+        
+        # Load LD matrix
         ld_matrix = load_ld_matrix(ld_files[i], vars_file, ld_variant_ids)
+        print(f"  LD matrix loaded: {ld_matrix.shape}")
+        
+        # Store data for MultiSuSiE
         summ_stat_list.append(gwas_df)
         b_list.append(gwas_df['Beta'].values)
         s_list.append(gwas_df['Se'].values)
         R_list.append(ld_matrix)
-        varY_list.append(1.0 if args.var_y is None else float(args.var_y.split(',')[i]))
+    
+    print(f"\n=== Running MultiSuSiE analysis ===")
+    print(f"Sample sizes: {n_gwas_list}")
+    print(f"Phenotype variances: {[f'{v:.6f}' for v in varY_list]}")
+    
+    # Parse prior weights if provided
+    prior_weights = None
+    if args.prior_weights is not None:
+        if os.path.exists(args.prior_weights):
+            prior_weights = np.loadtxt(args.prior_weights)
+        else:
+            prior_weights = np.array([float(w.strip()) for w in args.prior_weights.split(',')])
+    
+    # Run MultiSuSiE
     result = MultiSuSiE.multisusie_rss(
-        b_list=b_list,s_list=s_list,R_list=R_list,varY_list=varY_list,
-        population_sizes=n_gwas_list,L=args.L,max_iter=args.max_iter,
-        tol=args.tol,estimate_residual_variance=args.estimate_residual_variance,
-        standardize=args.standardize,prior_weights=args.prior_weights,coverage=args.coverage)
+        b_list=b_list,
+        s_list=s_list,
+        R_list=R_list,
+        varY_list=varY_list,
+        population_sizes=n_gwas_list,
+        L=args.L,
+        max_iter=args.max_iter,
+        tol=args.tol,
+        estimate_residual_variance=args.estimate_residual_variance,
+        standardize=args.standardize,
+        prior_weights=prior_weights,
+        coverage=args.coverage
+    )
+    
+    print("MultiSuSiE analysis completed successfully!")
     return result, summ_stat_list
 
 def save_results(multisusie_result, summ_stat_list, ancestry_labels, output_file):
+    """Save results in format compatible with other fine-mapping scripts."""
+    print("\n=== Saving results ===")
+    
     variant_ids = summ_stat_list[0]['SNP'].tolist()
     df = pd.DataFrame({'VARIANT_ID': variant_ids})
+    
+    # Add Z-score columns for each population
     for i, pop in enumerate(ancestry_labels):
         df[f'Z_{pop}'] = summ_stat_list[i]['Z'].values
+    
+    # Add overall PIP column
     df['PIP'] = getattr(multisusie_result, 'pip', np.zeros(len(df)))
+    
+    # Add convergence status
     df['converged'] = getattr(multisusie_result, 'converged', 'NA')
+    
+    # Add credible set assignments
     df['cs'] = 0
     if hasattr(multisusie_result, 'sets') and hasattr(multisusie_result.sets, 'cs'):
         for i, cslist in enumerate(multisusie_result.sets.cs, 1):
             for indx in cslist:
                 if indx < len(df):
                     df.loc[indx, 'cs'] = i
+    
+    # Add population-specific PIP columns (placeholders for now)
     for i, pop in enumerate(ancestry_labels):
-        df[f'PIP_{pop}'] = 0  # Placeholder, MultiSuSiE-per-pop PIPs if available
+        df[f'PIP_{pop}'] = 0  # MultiSuSiE population-specific PIPs if available
+    
+    # Add multi-ancestry intersection column
     if len(ancestry_labels) >= 2:
         df['PIP_' + '_'.join(ancestry_labels)] = 0  # Placeholder
+    
+    # Write output
     df.to_csv(output_file, sep='\t', index=False, na_rep='NA')
+    
+    print(f"Results saved to: {output_file}")
+    print(f"Output contains {len(df)} variants and {len(df.columns)} columns")
 
 def main():
-    args = parse_arguments()
-    gwas_files, ld_files, n_gwas_list, ancestry_labels = validate_inputs(args)
-    multisusie_result, summ_stat_list = run_multisusie(gwas_files, ld_files, n_gwas_list, ancestry_labels, args)
-    save_results(multisusie_result, summ_stat_list, ancestry_labels, args.output_file)
-    print(f"Results written to {args.output_file}")
+    """Main function."""
+    print("=== MultiSuSiE Multi-Population Fine-Mapping ===")
+    
+    try:
+        # Parse arguments
+        args = parse_arguments()
+        
+        # Validate inputs
+        gwas_files, ld_files, pheno_files, ancestry_labels = validate_inputs(args)
+        
+        # Run MultiSuSiE analysis
+        multisusie_result, summ_stat_list = run_multisusie(gwas_files, ld_files, pheno_files, ancestry_labels, args)
+        
+        # Save results
+        save_results(multisusie_result, summ_stat_list, ancestry_labels, args.output_file)
+        
+        print("\n=== Analysis completed successfully! ===")
+        
+    except Exception as e:
+        print(f"ERROR: {e}")
+        sys.exit(1)
 
 if __name__ == '__main__':
     main()
