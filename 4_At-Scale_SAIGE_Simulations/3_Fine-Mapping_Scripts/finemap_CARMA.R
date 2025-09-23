@@ -22,10 +22,10 @@ library(R.utils)
 # 1) summary stats file (not pruned - will be filtered using variant file)
 # 2) ld matrix file in .vcor1 or similar format
 # 3) output file location
-# 4) column name for variant ID in summary stats [OPTIONAL; default is "markerid"]
+# 4) column name for variant ID in summary stats [OPTIONAL; default is "rs_number"]
 # 5) column name for effect size (beta) in summary stats [OPTIONAL; default is "beta"]
 # 6) column name for standard error in summary stats [OPTIONAL; default is "se"]
-# 7) column name for sample size in summary stats [OPTIONAL; default is "n"]
+# 7) column name for sample size in summary stats [OPTIONAL; default is "n_samples"]
 # 8) Toggle for Checking Outliers [OPTIONAL; default is TRUE]
 # 9) Lambda for Poisson Regularization [OPTIONAL; default is 1]
 # 10) Rho for credible set confidence [OPTIONAL; default is 0.95]
@@ -39,10 +39,10 @@ if (length(args) >= 3) {
   ld_file <- args[2]
   out_file <- args[3]
   # Optional parameters matching SuSiE first
-  markerid_col <- if (length(args) >= 4) args[4] else "markerid"
+  markerid_col <- if (length(args) >= 4) args[4] else "rs_number"
   beta_col <- if (length(args) >= 5) args[5] else "beta"
   se_col <- if (length(args) >= 6) args[6] else "se"
-  n_col <- if (length(args) >= 7) args[7] else "n"
+  n_col <- if (length(args) >= 7) args[7] else "n_samples"
   # CARMA-specific optional parameters
   outlier_check_toggle <- if (length(args) >= 8) args[8] else "TRUE"
   lambda <- if (length(args) >= 9) as.numeric(args[9]) else 1
