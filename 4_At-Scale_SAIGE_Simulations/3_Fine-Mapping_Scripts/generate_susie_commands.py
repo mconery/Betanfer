@@ -6,6 +6,7 @@ This script creates a command file where each line runs SuSiE fine-mapping
 for a different locus across all available matrix types. 
 
 Optimized for parallel processing on HPC systems with file existence checks.
+Fixed to handle decimal heritability values in filenames.
 """
 
 import os
@@ -89,6 +90,76 @@ def find_matrix_file(ld_base_dir, matrix_type, subfolder, pheno_causal):
         # No matches found
         return None
 
+def parse_gwas_filename(meta_filename):
+    """
+    Parse GWAS filename to extract components, handling decimal heritability values.
+
+    Expected format: Pheno#.#_causal.heritability_#.#.continuous/binary_0.25.chr#.meta.out
+
+    Parameters:
+    - meta_filename: The GWAS filename
+
+    Returns:
+    - dict: Dictionary with parsed components or None if parsing fails
+    """
+    # Remove the .meta.out extension
+    base_name = meta_filename.replace('.meta.out', '')
+
+    # Split by dots
+    parts = base_name.split('.')
+
+    if len(parts) < 5:  # Need at least: Pheno#, #_causal, heritability_#, #, trait_type, chr#
+        return None
+
+    try:
+        # First two parts: Pheno# and #_causal
+        pheno_causal = parts[0] + "." + parts[1]  # e.g., "Pheno1.2_causal"
+
+        # Find heritability parts - they start with "heritability_" and continue until we hit trait type
+        heritability_parts = []
+        trait_type_index = None
+
+        for i in range(2, len(parts)):
+            part = parts[i]
+
+            # Check if this is a trait type (continuous or binary_0.25)
+            if part in ['continuous', 'binary_0'] or (part == '25' and i > 2 and parts[i-1] == 'binary_0'):
+                trait_type_index = i
+                break
+            else:
+                heritability_parts.append(part)
+
+        if trait_type_index is None:
+            return None
+
+        # Reconstruct heritability (e.g., "heritability_0.01" from ["heritability_0", "01"])
+        heritability = ".".join(heritability_parts)
+
+        # Handle trait type - could be "continuous" or "binary_0.25"
+        if parts[trait_type_index] == 'continuous':
+            trait_type = 'continuous'
+            chromosome_index = trait_type_index + 1
+        elif parts[trait_type_index] == 'binary_0' and trait_type_index + 1 < len(parts) and parts[trait_type_index + 1] == '25':
+            trait_type = 'binary_0.25'
+            chromosome_index = trait_type_index + 2
+        else:
+            return None
+
+        # Get chromosome
+        if chromosome_index >= len(parts):
+            return None
+        chromosome = parts[chromosome_index]
+
+        return {
+            'pheno_causal': pheno_causal,
+            'heritability': heritability,
+            'trait_type': trait_type,
+            'chromosome': chromosome
+        }
+
+    except (IndexError, ValueError):
+        return None
+
 def check_output_completeness(output_path, min_file_size=100):
     """
     Check if output file exists and appears complete.
@@ -162,23 +233,17 @@ def process_causal_dir(args_tuple):
     meta_file = meta_files[0]
     meta_filename = os.path.basename(meta_file)
 
-    # Parse the filename to extract components
-    # Format: Pheno#.#_causal.heritability_#.continuous/binary_0.25.chr#.meta.out
-    filename_parts = meta_filename.replace('.meta.out', '').split('.')
+    # Parse the filename using the improved parser
+    parsed = parse_gwas_filename(meta_filename)
 
-    if len(filename_parts) < 4:
-        warnings.append(f"Unexpected filename format: {meta_filename} - Parts: {filename_parts}")
-        return commands, warnings, skipped_info
-
-    try:
-        pheno_causal = filename_parts[0] + "." + filename_parts[1]  # e.g., "Pheno1.2_causal"
-        heritability = filename_parts[2]  # e.g., "heritability_0.01"
-        trait_type = filename_parts[3]    # e.g., "continuous" or "binary_0.25"
-        chromosome = filename_parts[4]    # e.g., "chr1"
-
-    except IndexError:
+    if parsed is None:
         warnings.append(f"Could not parse filename: {meta_filename}")
         return commands, warnings, skipped_info
+
+    pheno_causal = parsed['pheno_causal']
+    heritability = parsed['heritability']
+    trait_type = parsed['trait_type']
+    chromosome = parsed['chromosome']
 
     # For each detected matrix configuration
     for matrix_type, subfolder in matrix_configs.items():
@@ -192,8 +257,7 @@ def process_causal_dir(args_tuple):
         # Construct output directory and file
         output_dir = os.path.join(output_base_dir, matrix_type)
 
-        # FIXED: Include trait_type in output filename
-        # Format: Pheno#.#_causal.continuous/binary_0.25.weighted/Meta.txt
+        # Output filename format: Pheno#.#_causal.continuous/binary_0.25.weighted/Meta.txt
         output_filename = f"{pheno_causal}.{trait_type}.{subfolder}.txt"
         output_path = os.path.join(output_dir, output_filename)
 
@@ -204,6 +268,7 @@ def process_causal_dir(args_tuple):
                 'matrix_type': matrix_type,
                 'trait_type': trait_type,
                 'chromosome': chromosome,
+                'heritability': heritability,
                 'output_path': output_path,
                 'matrix_file': os.path.basename(matrix_path)
             })
@@ -213,7 +278,7 @@ def process_causal_dir(args_tuple):
         # Usage: Rscript finemap_SuSiE.R summary_stats_file ld_file out_file [optional_params]
         susie_cmd = f"Rscript {wrapper_script} {meta_file} {matrix_path} {output_path}"
 
-        commands.append((susie_cmd, output_dir, matrix_type, pheno_causal, trait_type, chromosome, os.path.basename(matrix_path), output_filename))
+        commands.append((susie_cmd, output_dir, matrix_type, pheno_causal, trait_type, chromosome, heritability, os.path.basename(matrix_path), output_filename))
 
     return commands, warnings, skipped_info
 
@@ -341,7 +406,7 @@ def create_susie_commands(gwas_dir, ld_base_dir, output_base_dir, wrapper_script
         # Show a few examples
         print(f"  Examples:")
         for i, skipped in enumerate(all_skipped[:3]):
-            print(f"    {skipped['pheno_causal']}.{skipped['trait_type']} -> {skipped['matrix_type']} (already complete)")
+            print(f"    {skipped['pheno_causal']}.{skipped['trait_type']} (h²={skipped['heritability']}) -> {skipped['matrix_type']} (already complete)")
         if len(all_skipped) > 3:
             print(f"    ... and {len(all_skipped) - 3} more")
 
@@ -353,9 +418,9 @@ def create_susie_commands(gwas_dir, ld_base_dir, output_base_dir, wrapper_script
         print(f"  New commands needed: {len(all_commands)}")
 
     for cmd_info in all_commands[:5]:  # Show first 5 as examples
-        if len(cmd_info) >= 8:  # Updated to include output_filename
-            _, _, matrix_type, pheno_causal, trait_type, chromosome, matrix_file, output_filename = cmd_info
-            print(f"  {pheno_causal} ({trait_type}, {chromosome}) -> {matrix_type}")
+        if len(cmd_info) >= 9:  # Updated to include heritability
+            _, _, matrix_type, pheno_causal, trait_type, chromosome, heritability, matrix_file, output_filename = cmd_info
+            print(f"  {pheno_causal} ({trait_type}, {chromosome}, h²={heritability}) -> {matrix_type}")
             print(f"    Matrix: {matrix_file}")
             print(f"    Output: {output_filename}")
 
