@@ -62,13 +62,13 @@ def detect_columns(gwas_file: str) -> Dict[str, str]:
         headers = df.columns.tolist()
     column_patterns = {
         'chr': ['CHR', 'chr', 'chromosome', '#CHROM', 'chrom'],
-        'snp': ['SNP', 'snp', 'rsid', 'RSID', 'ID', 'id', 'variant_id', 'VARIANT_ID', 'MarkerName'],
+        'snp': ['SNP', 'snp', 'rsid', 'RSID', 'ID', 'id', 'variant_id', 'VARIANT_ID', 'MarkerName', 'MarkerID'],
         'bp': ['BP', 'bp', 'pos', 'POS', 'position', 'POSITION', 'base_pair_location'],
         'a1': ['A1', 'a1', 'effect_allele', 'ALT', 'Allele1'],
         'a2': ['A2', 'a2', 'other_allele', 'REF', 'Allele2'],
         'beta': ['BETA', 'beta', 'Beta', 'OR', 'effect'],
         'se': ['SE', 'se', 'standard_error', 'stderr', 'STDERR'],
-        'pval': ['P', 'p', 'pval', 'PVAL', 'p_value'],
+        'pval': ['P', 'p', 'pval', 'PVAL', 'p_value', "p.value"],
         'n': ['N', 'n', 'sample_size', 'SAMPLE_SIZE', 'nobs', 'NOBS']
     }
     detected_cols = {}
