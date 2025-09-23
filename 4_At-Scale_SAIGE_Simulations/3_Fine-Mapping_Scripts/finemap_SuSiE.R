@@ -71,6 +71,7 @@ if (!file.exists(vars_file)) {
   print(paste0("ERROR: Variant file ", vars_file, " not found."))
   quit(save="no");
 }
+
 var_R <- read.csv(vars_file, sep = "\t", header = FALSE)[,1]
 
 # Read in LD matrix
@@ -136,6 +137,14 @@ check <- function(expression){
                         )
                         out_data <- cbind.data.frame(out_data, cs=rep(0, nrow(out_data)))
                         write.table(out_data, file = out_file, col.names = TRUE, row.names = FALSE, quote = FALSE, sep="\t")
+                        
+                        # Write timing file with NA for failed runs
+                        timing_dir <- file.path(dirname(out_file), "timing")
+                        dir.create(timing_dir, recursive = TRUE, showWarnings = FALSE)
+                        timing_file <- file.path(timing_dir, basename(out_file))
+                        write.table(data.frame(susie_time_seconds = NA), file = timing_file, 
+                                    col.names = TRUE, row.names = FALSE, quote = FALSE, sep="\t")
+                        
                         quit(save="no");
                       },
                       finally = {
@@ -150,8 +159,17 @@ set.seed(random_seed) #Nothing up until here has been random
 
 #Fit susie model
 print("Running SuSiE fine-mapping...")
+
+# Time the susie_rss function specifically
+susie_start_time <- Sys.time()
 fitted_rss1 <- check(susie_rss(bhat = bhat, shat = shat, n = n, R = R, L = 10,
                                estimate_residual_variance = in_sample_flag))
+susie_end_time <- Sys.time()
+
+# Calculate timing in seconds
+susie_time_seconds <- as.numeric(difftime(susie_end_time, susie_start_time, units = "secs"))
+
+print(paste0("SuSiE execution completed in ", round(susie_time_seconds, 2), " seconds"))
 
 # 5) Extract Needed Info and Export Output File ====
 
@@ -176,4 +194,17 @@ out_data <- cbind.data.frame(out_data, cs=cred_sets)
 #Save output dataframe
 write.table(out_data, file = out_file, col.names = TRUE, row.names = FALSE, quote = FALSE, sep="\t")
 
+# 6) Write Timing File ====
+
+# Set timing subdirectory
+timing_dir <- file.path(dirname(out_file), "timing")
+
+# Create timing file with same name as output file
+timing_file <- file.path(timing_dir, basename(out_file))
+
+# Write timing data
+timing_data <- data.frame(susie_time_seconds = susie_time_seconds)
+write.table(timing_data, file = timing_file, col.names = TRUE, row.names = FALSE, quote = FALSE, sep="\t")
+
 print(paste0("Analysis complete. Results written to: ", out_file))
+print(paste0("Timing information written to: ", timing_file))
