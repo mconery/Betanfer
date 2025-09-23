@@ -192,7 +192,7 @@ def main():
     default_gwas = "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/meta_analysis_results"
     default_ld = "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices"
     default_output = "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/fine-mapping_results/susie_results"
-    default_commands = "susie_commands.txt"
+    default_commands = f"{default_output}/susie_commands.txt"
 
     parser.add_argument('--wrapper-script', '-w', default=default_wrapper,
                         help=f'Path to finemap_SuSiE.R script (default: {default_wrapper})')
