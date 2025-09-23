@@ -9,9 +9,71 @@ for a different locus across all available matrix types.
 import os
 import glob
 import argparse
-from pathlib import Path
 
-def create_susie_commands(gwas_dir, ld_base_dir, output_base_dir, wrapper_script, output_commands_file):
+def detect_matrix_subdirs(ld_base_dir, matrix_filter=None):
+    """
+    Automatically detect matrix subdirectories and their subfolder structure.
+
+    Parameters:
+    - ld_base_dir: Base directory containing LD matrices
+    - matrix_filter: Optional list of matrix subdirectory names to include
+
+    Returns:
+    - dict: mapping of matrix_type -> subfolder_name
+    """
+    matrix_configs = {}
+
+    # Look for all subdirectories in ld_base_dir
+    if not os.path.exists(ld_base_dir):
+        print(f"Warning: LD base directory does not exist: {ld_base_dir}")
+        return matrix_configs
+
+    for item in os.listdir(ld_base_dir):
+        matrix_dir = os.path.join(ld_base_dir, item)
+        if not os.path.isdir(matrix_dir):
+            continue
+
+        # Apply matrix filter if specified
+        if matrix_filter and item not in matrix_filter:
+            print(f"Skipping matrix type (not in filter): {item}")
+            continue
+
+        # Check for 'weighted' or 'Meta' subdirectory
+        weighted_path = os.path.join(matrix_dir, "weighted")
+        meta_path = os.path.join(matrix_dir, "Meta")
+
+        if os.path.isdir(weighted_path):
+            matrix_configs[item] = "weighted"
+            print(f"Found matrix type: {item} -> weighted")
+        elif os.path.isdir(meta_path):
+            matrix_configs[item] = "Meta"  
+            print(f"Found matrix type: {item} -> Meta")
+        else:
+            print(f"Warning: No 'weighted' or 'Meta' subdirectory found in {matrix_dir}")
+
+    return matrix_configs
+
+def parse_matrix_filter(matrix_string):
+    """
+    Parse comma-delimited matrix filter string.
+
+    Parameters:
+    - matrix_string: Comma-delimited string of matrix names
+
+    Returns:
+    - list: List of matrix names, or None if empty
+    """
+    if not matrix_string:
+        return None
+
+    # Split by comma and strip whitespace
+    matrix_list = [name.strip() for name in matrix_string.split(',')]
+    # Remove empty strings
+    matrix_list = [name for name in matrix_list if name]
+
+    return matrix_list if matrix_list else None
+
+def create_susie_commands(gwas_dir, ld_base_dir, output_base_dir, wrapper_script, output_commands_file, matrix_filter=None):
     """
     Generate SuSiE fine-mapping commands for all loci.
 
@@ -21,19 +83,29 @@ def create_susie_commands(gwas_dir, ld_base_dir, output_base_dir, wrapper_script
     - output_base_dir: Base directory for fine-mapping results
     - wrapper_script: Path to finemap_SuSiE.R script
     - output_commands_file: File to write commands to
+    - matrix_filter: Optional list of matrix subdirectory names to include
     """
 
-    # Define matrix subdirectories and their corresponding sub-folders
-    matrix_configs = {
-        "raw_in-sample": "weighted",
-        "PC-corrected": "weighted", 
-        "beta-inferred_2000": "Meta"
-    }
+    # Automatically detect matrix configurations
+    print(f"Detecting matrix subdirectories in: {ld_base_dir}")
+    if matrix_filter:
+        print(f"Filtering for matrix types: {matrix_filter}")
+
+    matrix_configs = detect_matrix_subdirs(ld_base_dir, matrix_filter)
+
+    if not matrix_configs:
+        if matrix_filter:
+            print(f"Error: No valid matrix configurations found matching filter: {matrix_filter}")
+        else:
+            print("Error: No valid matrix configurations found!")
+        return []
+
+    print(f"Matrix configurations to process: {matrix_configs}")
 
     commands = []
 
     # Find all directories with "_causal" in the name
-    print(f"Searching for causal directories in: {gwas_dir}")
+    print(f"\nSearching for causal directories in: {gwas_dir}")
     causal_dirs = glob.glob(os.path.join(gwas_dir, "*_causal*"))
     print(f"Found {len(causal_dirs)} causal directories")
 
@@ -74,7 +146,7 @@ def create_susie_commands(gwas_dir, ld_base_dir, output_base_dir, wrapper_script
             print(f"Warning: Could not parse filename: {meta_filename}")
             continue
 
-        # For each matrix configuration
+        # For each detected matrix configuration
         for matrix_type, subfolder in matrix_configs.items():
             # Construct matrix file path
             matrix_filename = f"{pheno_causal}.{matrix_type}.unphased.vcor1"
@@ -102,10 +174,11 @@ def create_susie_commands(gwas_dir, ld_base_dir, output_base_dir, wrapper_script
             commands.append(susie_cmd)
 
     # Write commands to file
-    print(f"\nWriting {len(commands)} commands to: {output_commands_file}")
-    with open(output_commands_file, 'w') as f:
-        for cmd in commands:
-            f.write(cmd + '\n')
+    if output_commands_file:
+        print(f"\nWriting {len(commands)} commands to: {output_commands_file}")
+        with open(output_commands_file, 'w') as f:
+            for cmd in commands:
+                f.write(cmd + '\n')
 
     return commands
 
@@ -131,10 +204,33 @@ def main():
                         help=f'Base directory for fine-mapping results (default: {default_output})')
     parser.add_argument('--commands-file', '-c', default=default_commands,
                         help=f'Output file for commands (default: {default_commands})')
+    parser.add_argument('--matrix-types', '-m', type=str, default=None,
+                        help='Comma-delimited list of matrix subdirectory names to process (e.g., "raw_in-sample,PC-corrected"). If not specified, all detected matrix types will be processed.')
     parser.add_argument('--dry-run', '-d', action='store_true',
                         help='Print first 10 commands without writing to file')
+    parser.add_argument('--list-matrices', action='store_true',
+                        help='List available matrix subdirectories and exit')
 
     args = parser.parse_args()
+
+    # Handle list-matrices option
+    if args.list_matrices:
+        print(f"Scanning for matrix subdirectories in: {args.ld_dir}")
+        if not os.path.exists(args.ld_dir):
+            print(f"Error: LD directory does not exist: {args.ld_dir}")
+            return 1
+
+        matrix_configs = detect_matrix_subdirs(args.ld_dir)
+        if matrix_configs:
+            print("\nAvailable matrix types:")
+            for matrix_type, subfolder in matrix_configs.items():
+                print(f"  {matrix_type} ({subfolder})")
+            print("\nExample usage:")
+            print(f"  --matrix-types \"raw_in-sample,PC-corrected\"")
+            print(f"  --matrix-types \"{','.join(matrix_configs.keys())}\"")
+        else:
+            print("No valid matrix configurations found.")
+        return 0
 
     # Check if directories exist
     for dir_path, name in [(args.gwas_dir, 'GWAS'), (args.ld_dir, 'LD matrices')]:
@@ -146,13 +242,19 @@ def main():
         print(f"Error: Wrapper script does not exist: {args.wrapper_script}")
         return 1
 
+    # Parse matrix filter
+    matrix_filter = parse_matrix_filter(args.matrix_types)
+    if matrix_filter:
+        print(f"Matrix filter applied: {matrix_filter}")
+
     # Generate commands
     commands = create_susie_commands(
         gwas_dir=args.gwas_dir,
         ld_base_dir=args.ld_dir,
         output_base_dir=args.output_dir,
         wrapper_script=args.wrapper_script,
-        output_commands_file=args.commands_file if not args.dry_run else None
+        output_commands_file=args.commands_file if not args.dry_run else None,
+        matrix_filter=matrix_filter
     )
 
     if args.dry_run:
