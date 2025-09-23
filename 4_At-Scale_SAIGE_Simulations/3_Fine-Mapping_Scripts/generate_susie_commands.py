@@ -5,7 +5,7 @@ Script to generate SuSiE fine-mapping commands for all loci.
 This script creates a command file where each line runs SuSiE fine-mapping
 for a different locus across all available matrix types. 
 
-Optimized for parallel processing on HPC systems.
+Optimized for parallel processing on HPC systems with file existence checks.
 """
 
 import os
@@ -89,24 +89,65 @@ def find_matrix_file(ld_base_dir, matrix_type, subfolder, pheno_causal):
         # No matches found
         return None
 
+def check_output_completeness(output_path, min_file_size=100):
+    """
+    Check if output file exists and appears complete.
+
+    Parameters:
+    - output_path: Path to output file
+    - min_file_size: Minimum file size in bytes to consider complete
+
+    Returns:
+    - bool: True if file exists and appears complete
+    """
+    if not os.path.exists(output_path):
+        return False
+
+    try:
+        # Check file size
+        file_size = os.path.getsize(output_path)
+        if file_size < min_file_size:
+            return False
+
+        # For SuSiE output files, check if they have a header and at least one data row
+        with open(output_path, 'r') as f:
+            lines = f.readlines()
+
+        # Should have at least 2 lines (header + 1 data row)
+        if len(lines) < 2:
+            return False
+
+        # Check if header contains expected columns
+        header = lines[0].strip().split('\t')
+        expected_cols = {'VARIANT_ID', 'Z', 'PIP', 'converged', 'cs'}
+        if not expected_cols.issubset(set(header)):
+            return False
+
+        return True
+
+    except (IOError, OSError, UnicodeDecodeError):
+        # If we can't read the file, consider it incomplete
+        return False
+
 def process_causal_dir(args_tuple):
     """
     Process a single causal directory to generate commands.
     This function is designed to be called in parallel.
 
     Parameters:
-    - args_tuple: Tuple containing (causal_dir, ld_base_dir, matrix_configs, output_base_dir, wrapper_script)
+    - args_tuple: Tuple containing (causal_dir, ld_base_dir, matrix_configs, output_base_dir, wrapper_script, skip_existing)
 
     Returns:
-    - list: List of commands generated for this directory
+    - tuple: (commands, warnings, skipped_info)
     """
-    causal_dir, ld_base_dir, matrix_configs, output_base_dir, wrapper_script = args_tuple
+    causal_dir, ld_base_dir, matrix_configs, output_base_dir, wrapper_script, skip_existing = args_tuple
 
     commands = []
     warnings = []
+    skipped_info = []
 
     if not os.path.isdir(causal_dir):
-        return commands, warnings
+        return commands, warnings, skipped_info
 
     # Find the .meta.out file in this directory
     meta_files = glob.glob(os.path.join(causal_dir, "*.meta.out"))
@@ -116,7 +157,7 @@ def process_causal_dir(args_tuple):
         if len(meta_files) > 1:
             warning += f" - Files: {[os.path.basename(f) for f in meta_files]}"
         warnings.append(warning)
-        return commands, warnings
+        return commands, warnings, skipped_info
 
     meta_file = meta_files[0]
     meta_filename = os.path.basename(meta_file)
@@ -127,7 +168,7 @@ def process_causal_dir(args_tuple):
 
     if len(filename_parts) < 4:
         warnings.append(f"Unexpected filename format: {meta_filename} - Parts: {filename_parts}")
-        return commands, warnings
+        return commands, warnings, skipped_info
 
     try:
         pheno_causal = filename_parts[0] + "." + filename_parts[1]  # e.g., "Pheno1.2_causal"
@@ -137,7 +178,7 @@ def process_causal_dir(args_tuple):
 
     except IndexError:
         warnings.append(f"Could not parse filename: {meta_filename}")
-        return commands, warnings
+        return commands, warnings, skipped_info
 
     # For each detected matrix configuration
     for matrix_type, subfolder in matrix_configs.items():
@@ -153,13 +194,25 @@ def process_causal_dir(args_tuple):
         output_filename = f"{pheno_causal}.{subfolder}.txt"
         output_path = os.path.join(output_dir, output_filename)
 
+        # Check if output file already exists and is complete
+        if skip_existing and check_output_completeness(output_path):
+            skipped_info.append({
+                'pheno_causal': pheno_causal,
+                'matrix_type': matrix_type,
+                'trait_type': trait_type,
+                'chromosome': chromosome,
+                'output_path': output_path,
+                'matrix_file': os.path.basename(matrix_path)
+            })
+            continue
+
         # Create the SuSiE command
         # Usage: Rscript finemap_SuSiE.R summary_stats_file ld_file out_file [optional_params]
         susie_cmd = f"Rscript {wrapper_script} {meta_file} {matrix_path} {output_path}"
 
         commands.append((susie_cmd, output_dir, matrix_type, pheno_causal, trait_type, chromosome, os.path.basename(matrix_path)))
 
-    return commands, warnings
+    return commands, warnings, skipped_info
 
 def parse_matrix_filter(matrix_string):
     """
@@ -181,7 +234,8 @@ def parse_matrix_filter(matrix_string):
 
     return matrix_list if matrix_list else None
 
-def create_susie_commands(gwas_dir, ld_base_dir, output_base_dir, wrapper_script, output_commands_file, matrix_filter=None, n_processes=None):
+def create_susie_commands(gwas_dir, ld_base_dir, output_base_dir, wrapper_script, output_commands_file, 
+                         matrix_filter=None, n_processes=None, skip_existing=False):
     """
     Generate SuSiE fine-mapping commands for all loci using parallel processing.
 
@@ -193,6 +247,7 @@ def create_susie_commands(gwas_dir, ld_base_dir, output_base_dir, wrapper_script
     - output_commands_file: File to write commands to
     - matrix_filter: Optional list of matrix subdirectory names to include
     - n_processes: Number of processes to use (None = use all available cores)
+    - skip_existing: Whether to skip generating commands for existing complete output files
     """
 
     # Automatically detect matrix configurations
@@ -211,8 +266,13 @@ def create_susie_commands(gwas_dir, ld_base_dir, output_base_dir, wrapper_script
 
     print(f"Matrix configurations to process: {matrix_configs}")
 
+    if skip_existing:
+        print(f"File existence checking: ENABLED - will skip existing complete output files")
+    else:
+        print(f"File existence checking: DISABLED - will generate all commands")
+
     # Create output directories now
-    print("\nCreating output directories...")
+    print(f"\nCreating output directories...")
     for matrix_type in matrix_configs.keys():
         output_dir = os.path.join(output_base_dir, matrix_type)
         os.makedirs(output_dir, exist_ok=True)
@@ -231,7 +291,7 @@ def create_susie_commands(gwas_dir, ld_base_dir, output_base_dir, wrapper_script
     # Prepare arguments for parallel processing
     process_args = []
     for causal_dir in causal_dirs:
-        args_tuple = (causal_dir, ld_base_dir, matrix_configs, output_base_dir, wrapper_script)
+        args_tuple = (causal_dir, ld_base_dir, matrix_configs, output_base_dir, wrapper_script, skip_existing)
         process_args.append(args_tuple)
 
     # Process directories in parallel
@@ -239,15 +299,17 @@ def create_susie_commands(gwas_dir, ld_base_dir, output_base_dir, wrapper_script
 
     all_commands = []
     all_warnings = []
+    all_skipped = []
 
     with Pool(processes=n_processes) as pool:
         results = pool.map(process_causal_dir, process_args)
 
     # Collect results
     processed_phenotypes = set()
-    for commands, warnings in results:
+    for commands, warnings, skipped_info in results:
         all_commands.extend(commands)
         all_warnings.extend(warnings)
+        all_skipped.extend(skipped_info)
 
         # Track processed phenotypes for summary
         for cmd_info in commands:
@@ -260,8 +322,33 @@ def create_susie_commands(gwas_dir, ld_base_dir, output_base_dir, wrapper_script
         for warning in all_warnings:
             print(f"  {warning}")
 
+    # Print skipped files summary
+    if all_skipped:
+        print(f"\nExisting files skipped ({len(all_skipped)}):")
+        skipped_by_matrix = {}
+        for skipped in all_skipped:
+            matrix_type = skipped['matrix_type']
+            if matrix_type not in skipped_by_matrix:
+                skipped_by_matrix[matrix_type] = 0
+            skipped_by_matrix[matrix_type] += 1
+
+        for matrix_type, count in skipped_by_matrix.items():
+            print(f"  {matrix_type}: {count} files")
+
+        # Show a few examples
+        print(f"  Examples:")
+        for i, skipped in enumerate(all_skipped[:3]):
+            print(f"    {skipped['pheno_causal']} -> {skipped['matrix_type']} (already complete)")
+        if len(all_skipped) > 3:
+            print(f"    ... and {len(all_skipped) - 3} more")
+
     # Print processing summary
     print(f"\nProcessing Summary:")
+    print(f"  Total commands generated: {len(all_commands)}")
+    if skip_existing:
+        print(f"  Existing files skipped: {len(all_skipped)}")
+        print(f"  New commands needed: {len(all_commands)}")
+
     for cmd_info in all_commands[:5]:  # Show first 5 as examples
         if len(cmd_info) >= 7:
             _, _, matrix_type, pheno_causal, trait_type, chromosome, matrix_file = cmd_info
@@ -309,6 +396,8 @@ def main():
                         help='Comma-delimited list of matrix subdirectory names to process (e.g., "raw_in-sample,PC-corrected"). If not specified, all detected matrix types will be processed.')
     parser.add_argument('--processes', '-p', type=int, default=None,
                         help='Number of processes to use for parallel processing (default: use all available cores)')
+    parser.add_argument('--skip-existing', '-s', action='store_true',
+                        help='Skip generating commands for output files that already exist and appear complete')
     parser.add_argument('--dry-run', '-d', action='store_true',
                         help='Print first 10 commands without writing to file')
     parser.add_argument('--list-matrices', action='store_true',
@@ -375,7 +464,8 @@ def main():
         wrapper_script=args.wrapper_script,
         output_commands_file=args.commands_file if not args.dry_run else None,
         matrix_filter=matrix_filter,
-        n_processes=args.processes
+        n_processes=args.processes,
+        skip_existing=args.skip_existing
     )
 
     if args.dry_run:
