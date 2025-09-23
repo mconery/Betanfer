@@ -24,7 +24,7 @@ selection_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_F
 
 #Set key variables for causal variant selection
 set_numbers=(1 2 3)
-heritability=0.0003
+heritability=0.00005
 max_distance=500000
 max_ld=0.05
 replicates=1000
