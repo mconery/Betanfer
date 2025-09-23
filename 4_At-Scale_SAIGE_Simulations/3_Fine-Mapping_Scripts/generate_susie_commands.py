@@ -9,6 +9,7 @@ for a different locus across all available matrix types.
 import os
 import glob
 import argparse
+from pathlib import Path
 
 def detect_matrix_subdirs(ld_base_dir, matrix_filter=None):
     """
@@ -52,6 +53,40 @@ def detect_matrix_subdirs(ld_base_dir, matrix_filter=None):
             print(f"Warning: No 'weighted' or 'Meta' subdirectory found in {matrix_dir}")
 
     return matrix_configs
+
+def find_matrix_file(ld_base_dir, matrix_type, subfolder, pheno_causal):
+    """
+    Search for a matrix file that matches the given phenotype/causal pattern.
+
+    Parameters:
+    - ld_base_dir: Base directory containing LD matrices
+    - matrix_type: Matrix type directory name (e.g., "beta-inferred_2000")
+    - subfolder: Subfolder name ("weighted" or "Meta")
+    - pheno_causal: Phenotype pattern (e.g., "Pheno1.2_causal")
+
+    Returns:
+    - str: Full path to matching matrix file, or None if not found
+    """
+    search_dir = os.path.join(ld_base_dir, matrix_type, subfolder)
+
+    if not os.path.exists(search_dir):
+        return None
+
+    # Search for files that start with the pheno_causal pattern and end with .vcor1
+    pattern = os.path.join(search_dir, f"{pheno_causal}.*.vcor1")
+    matching_files = glob.glob(pattern)
+
+    if len(matching_files) == 1:
+        return matching_files[0]
+    elif len(matching_files) > 1:
+        print(f"Warning: Multiple matrix files found for {pheno_causal} in {matrix_type}/{subfolder}:")
+        for f in matching_files:
+            print(f"  {os.path.basename(f)}")
+        print(f"  Using first match: {os.path.basename(matching_files[0])}")
+        return matching_files[0]
+    else:
+        # No matches found
+        return None
 
 def parse_matrix_filter(matrix_string):
     """
@@ -148,14 +183,15 @@ def create_susie_commands(gwas_dir, ld_base_dir, output_base_dir, wrapper_script
 
         # For each detected matrix configuration
         for matrix_type, subfolder in matrix_configs.items():
-            # Construct matrix file path
-            matrix_filename = f"{pheno_causal}.{matrix_type}.unphased.vcor1"
-            matrix_path = os.path.join(ld_base_dir, matrix_type, subfolder, matrix_filename)
+            # Search for the actual matrix file that matches this phenotype
+            matrix_path = find_matrix_file(ld_base_dir, matrix_type, subfolder, pheno_causal)
 
-            # Check if matrix file exists (optional check)
-            if not os.path.exists(matrix_path):
-                print(f"Warning: Matrix file not found: {matrix_path}")
-                # Still add the command - it might be created later
+            if matrix_path is None:
+                print(f"Warning: No matrix file found for {pheno_causal} in {matrix_type}/{subfolder}")
+                continue
+
+            matrix_filename = os.path.basename(matrix_path)
+            print(f"  Found matrix: {matrix_filename}")
 
             # Construct output directory and file
             output_dir = os.path.join(output_base_dir, matrix_type)
@@ -192,7 +228,7 @@ def main():
     default_gwas = "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/meta_analysis_results"
     default_ld = "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices"
     default_output = "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/fine-mapping_results/susie_results"
-    default_commands = f"{default_output}/susie_commands.txt"
+    default_commands = "susie_commands.txt"
 
     parser.add_argument('--wrapper-script', '-w', default=default_wrapper,
                         help=f'Path to finemap_SuSiE.R script (default: {default_wrapper})')
@@ -225,6 +261,18 @@ def main():
             print("\nAvailable matrix types:")
             for matrix_type, subfolder in matrix_configs.items():
                 print(f"  {matrix_type} ({subfolder})")
+
+                # Show sample matrix files for this type
+                search_dir = os.path.join(args.ld_dir, matrix_type, subfolder)
+                if os.path.exists(search_dir):
+                    sample_files = glob.glob(os.path.join(search_dir, "*.vcor1"))[:3]
+                    if sample_files:
+                        print(f"    Sample files:")
+                        for f in sample_files:
+                            print(f"      {os.path.basename(f)}")
+                        if len(glob.glob(os.path.join(search_dir, "*.vcor1"))) > 3:
+                            print(f"      ... and more")
+
             print("\nExample usage:")
             print(f"  --matrix-types \"raw_in-sample,PC-corrected\"")
             print(f"  --matrix-types \"{','.join(matrix_configs.keys())}\"")
