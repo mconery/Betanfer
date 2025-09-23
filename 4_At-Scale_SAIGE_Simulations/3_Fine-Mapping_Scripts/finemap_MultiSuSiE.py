@@ -5,6 +5,7 @@ MultiSuSiE Multi-Population Fine-Mapping Script
 
 Python script designed to take input files and parameters and use them to run MultiSuSiE
 Updated: Uses phenotype files to extract sample sizes and phenotype variances automatically
+Added: Effect-size correlation parameter (rho) for off-diagonal values in rho matrix
 """
 
 import argparse
@@ -20,20 +21,29 @@ def parse_arguments():
         description='Multi-population fine-mapping using MultiSuSiE (each population subset only to its LD matrix variants)',
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
+    
     parser.add_argument('--gwas_files', '-g', required=True, help='Comma-delimited list of GWAS summary statistics files')
     parser.add_argument('--ld_files', '-l', required=True, help='Comma-delimited list of LD matrix file prefixes (each must have a corresponding .vars file)')
     parser.add_argument('--pheno_files', '-p', required=True, help='Comma-delimited list of phenotype files with PHENO column')
     parser.add_argument('--output_file', '-o', required=True, help='Full path for output txt file')
     parser.add_argument('--ancestry_labels', '-a', required=True, help='Comma-delimited list of ancestry labels')
+    
+    # MultiSuSiE parameters
     parser.add_argument('--maf', type=float, default=0.005, help='Minor allele frequency threshold (default: 0.005)')
     parser.add_argument('--L', type=int, default=10, help='Maximum number of causal effects (default: 10)')
     parser.add_argument('--coverage', type=float, default=0.95, help='Coverage for credible sets (default: 0.95)')
     parser.add_argument('--min_purity', type=float, default=0.5, help='Minimum purity for credible sets')
     parser.add_argument('--max_iter', type=int, default=100, help='Maximum number of iterations')
     parser.add_argument('--tol', type=float, default=1e-3, help='Convergence tolerance')
+    parser.add_argument('--rho', type=float, default=0.75, help='Effect-size correlation between populations (off-diagonal values in rho matrix, default: 0.75)')
+    
+    # Boolean flags
     parser.add_argument('--estimate_residual_variance', action='store_true', help='Estimate residual variance')
     parser.add_argument('--standardize', action='store_true', default=True, help='Standardize inputs')
+    
+    # Optional parameters
     parser.add_argument('--prior_weights', default=None, help='Prior weights for variants')
+    
     return parser.parse_args()
 
 def read_vars_file(vars_file: str) -> Tuple[str, int, int, List[str]]:
@@ -87,7 +97,6 @@ def load_phenotype_data(pheno_file: str, ancestry_label: str) -> Tuple[int, floa
         var_y: Variance of the PHENO column
     """
     print(f"Loading phenotype data for {ancestry_label} from {os.path.basename(pheno_file)}")
-    
     if not os.path.exists(pheno_file):
         raise FileNotFoundError(f"ERROR: Phenotype file not found: {pheno_file}")
     
@@ -181,6 +190,30 @@ def load_ld_matrix(ld_file: str, vars_file: str, variant_ids: List[str]) -> np.n
         raise ValueError('LD matrix size does not match its .vars list')
     return ld_matrix
 
+def create_rho_matrix(n_populations: int, rho_value: float) -> np.ndarray:
+    """
+    Create the effect-size correlation matrix (rho matrix) for MultiSuSiE.
+    
+    Args:
+        n_populations: Number of populations
+        rho_value: Correlation value for off-diagonal elements
+        
+    Returns:
+        rho_matrix: n_populations x n_populations correlation matrix
+    """
+    rho_matrix = np.eye(n_populations)  # Start with identity matrix (1s on diagonal)
+    
+    # Fill off-diagonal elements with rho_value
+    for i in range(n_populations):
+        for j in range(n_populations):
+            if i != j:
+                rho_matrix[i, j] = rho_value
+    
+    print(f"Created rho matrix with off-diagonal correlation {rho_value}:")
+    print(rho_matrix)
+    
+    return rho_matrix
+
 def validate_inputs(args):
     """Validate input files and arguments."""
     gwas_files = [f.strip() for f in args.gwas_files.split(',')]
@@ -193,6 +226,10 @@ def validate_inputs(args):
     
     if len(gwas_files) < 2:
         raise ValueError('ERROR: At least 2 populations are required for multi-ancestry analysis')
+    
+    # Validate rho parameter
+    if not -1 <= args.rho <= 1:
+        raise ValueError(f'ERROR: Effect-size correlation (rho) must be between -1 and 1, got {args.rho}')
     
     # Check file existence
     for i, (gwas_file, ld_file, pheno_file) in enumerate(zip(gwas_files, ld_files, pheno_files)):
@@ -257,9 +294,14 @@ def run_multisusie(gwas_files, ld_files, pheno_files, ancestry_labels, args):
         s_list.append(gwas_df['Se'].values)
         R_list.append(ld_matrix)
     
+    # Create rho matrix for effect-size correlation between populations
+    rho_matrix = create_rho_matrix(len(ancestry_labels), args.rho)
+    
     print(f"\n=== Running MultiSuSiE analysis ===")
+    print(f"Populations: {ancestry_labels}")
     print(f"Sample sizes: {n_gwas_list}")
     print(f"Phenotype variances: {[f'{v:.6f}' for v in varY_list]}")
+    print(f"Effect-size correlation (rho): {args.rho}")
     
     # Parse prior weights if provided
     prior_weights = None
@@ -268,6 +310,7 @@ def run_multisusie(gwas_files, ld_files, pheno_files, ancestry_labels, args):
             prior_weights = np.loadtxt(args.prior_weights)
         else:
             prior_weights = np.array([float(w.strip()) for w in args.prior_weights.split(',')])
+        print(f"Using prior weights: {prior_weights.shape if hasattr(prior_weights, 'shape') else len(prior_weights)} elements")
     
     # Run MultiSuSiE
     result = MultiSuSiE.multisusie_rss(
@@ -276,13 +319,15 @@ def run_multisusie(gwas_files, ld_files, pheno_files, ancestry_labels, args):
         R_list=R_list,
         varY_list=varY_list,
         population_sizes=n_gwas_list,
+        rho=rho_matrix,  # Pass the rho matrix to MultiSuSiE
         L=args.L,
         max_iter=args.max_iter,
         tol=args.tol,
         estimate_residual_variance=args.estimate_residual_variance,
         standardize=args.standardize,
         prior_weights=prior_weights,
-        coverage=args.coverage
+        coverage=args.coverage,
+        min_abs_corr=args.min_purity
     )
     
     print("MultiSuSiE analysis completed successfully!")
