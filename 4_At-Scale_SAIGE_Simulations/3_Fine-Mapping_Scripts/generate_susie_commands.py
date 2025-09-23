@@ -3,13 +3,17 @@
 Script to generate SuSiE fine-mapping commands for all loci.
 
 This script creates a command file where each line runs SuSiE fine-mapping
-for a different locus across all available matrix types.
+for a different locus across all available matrix types. 
+
+Optimized for parallel processing on HPC systems.
 """
 
 import os
 import glob
 import argparse
 from pathlib import Path
+from multiprocessing import Pool, cpu_count
+from functools import partial
 
 def detect_matrix_subdirs(ld_base_dir, matrix_filter=None):
     """
@@ -79,14 +83,83 @@ def find_matrix_file(ld_base_dir, matrix_type, subfolder, pheno_causal):
     if len(matching_files) == 1:
         return matching_files[0]
     elif len(matching_files) > 1:
-        print(f"Warning: Multiple matrix files found for {pheno_causal} in {matrix_type}/{subfolder}:")
-        for f in matching_files:
-            print(f"  {os.path.basename(f)}")
-        print(f"  Using first match: {os.path.basename(matching_files[0])}")
-        return matching_files[0]
+        # For parallel processing, we'll handle warnings differently
+        return matching_files[0]  # Just use first match
     else:
         # No matches found
         return None
+
+def process_causal_dir(args_tuple):
+    """
+    Process a single causal directory to generate commands.
+    This function is designed to be called in parallel.
+
+    Parameters:
+    - args_tuple: Tuple containing (causal_dir, ld_base_dir, matrix_configs, output_base_dir, wrapper_script)
+
+    Returns:
+    - list: List of commands generated for this directory
+    """
+    causal_dir, ld_base_dir, matrix_configs, output_base_dir, wrapper_script = args_tuple
+
+    commands = []
+    warnings = []
+
+    if not os.path.isdir(causal_dir):
+        return commands, warnings
+
+    # Find the .meta.out file in this directory
+    meta_files = glob.glob(os.path.join(causal_dir, "*.meta.out"))
+
+    if len(meta_files) != 1:
+        warning = f"Expected 1 .meta.out file in {causal_dir}, found {len(meta_files)}"
+        if len(meta_files) > 1:
+            warning += f" - Files: {[os.path.basename(f) for f in meta_files]}"
+        warnings.append(warning)
+        return commands, warnings
+
+    meta_file = meta_files[0]
+    meta_filename = os.path.basename(meta_file)
+
+    # Parse the filename to extract components
+    # Format: Pheno#.#_causal.heritability_#.continuous/binary_0.25.chr#.meta.out
+    filename_parts = meta_filename.replace('.meta.out', '').split('.')
+
+    if len(filename_parts) < 4:
+        warnings.append(f"Unexpected filename format: {meta_filename} - Parts: {filename_parts}")
+        return commands, warnings
+
+    try:
+        pheno_causal = filename_parts[0] + "." + filename_parts[1]  # e.g., "Pheno1.2_causal"
+        heritability = filename_parts[2]  # e.g., "heritability_0.01"
+        trait_type = filename_parts[3]    # e.g., "continuous" or "binary_0.25"
+        chromosome = filename_parts[4]    # e.g., "chr1"
+
+    except IndexError:
+        warnings.append(f"Could not parse filename: {meta_filename}")
+        return commands, warnings
+
+    # For each detected matrix configuration
+    for matrix_type, subfolder in matrix_configs.items():
+        # Search for the actual matrix file that matches this phenotype
+        matrix_path = find_matrix_file(ld_base_dir, matrix_type, subfolder, pheno_causal)
+
+        if matrix_path is None:
+            warnings.append(f"No matrix file found for {pheno_causal} in {matrix_type}/{subfolder}")
+            continue
+
+        # Construct output directory and file
+        output_dir = os.path.join(output_base_dir, matrix_type)
+        output_filename = f"{pheno_causal}.{subfolder}.txt"
+        output_path = os.path.join(output_dir, output_filename)
+
+        # Create the SuSiE command
+        # Usage: Rscript finemap_SuSiE.R summary_stats_file ld_file out_file [optional_params]
+        susie_cmd = f"Rscript {wrapper_script} {meta_file} {matrix_path} {output_path}"
+
+        commands.append((susie_cmd, output_dir, matrix_type, pheno_causal, trait_type, chromosome, os.path.basename(matrix_path)))
+
+    return commands, warnings
 
 def parse_matrix_filter(matrix_string):
     """
@@ -108,9 +181,9 @@ def parse_matrix_filter(matrix_string):
 
     return matrix_list if matrix_list else None
 
-def create_susie_commands(gwas_dir, ld_base_dir, output_base_dir, wrapper_script, output_commands_file, matrix_filter=None):
+def create_susie_commands(gwas_dir, ld_base_dir, output_base_dir, wrapper_script, output_commands_file, matrix_filter=None, n_processes=None):
     """
-    Generate SuSiE fine-mapping commands for all loci.
+    Generate SuSiE fine-mapping commands for all loci using parallel processing.
 
     Parameters:
     - gwas_dir: Directory containing GWAS summary statistics
@@ -119,6 +192,7 @@ def create_susie_commands(gwas_dir, ld_base_dir, output_base_dir, wrapper_script
     - wrapper_script: Path to finemap_SuSiE.R script
     - output_commands_file: File to write commands to
     - matrix_filter: Optional list of matrix subdirectory names to include
+    - n_processes: Number of processes to use (None = use all available cores)
     """
 
     # Automatically detect matrix configurations
@@ -137,91 +211,82 @@ def create_susie_commands(gwas_dir, ld_base_dir, output_base_dir, wrapper_script
 
     print(f"Matrix configurations to process: {matrix_configs}")
 
-    commands = []
+    # Create output directories now
+    print("\nCreating output directories...")
+    for matrix_type in matrix_configs.keys():
+        output_dir = os.path.join(output_base_dir, matrix_type)
+        os.makedirs(output_dir, exist_ok=True)
+        print(f"  Created: {output_dir}")
 
     # Find all directories with "_causal" in the name
     print(f"\nSearching for causal directories in: {gwas_dir}")
     causal_dirs = glob.glob(os.path.join(gwas_dir, "*_causal*"))
     print(f"Found {len(causal_dirs)} causal directories")
 
+    # Determine number of processes
+    if n_processes is None:
+        n_processes = cpu_count()
+    print(f"Using {n_processes} processes for parallel processing")
+
+    # Prepare arguments for parallel processing
+    process_args = []
     for causal_dir in causal_dirs:
-        if not os.path.isdir(causal_dir):
-            continue
+        args_tuple = (causal_dir, ld_base_dir, matrix_configs, output_base_dir, wrapper_script)
+        process_args.append(args_tuple)
 
-        # Find the .meta.out file in this directory
-        meta_files = glob.glob(os.path.join(causal_dir, "*.meta.out"))
+    # Process directories in parallel
+    print(f"\nProcessing {len(process_args)} directories in parallel...")
 
-        if len(meta_files) != 1:
-            print(f"Warning: Expected 1 .meta.out file in {causal_dir}, found {len(meta_files)}")
-            if len(meta_files) > 1:
-                print(f"  Files found: {[os.path.basename(f) for f in meta_files]}")
-            continue
+    all_commands = []
+    all_warnings = []
 
-        meta_file = meta_files[0]
-        meta_filename = os.path.basename(meta_file)
+    with Pool(processes=n_processes) as pool:
+        results = pool.map(process_causal_dir, process_args)
 
-        # Parse the filename to extract components
-        # Format: Pheno#.#_causal.heritability_#.continuous/binary_0.25.chr#.meta.out
-        filename_parts = meta_filename.replace('.meta.out', '').split('.')
+    # Collect results
+    processed_phenotypes = set()
+    for commands, warnings in results:
+        all_commands.extend(commands)
+        all_warnings.extend(warnings)
 
-        if len(filename_parts) < 4:
-            print(f"Warning: Unexpected filename format: {meta_filename}")
-            print(f"  Parts: {filename_parts}")
-            continue
+        # Track processed phenotypes for summary
+        for cmd_info in commands:
+            if len(cmd_info) >= 4:  # Check if we have the expected tuple structure
+                processed_phenotypes.add(cmd_info[3])  # pheno_causal is at index 3
 
-        try:
-            pheno_causal = filename_parts[0] + "." + filename_parts[1]  # e.g., "Pheno1.2_causal"
-            heritability = filename_parts[2]  # e.g., "heritability_0.01"
-            trait_type = filename_parts[3]    # e.g., "continuous" or "binary_0.25"
-            chromosome = filename_parts[4]    # e.g., "chr1"
+    # Print warnings
+    if all_warnings:
+        print(f"\nWarnings encountered ({len(all_warnings)}):")
+        for warning in all_warnings:
+            print(f"  {warning}")
 
-            print(f"Processing: {pheno_causal} ({trait_type}, {chromosome})")
+    # Print processing summary
+    print(f"\nProcessing Summary:")
+    for cmd_info in all_commands[:5]:  # Show first 5 as examples
+        if len(cmd_info) >= 7:
+            _, _, matrix_type, pheno_causal, trait_type, chromosome, matrix_file = cmd_info
+            print(f"  {pheno_causal} ({trait_type}, {chromosome}) -> {matrix_type}")
+            print(f"    Matrix: {matrix_file}")
 
-        except IndexError:
-            print(f"Warning: Could not parse filename: {meta_filename}")
-            continue
+    if len(all_commands) > 5:
+        print(f"    ... and {len(all_commands) - 5} more commands")
 
-        # For each detected matrix configuration
-        for matrix_type, subfolder in matrix_configs.items():
-            # Search for the actual matrix file that matches this phenotype
-            matrix_path = find_matrix_file(ld_base_dir, matrix_type, subfolder, pheno_causal)
-
-            if matrix_path is None:
-                print(f"Warning: No matrix file found for {pheno_causal} in {matrix_type}/{subfolder}")
-                continue
-
-            matrix_filename = os.path.basename(matrix_path)
-            print(f"  Found matrix: {matrix_filename}")
-
-            # Construct output directory and file
-            output_dir = os.path.join(output_base_dir, matrix_type)
-            output_filename = f"{pheno_causal}.{subfolder}.txt"
-            output_path = os.path.join(output_dir, output_filename)
-
-            # Create output directory command (mkdir -p)
-            mkdir_cmd = f"mkdir -p {output_dir}"
-            if mkdir_cmd not in commands:  # Avoid duplicates
-                commands.append(mkdir_cmd)
-
-            # Create the SuSiE command
-            # Usage: Rscript finemap_SuSiE.R summary_stats_file ld_file out_file [optional_params]
-            susie_cmd = f"Rscript {wrapper_script} {meta_file} {matrix_path} {output_path}"
-
-            commands.append(susie_cmd)
+    # Extract just the commands for writing to file
+    commands_only = [cmd_info[0] for cmd_info in all_commands]
 
     # Write commands to file
     if output_commands_file:
-        print(f"\nWriting {len(commands)} commands to: {output_commands_file}")
+        print(f"\nWriting {len(commands_only)} commands to: {output_commands_file}")
         with open(output_commands_file, 'w') as f:
-            for cmd in commands:
+            for cmd in commands_only:
                 f.write(cmd + '\n')
 
-    return commands
+    return commands_only
 
 def main():
     """Main function with command line argument parsing."""
 
-    parser = argparse.ArgumentParser(description='Generate SuSiE fine-mapping commands')
+    parser = argparse.ArgumentParser(description='Generate SuSiE fine-mapping commands (optimized for HPC)')
 
     # Define default paths
     default_wrapper = "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/finemap_SuSiE.R"
@@ -242,6 +307,8 @@ def main():
                         help=f'Output file for commands (default: {default_commands})')
     parser.add_argument('--matrix-types', '-m', type=str, default=None,
                         help='Comma-delimited list of matrix subdirectory names to process (e.g., "raw_in-sample,PC-corrected"). If not specified, all detected matrix types will be processed.')
+    parser.add_argument('--processes', '-p', type=int, default=None,
+                        help='Number of processes to use for parallel processing (default: use all available cores)')
     parser.add_argument('--dry-run', '-d', action='store_true',
                         help='Print first 10 commands without writing to file')
     parser.add_argument('--list-matrices', action='store_true',
@@ -295,6 +362,11 @@ def main():
     if matrix_filter:
         print(f"Matrix filter applied: {matrix_filter}")
 
+    # Validate number of processes
+    if args.processes is not None and args.processes < 1:
+        print(f"Error: Number of processes must be >= 1, got {args.processes}")
+        return 1
+
     # Generate commands
     commands = create_susie_commands(
         gwas_dir=args.gwas_dir,
@@ -302,7 +374,8 @@ def main():
         output_base_dir=args.output_dir,
         wrapper_script=args.wrapper_script,
         output_commands_file=args.commands_file if not args.dry_run else None,
-        matrix_filter=matrix_filter
+        matrix_filter=matrix_filter,
+        n_processes=args.processes
     )
 
     if args.dry_run:
