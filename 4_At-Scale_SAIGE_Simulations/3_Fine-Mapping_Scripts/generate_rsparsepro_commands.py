@@ -158,7 +158,7 @@ def check_output_completeness(output_path, min_file_size=100):
             return False
         # Check if header contains expected columns
         header = lines[0].strip().split('\t')
-        expected_cols = {'VARIANT_ID', 'Z', 'PIP', 'iterations_z', 'cs'}
+        expected_cols = {'VARIANT_ID', 'Z', 'PIP', 'z_estimated', 'cs'}
         if not expected_cols.issubset(set(header)):
             return False
         return True
