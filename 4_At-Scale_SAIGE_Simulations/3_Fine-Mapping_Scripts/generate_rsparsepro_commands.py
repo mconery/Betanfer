@@ -435,7 +435,7 @@ def main():
         print(f"Error: Number of processes must be >= 1, got {args.processes}")
         return 1
     # Generate commands
-    commands = rsparsepro_commands(
+    commands = create_rsparsepro_commands(
         gwas_dir=args.gwas_dir,
         ld_base_dir=args.ld_dir,
         output_base_dir=args.output_dir,
