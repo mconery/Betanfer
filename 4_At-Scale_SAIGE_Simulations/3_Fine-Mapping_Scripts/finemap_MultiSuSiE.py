@@ -438,19 +438,12 @@ def save_results(multisusie_result, summ_stat_list, ancestry_labels, output_file
     
     # Add credible set assignments
     df['cs'] = 0
-    if hasattr(multisusie_result, 'sets') and hasattr(multisusie_result.sets, 'cs'):
-        for i, cslist in enumerate(multisusie_result.sets.cs, 1):
+    if hasattr(multisusie_result, 'sets'):
+        for i in range(len(multisusie_result.sets)):
+            cslist=multisusie_result.sets[0][i]
             for indx in cslist:
                 if indx < len(df):
-                    df.loc[indx, 'cs'] = i
-    
-    # Add population-specific PIP columns (placeholders for now)
-    for i, pop in enumerate(ancestry_labels):
-        df[f'PIP_{pop}'] = 0  # MultiSuSiE population-specific PIPs if available
-    
-    # Add multi-ancestry intersection column
-    if len(ancestry_labels) >= 2:
-        df['PIP_' + '_'.join(ancestry_labels)] = 0  # Placeholder
+                    df.loc[indx, 'cs'] = i + 1
     
     # Write output
     df.to_csv(output_file, sep='\t', index=False, na_rep='NA')
