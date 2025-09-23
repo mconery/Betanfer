@@ -36,7 +36,7 @@ LD_FILE="$2"
 OUTPUT_FILE="$3"
 
 # Optional arguments with defaults (matching typical finemap parameter patterns)
-VARCOL_NAME="${4:-rsid}"
+VARCOL_NAME="${4:-rs_number}"
 BETA_COL="${5:-beta}"
 SE_COL="${6:-se}"
 
@@ -63,8 +63,11 @@ if [ ! -f "$LD_FILE" ]; then
     exit 1
 fi
 
-# Extract output directory from output file path
+# Extract output directory and base output file name from output file path
 OUTPUT_DIR=$(dirname "$OUTPUT_FILE")
+BASE_OUT=$(basename "$OUTPUT_FILE")
+# Create timing file name
+TIMING_FILE=$OUTPUT_DIR/timing/$BASE_OUT
 
 # Create output directory if it doesn't exist
 mkdir -p "$OUTPUT_DIR"
@@ -131,16 +134,27 @@ echo "Command: $RSPARSEPRO_CMD"
 
 # Execute RSparsePro fine-mapping
 if [ ! -f "$OUTPUT_FILE" ]; then
+    
+    # Record start time
+    START_TIME=$(date +%s.%N)
     eval $RSPARSEPRO_CMD
+    # Record end time
+    END_TIME=$(date +%s.%N)
     if [ $? -ne 0 ]; then
         echo "ERROR: RSparsePro fine-mapping failed"
         exit 1
     fi
-    echo "RSparsePro fine-mapping completed successfully"
+    # Calculate execution time in seconds
+    EXECUTION_TIME=$(echo "$END_TIME - $START_TIME" | bc -l)
+    echo "RSparsePro fine-mapping completed successfully in $EXECUTION_TIME seconds"
     #Clean up log file and set file formatting
     rm "${OUTPUT_DIR}/${OUTPUT_BASE}".rsparsepro.log
     mv "${OUTPUT_DIR}/${OUTPUT_BASE}".rsparsepro.txt "${OUTPUT_DIR}/${OUTPUT_BASE}".txt 
     sed -i 's/RSID/VARIANT_ID/g' "${OUTPUT_DIR}/${OUTPUT_BASE}".txt 
+
+    # Append timing information to timing file
+    echo "rsparsepro_time_seconds" > "$TIMING_FILE"
+    echo "$EXECUTION_TIME" >> "$TIMING_FILE"
 else
     echo "RSparsePro output file already exists, skipping analysis"
 fi
