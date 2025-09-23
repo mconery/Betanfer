@@ -6,6 +6,7 @@ MultiSuSiE Multi-Population Fine-Mapping Script
 Python script designed to take input files and parameters and use them to run MultiSuSiE
 Updated: Uses phenotype files to extract sample sizes and phenotype variances automatically
 Added: Effect-size correlation parameter (rho) for off-diagonal values in rho matrix
+Fixed: Ensures all populations have the same set of variants (intersection approach)
 """
 
 import argparse
@@ -18,7 +19,7 @@ from typing import List, Dict, Tuple, Any
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        description='Multi-population fine-mapping using MultiSuSiE (each population subset only to its LD matrix variants)',
+        description='Multi-population fine-mapping using MultiSuSiE (intersection of variants across all populations)',
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
     
@@ -136,8 +137,69 @@ def load_phenotype_data(pheno_file: str, ancestry_label: str) -> Tuple[int, floa
     
     return n_samples, var_y
 
-def load_gwas_data_to_ld_variants(gwas_file: str, detected_cols: Dict[str, str], ld_variant_ids: List[str], n_gwas: int) -> pd.DataFrame:
-    """Load GWAS data filtered to match LD matrix variants."""
+def find_common_variants(ld_files: List[str], gwas_files: List[str], ancestry_labels: List[str]) -> List[str]:
+    """
+    Find intersection of variants across ALL populations (both LD matrices and GWAS files).
+    This ensures all populations have exactly the same variants.
+    """
+    print("\n=== Finding common variants across all populations ===")
+    
+    # Get variants from all LD matrices
+    all_ld_variants = {}
+    for i, ld_file in enumerate(ld_files):
+        vars_file = f"{ld_file}.vars"
+        _, _, _, variant_ids = read_vars_file(vars_file)
+        all_ld_variants[ancestry_labels[i]] = set(variant_ids)
+        print(f"Population {ancestry_labels[i]} LD matrix: {len(variant_ids)} variants")
+    
+    # Get variants from all GWAS files
+    all_gwas_variants = {}
+    for i, gwas_file in enumerate(gwas_files):
+        # Detect columns
+        detected_cols = detect_columns(gwas_file)
+        
+        # Read GWAS file
+        try:
+            gwas_df = pd.read_csv(gwas_file, sep='\t')
+        except:
+            gwas_df = pd.read_csv(gwas_file, sep=' ')
+        
+        snp_col = detected_cols['snp']
+        if snp_col is None or snp_col not in gwas_df.columns:
+            raise ValueError(f"ERROR: Could not find SNP column in GWAS file: {gwas_file}")
+        
+        gwas_variants = set(gwas_df[snp_col].dropna().tolist())
+        all_gwas_variants[ancestry_labels[i]] = gwas_variants
+        print(f"Population {ancestry_labels[i]} GWAS: {len(gwas_variants)} variants")
+    
+    # Find intersection of all LD variants
+    common_ld_variants = all_ld_variants[ancestry_labels[0]]
+    for i in range(1, len(ancestry_labels)):
+        common_ld_variants = common_ld_variants.intersection(all_ld_variants[ancestry_labels[i]])
+    
+    print(f"Common LD variants across all populations: {len(common_ld_variants)}")
+    
+    # Find intersection of all GWAS variants
+    common_gwas_variants = all_gwas_variants[ancestry_labels[0]]
+    for i in range(1, len(ancestry_labels)):
+        common_gwas_variants = common_gwas_variants.intersection(all_gwas_variants[ancestry_labels[i]])
+    
+    print(f"Common GWAS variants across all populations: {len(common_gwas_variants)}")
+    
+    # Find final intersection of LD and GWAS variants
+    final_common_variants = list(common_ld_variants.intersection(common_gwas_variants))
+    print(f"Final common variants (LD ∩ GWAS): {len(final_common_variants)}")
+    
+    if len(final_common_variants) == 0:
+        raise ValueError("ERROR: No variants are common across all LD matrices and GWAS files")
+    
+    # Sort variants to ensure consistent ordering
+    final_common_variants.sort()
+    
+    return final_common_variants
+
+def load_gwas_data_to_common_variants(gwas_file: str, detected_cols: Dict[str, str], common_variants: List[str], n_gwas: int) -> pd.DataFrame:
+    """Load GWAS data filtered to match common variants across all populations."""
     try:
         gwas_df = pd.read_csv(gwas_file, sep='\t')
     except:
@@ -146,13 +208,13 @@ def load_gwas_data_to_ld_variants(gwas_file: str, detected_cols: Dict[str, str],
     if snp_col is None or snp_col not in gwas_df.columns:
         raise ValueError(f'SNP column not found in GWAS file: {gwas_file}')
     
-    # Filter to LD variants
-    gwas_sub = gwas_df[gwas_df[snp_col].isin(ld_variant_ids)]
+    # Filter to common variants
+    gwas_sub = gwas_df[gwas_df[snp_col].isin(common_variants)]
     if gwas_sub.empty:
-        raise ValueError(f'No overlapping variants found in GWAS and LD set')
+        raise ValueError(f'No overlapping variants found in GWAS and common variant set')
     
-    # Order by LD variant list to ensure consistent ordering
-    gwas_sub = gwas_sub.set_index(snp_col).reindex(ld_variant_ids).reset_index()
+    # Order by common_variants to ensure consistent ordering across populations
+    gwas_sub = gwas_sub.set_index(snp_col).reindex(common_variants).reset_index()
     gwas_sub = gwas_sub.dropna(subset=[snp_col])  # Remove variants not in GWAS
     
     # Create standardized output dataframe
@@ -177,18 +239,33 @@ def load_gwas_data_to_ld_variants(gwas_file: str, detected_cols: Dict[str, str],
     
     return result_df
 
-def load_ld_matrix(ld_file: str, vars_file: str, variant_ids: List[str]) -> np.ndarray:
-    """Load LD matrix."""
+def load_ld_matrix_to_common_variants(ld_file: str, vars_file: str, common_variants: List[str]) -> np.ndarray:
+    """Load LD matrix pruned to match common variants across all populations."""
     if not os.path.exists(ld_file):
         raise FileNotFoundError(f'LD matrix file not found: {ld_file}')
     try:
         ld_matrix = pd.read_csv(ld_file, header=None, sep='\t').values
     except:
         ld_matrix = pd.read_csv(ld_file, header=None, sep=' ').values
+    
     _, _, _, all_variant_ids = read_vars_file(vars_file)
     if ld_matrix.shape[0] != len(all_variant_ids):
         raise ValueError('LD matrix size does not match its .vars list')
-    return ld_matrix
+    
+    # Find indices of common variants in this population's LD matrix
+    common_indices = []
+    for cv in common_variants:
+        try:
+            idx = all_variant_ids.index(cv)
+            common_indices.append(idx)
+        except ValueError:
+            # This should not happen if find_common_variants worked correctly
+            raise ValueError(f'Common variant {cv} not found in LD matrix .vars file')
+    
+    # Subset the LD matrix to common variants in the correct order
+    ld_matrix_pruned = ld_matrix[np.ix_(common_indices, common_indices)]
+    
+    return ld_matrix_pruned
 
 def create_rho_matrix(n_populations: int, rho_value: float) -> np.ndarray:
     """
@@ -263,6 +340,9 @@ def run_multisusie(gwas_files, ld_files, pheno_files, ancestry_labels, args):
     except ImportError:
         raise ImportError("ERROR: Please install MultiSuSiE: pip install git+https://github.com/jordanero/MultiSuSiE.git")
     
+    # CRITICAL: Find common variants across ALL populations first
+    common_variants = find_common_variants(ld_files, gwas_files, ancestry_labels)
+    
     b_list, s_list, R_list, summ_stat_list, varY_list, n_gwas_list = [], [], [], [], [], []
     
     for i in range(len(gwas_files)):
@@ -274,19 +354,19 @@ def run_multisusie(gwas_files, ld_files, pheno_files, ancestry_labels, args):
         n_gwas_list.append(n_samples)
         varY_list.append(var_y)
         
-        # Load LD matrix variants
-        vars_file = ld_files[i] + ".vars"
-        _, _, _, ld_variant_ids = read_vars_file(vars_file)
-        print(f"  LD matrix contains {len(ld_variant_ids)} variants")
-        
-        # Load and process GWAS data
+        # Load and process GWAS data (filtered to common variants)
         detected_cols = detect_columns(gwas_files[i])
-        gwas_df = load_gwas_data_to_ld_variants(gwas_files[i], detected_cols, ld_variant_ids, n_samples)
-        print(f"  GWAS data filtered to {len(gwas_df)} variants")
+        gwas_df = load_gwas_data_to_common_variants(gwas_files[i], detected_cols, common_variants, n_samples)
+        print(f"  GWAS data filtered to {len(gwas_df)} common variants")
         
-        # Load LD matrix
-        ld_matrix = load_ld_matrix(ld_files[i], vars_file, ld_variant_ids)
-        print(f"  LD matrix loaded: {ld_matrix.shape}")
+        # Load LD matrix (pruned to common variants)
+        vars_file = ld_files[i] + ".vars"
+        ld_matrix = load_ld_matrix_to_common_variants(ld_files[i], vars_file, common_variants)
+        print(f"  LD matrix pruned to: {ld_matrix.shape}")
+        
+        # Verify all populations have same number of variants
+        if len(common_variants) != ld_matrix.shape[0] or len(common_variants) != len(gwas_df):
+            raise ValueError(f"ERROR: Variant count mismatch for {ancestry}: common={len(common_variants)}, LD={ld_matrix.shape[0]}, GWAS={len(gwas_df)}")
         
         # Store data for MultiSuSiE
         summ_stat_list.append(gwas_df)
@@ -299,9 +379,15 @@ def run_multisusie(gwas_files, ld_files, pheno_files, ancestry_labels, args):
     
     print(f"\n=== Running MultiSuSiE analysis ===")
     print(f"Populations: {ancestry_labels}")
+    print(f"Common variants: {len(common_variants)}")
     print(f"Sample sizes: {n_gwas_list}")
     print(f"Phenotype variances: {[f'{v:.6f}' for v in varY_list]}")
     print(f"Effect-size correlation (rho): {args.rho}")
+    print(f"LD matrix shapes: {[R.shape for R in R_list]}")
+    
+    # Verify all LD matrices have same shape (should be guaranteed now)
+    if not all(R.shape == R_list[0].shape for R in R_list):
+        raise ValueError("ERROR: LD matrices have different shapes after filtering")
     
     # Parse prior weights if provided
     prior_weights = None
