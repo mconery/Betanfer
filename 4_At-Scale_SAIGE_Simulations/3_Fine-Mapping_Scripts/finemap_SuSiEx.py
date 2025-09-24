@@ -729,24 +729,24 @@ def run_susiex(args, gwas_files, ld_files, n_gwas_list, col_strings, chrom, bp_s
         result = subprocess.run(cmd, check=True, capture_output=True, text=True)
         end_time = time.time()
         susiex_execution_time = end_time - start_time
-
+        
         print("SuSiEx completed successfully!")
         print(f"SuSiEx execution time: {susiex_execution_time:.2f} seconds")
-
+        
         # Create timing directory and file
         output_dir = os.path.dirname(args.output_file) if args.output_file else '.'
         timing_dir = os.path.join(output_dir, 'timing')
         os.makedirs(timing_dir, exist_ok=True)
-
+        
         # Create timing filename based on output file
         output_basename = os.path.basename(args.output_file)
         timing_file = os.path.join(timing_dir, f"{output_basename}")
-
+        
         # Write timing file
         with open(timing_file, 'w') as f:
             f.write("susiex_time_seconds\n")
             f.write(f"{susiex_execution_time}\n")
-
+        
         print(f"Timing information written to: {timing_file}")
         if result.stdout:
             print("STDOUT:", result.stdout)
