@@ -657,7 +657,7 @@ def sample_traits(indexed_files, n_traits, random_seed, active_chromosome=None):
     
     #Filter for chromosome if need be
     if active_chromosome:
-        indexed_files = [x for x in indexed_files if f'chr{active_chromosome}' in x[0]]
+        indexed_files = [x for x in indexed_files if f'chr{active_chromosome}.' in x[0]]
     
     # Sample the specified number of files
     sampled_files = random.sample(indexed_files, n_traits)
