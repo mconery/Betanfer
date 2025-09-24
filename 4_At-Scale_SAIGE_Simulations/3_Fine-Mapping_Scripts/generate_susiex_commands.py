@@ -6,6 +6,8 @@ Script to generate SuSiEx multi-population fine-mapping commands for all loci.
 This script creates a command file where each line runs SuSiEx fine-mapping
 for a different locus across all available matrix types and populations.
 Optimized for parallel processing on HPC systems with file existence checks.
+
+UPDATED: GWAS files are located directly in population directories, not subdirectories.
 """
 
 import os
@@ -99,7 +101,7 @@ def find_matrix_files_by_population(ld_base_dir, matrix_type, subfolder, pheno_c
 def parse_gwas_filename(meta_filename):
     """
     Parse GWAS filename to extract components, handling decimal heritability values.
-    Expected format: Pheno#.#_causal.heritability_#.#.continuous/binary_0.25.chr#.meta.out
+    Expected format: Pheno#.#_causal.heritability_#.#.continuous/binary_0.25.chr#.step2.txt
 
     Parameters:
     - meta_filename: The GWAS filename
@@ -107,8 +109,8 @@ def parse_gwas_filename(meta_filename):
     Returns:
     - dict: Dictionary with parsed components or None if parsing fails
     """
-    # Remove the .meta.out extension
-    base_name = meta_filename.replace('.meta.out', '')
+    # Remove the .step2.txt extension
+    base_name = meta_filename.replace('.step2.txt', '')
 
     # Split by dots
     parts = base_name.split('.')
@@ -233,63 +235,81 @@ def get_population_sample_sizes(populations, default_n=10000):
 
     return sample_sizes
 
-def process_causal_dir(args_tuple):
+def process_gwas_file_pattern(args_tuple):
     """
-    Process a single causal directory to generate SuSiEx commands.
+    Process a GWAS file pattern to find matching files across populations and generate SuSiEx commands.
     This function is designed to be called in parallel.
 
     Parameters:
-    - args_tuple: Tuple containing (causal_dir, gwas_base_dir, ld_base_dir, matrix_configs, 
+    - args_tuple: Tuple containing (gwas_file_pattern, gwas_base_dir, ld_base_dir, matrix_configs, 
                   output_base_dir, wrapper_script, populations, skip_existing)
 
     Returns:
     - tuple: (commands, warnings, skipped_info)
     """
-    causal_dir, gwas_base_dir, ld_base_dir, matrix_configs, output_base_dir, wrapper_script, populations, skip_existing = args_tuple
+    gwas_file_pattern, gwas_base_dir, ld_base_dir, matrix_configs, output_base_dir, wrapper_script, populations, skip_existing = args_tuple
 
     commands = []
     warnings = []
     skipped_info = []
 
-    if not os.path.isdir(causal_dir):
-        return commands, warnings, skipped_info
-
-    causal_dir_name = os.path.basename(causal_dir)
-
-    # Find GWAS files for each population
-    gwas_files = {}
-    for pop in populations:
-        pop_gwas_dir = os.path.join(gwas_base_dir, pop, causal_dir_name)
-        if os.path.exists(pop_gwas_dir):
-            meta_files = glob.glob(os.path.join(pop_gwas_dir, "*.meta.out"))
-            if len(meta_files) == 1:
-                gwas_files[pop] = meta_files[0]
-            else:
-                warnings.append(f"Expected 1 .meta.out file in {pop_gwas_dir}, found {len(meta_files)}")
-                continue
-        else:
-            warnings.append(f"GWAS directory not found for {pop}: {pop_gwas_dir}")
-            continue
-
-    # If we don't have GWAS files for all populations, skip
-    if len(gwas_files) != len(populations):
-        warnings.append(f"Missing GWAS files for some populations in {causal_dir_name}")
-        return commands, warnings, skipped_info
-
-    # Parse filename from one of the GWAS files (they should all have the same pattern)
-    first_gwas_file = list(gwas_files.values())[0]
-    meta_filename = os.path.basename(first_gwas_file)
-
-    # Parse the filename using the improved parser
-    parsed = parse_gwas_filename(meta_filename)
+    # Parse the filename pattern from the sample file
+    sample_filename = os.path.basename(gwas_file_pattern)
+    parsed = parse_gwas_filename(sample_filename)
     if parsed is None:
-        warnings.append(f"Could not parse filename: {meta_filename}")
+        warnings.append(f"Could not parse filename: {sample_filename}")
         return commands, warnings, skipped_info
 
     pheno_causal = parsed['pheno_causal']
     heritability = parsed['heritability']
     trait_type = parsed['trait_type']
     chromosome = parsed['chromosome']
+
+    # Find matching GWAS files in each population directory
+    gwas_files = {}
+    for pop in populations:
+        pop_gwas_dir = os.path.join(gwas_base_dir, pop)
+        if not os.path.exists(pop_gwas_dir):
+            warnings.append(f"Population directory not found: {pop_gwas_dir}")
+            continue
+
+        # Look for files that match this exact pattern
+        expected_filename = f"{pheno_causal}.{heritability}.{trait_type}.{chromosome}.step2.txt"
+        expected_path = os.path.join(pop_gwas_dir, expected_filename)
+
+        if os.path.exists(expected_path):
+            gwas_files[pop] = expected_path
+        else:
+            # Try broader pattern matching
+            broad_pattern = f"{pheno_causal}.*.{trait_type}.{chromosome}.step2.txt"
+            matching_files = glob.glob(os.path.join(pop_gwas_dir, broad_pattern))
+
+            if not matching_files:
+                # Even broader - just look for files with the phenotype and check details
+                all_causal_files = glob.glob(os.path.join(pop_gwas_dir, f"{pheno_causal}*.step2.txt"))
+                matching_files = []
+                for f in all_causal_files:
+                    fname = os.path.basename(f)
+                    parsed_f = parse_gwas_filename(fname)
+                    if (parsed_f and 
+                        parsed_f['pheno_causal'] == pheno_causal and
+                        parsed_f['chromosome'] == chromosome and
+                        parsed_f['trait_type'] == trait_type):
+                        matching_files.append(f)
+
+            if len(matching_files) == 1:
+                gwas_files[pop] = matching_files[0]
+            elif len(matching_files) > 1:
+                gwas_files[pop] = matching_files[0]
+                warnings.append(f"Multiple GWAS files matched for {pop}: {[os.path.basename(f) for f in matching_files]}, using {os.path.basename(matching_files[0])}")
+            else:
+                warnings.append(f"No matching GWAS file found for {pop} with pattern {expected_filename}")
+                continue
+
+    # If we don't have GWAS files for all populations, skip
+    if len(gwas_files) != len(populations):
+        warnings.append(f"Missing GWAS files for some populations - found {len(gwas_files)}/{len(populations)} populations for {pheno_causal}")
+        return commands, warnings, skipped_info
 
     # Get sample sizes for populations
     sample_sizes = get_population_sample_sizes(populations)
@@ -432,17 +452,32 @@ def create_susiex_commands(gwas_base_dir, ld_base_dir, output_base_dir, wrapper_
         os.makedirs(os.path.join(output_dir, "timing"), exist_ok=True)
         print(f" Created: {output_dir}")
 
-    # Find all directories with "_causal" in the name from the first population directory
+    # Find all unique GWAS file patterns from the first population directory
     first_pop = populations[0]
     pop_gwas_dir = os.path.join(gwas_base_dir, first_pop)
-    print(f"\nSearching for causal directories in: {pop_gwas_dir}")
+    print(f"\nSearching for causal files in: {pop_gwas_dir}")
 
     if not os.path.exists(pop_gwas_dir):
         print(f"Error: Population GWAS directory does not exist: {pop_gwas_dir}")
         return []
 
-    causal_dirs = glob.glob(os.path.join(pop_gwas_dir, "*_causal*"))
-    print(f"Found {len(causal_dirs)} causal directories")
+    causal_files = glob.glob(os.path.join(pop_gwas_dir, "*_causal*.step2.txt"))
+    print(f"Found {len(causal_files)} causal files")
+
+    # Group files by phenotype pattern to avoid duplicates
+    unique_patterns = set()
+    gwas_file_patterns = []
+
+    for causal_file in causal_files:
+        filename = os.path.basename(causal_file)
+        parsed = parse_gwas_filename(filename)
+        if parsed:
+            pattern_key = f"{parsed['pheno_causal']}.{parsed['trait_type']}.{parsed['chromosome']}"
+            if pattern_key not in unique_patterns:
+                unique_patterns.add(pattern_key)
+                gwas_file_patterns.append(causal_file)
+
+    print(f"Found {len(gwas_file_patterns)} unique phenotype patterns")
 
     # Determine number of processes
     if n_processes is None:
@@ -451,19 +486,19 @@ def create_susiex_commands(gwas_base_dir, ld_base_dir, output_base_dir, wrapper_
 
     # Prepare arguments for parallel processing
     process_args = []
-    for causal_dir in causal_dirs:
-        args_tuple = (causal_dir, gwas_base_dir, ld_base_dir, matrix_configs, 
+    for gwas_file_pattern in gwas_file_patterns:
+        args_tuple = (gwas_file_pattern, gwas_base_dir, ld_base_dir, matrix_configs, 
                      output_base_dir, wrapper_script, populations, skip_existing)
         process_args.append(args_tuple)
 
-    # Process directories in parallel
-    print(f"\nProcessing {len(process_args)} directories in parallel...")
+    # Process file patterns in parallel
+    print(f"\nProcessing {len(process_args)} file patterns in parallel...")
     all_commands = []
     all_warnings = []
     all_skipped = []
 
     with Pool(processes=n_processes) as pool:
-        results = pool.map(process_causal_dir, process_args)
+        results = pool.map(process_gwas_file_pattern, process_args)
 
     # Collect results
     processed_phenotypes = set()
