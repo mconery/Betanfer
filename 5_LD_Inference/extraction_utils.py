@@ -158,6 +158,7 @@ def bgzip_and_tbi_sumstats_with_label_cols(
     force: bool = True,
 ) -> tuple[str, str]:
     """
+    ############# CURRENTLY NON-FUNCTIONAL FOR FILES WITHOUT "#" TO START HEADER #############
     BGZF-compress a GWAS summary stats file with a header line and tabix-index it,
     using column names (labels) to identify chromosome and position columns.
     
@@ -218,7 +219,7 @@ def bgzip_and_tbi_sumstats_with_label_cols(
         seq_col=chrom_col - 1,
         start_col=pos_col - 1,
         end_col=pos_col - 1,
-        line_skip=1,
+        line_skip=0
         zerobased=zero_based,
     )
     return str(bgzf_path), tbi_path
