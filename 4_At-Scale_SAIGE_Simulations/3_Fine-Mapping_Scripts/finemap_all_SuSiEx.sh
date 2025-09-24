@@ -25,13 +25,11 @@ module load flux
 map_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/finemap_SuSiEx.py"
 command_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/generate_susiex_commands.py"
 
-#Set environment location
-map_enviro="/lustre/orion/bif154/proj-shared/mconery/tools/environments/susie"
-
 #Set directories
 sumstats_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step2_results"
 matrix_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices"
-out_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/fine-mapping_results/susie_results"
+geno_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/simulated_genotypes"
+out_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/fine-mapping_results/susiex_results"
 
 #Set command file
 command_file=$out_dir/"susiex_commands.txt"
@@ -46,7 +44,7 @@ num_nodes=${SLURM_NNODES}
 ############################################## Prep Mapping Commands ###########################################
 ################################################################################################################
 
-python $command_script --wrapper-script $map_script --gwas-dir $sumstats_dir --ld-dir $matrix_dir --output-dir $out_dir --commands-file $command_file --matrix-types raw_in-sample,PC-corrected,beta-inferred_2000 --populations $populations --skip-existing
+python $command_script --wrapper-script $map_script --gwas-dir $sumstats_dir --ld-dir $matrix_dir --geno-dir $geno_dir --output-dir $out_dir --commands-file $command_file --matrix-types raw_in-sample,PC-corrected,beta-inferred_2000 --populations $populations --skip-existing
 
 ################################################################################################################
 ################################## Execute Mapping Commands in Parallel ########################################
@@ -55,11 +53,8 @@ python $command_script --wrapper-script $map_script --gwas-dir $sumstats_dir --l
 # Read mapping commands into array
 mapfile -t cmds < "$command_file"
 
-# Activate environment
-source activate $map_enviro
-
-# Launch flux and execute SuSiE commands in parallel
-echo "Launching flux for SuSiE with $num_nodes nodes..."
+# Launch flux and execute SuSiEx commands in parallel
+echo "Launching flux for SuSiEx with $num_nodes nodes..."
 srun -N ${num_nodes} -n ${num_nodes} -c 56 flux start "flux resource list; mapfile -t cmds < ${command_file}; for ((i=0; i<\${#cmds[@]}; i++)); do flux submit -N1 -n1 -c2 --output=flux_output/SuSiEx_\$i.txt \${cmds[\$i]}; done; flux queue drain;"
 
 echo "All SuSiEx mapping jobs submitted and completed."
