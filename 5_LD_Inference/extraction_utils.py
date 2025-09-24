@@ -219,7 +219,7 @@ def bgzip_and_tbi_sumstats_with_label_cols(
         seq_col=chrom_col - 1,
         start_col=pos_col - 1,
         end_col=pos_col - 1,
-        line_skip=0
+        line_skip=0,
         zerobased=zero_based,
     )
     return str(bgzf_path), tbi_path
