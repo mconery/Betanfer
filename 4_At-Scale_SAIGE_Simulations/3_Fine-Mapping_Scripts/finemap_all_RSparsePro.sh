@@ -56,6 +56,6 @@ source activate $map_enviro
 
 # Launch flux and execute CARMA commands in parallel
 echo "Launching flux for CARMA with $num_nodes nodes..."
-srun -N ${num_nodes} -n ${num_nodes} -c 56 flux start "flux resource list; mapfile -t cmds < ${command_file}; for ((i=0; i<\${#cmds[@]}; i++)); do flux submit -N1 -n1 -c2 --output=flux_output/CARMA_\$i.txt \${cmds[\$i]}; done; flux queue drain;"
+srun -N ${num_nodes} -n ${num_nodes} -c 56 flux start "flux resource list; mapfile -t cmds < ${command_file}; for ((i=0; i<\${#cmds[@]}; i++)); do flux submit -N1 -n1 -c2 --output=flux_output/RSparsePro_\$i.txt \${cmds[\$i]}; done; flux queue drain;"
 
 echo "All RSparsePro mapping jobs submitted and completed."
