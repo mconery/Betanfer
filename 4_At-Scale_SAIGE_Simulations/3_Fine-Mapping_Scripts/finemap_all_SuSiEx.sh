@@ -29,7 +29,7 @@ command_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fin
 map_enviro="/lustre/orion/bif154/proj-shared/mconery/tools/environments/susie"
 
 #Set directories
-sumstats_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/meta_analysis_results"
+sumstats_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step2_results"
 matrix_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices"
 out_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/fine-mapping_results/susie_results"
 
