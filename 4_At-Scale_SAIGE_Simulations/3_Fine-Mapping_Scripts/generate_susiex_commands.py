@@ -251,7 +251,7 @@ def process_gwas_file_pattern(args_tuple):
     Returns:
     - tuple: (commands, warnings, skipped_info)
     """
-    gwas_file_pattern, gwas_base_dir, ld_base_dir, matrix_types, output_base_dir, wrapper_script, populations, skip_existing = args_tuple
+    gwas_file_pattern, gwas_base_dir, ld_base_dir, geno_base_dir, matrix_types, output_base_dir, wrapper_script, populations, plink_conv, skip_existing = args_tuple
     
     commands = []
     warnings = []
@@ -268,6 +268,15 @@ def process_gwas_file_pattern(args_tuple):
     heritability = parsed['heritability']
     trait_type = parsed['trait_type']
     chromosome = parsed['chromosome']
+    
+    #Get the matching plink file name
+    plink_paths = [os.path.join(geno_base_dir, x, plink_conv.replace("CHR#", chromosome)) for x in populations]
+    #Verify plink files exist
+    for extension in [".bed", ".bim", ".fam"]:
+        for plink_path in plink_paths:
+            if not os.path.exists(os.path.join(plink_path, extension)):
+                warnings.append(f"Missing Plink Ref File: {str(os.path.join(plink_path, extension))}")
+                return commands, warnings, skipped_info
     
     # Find matching GWAS files in each population directory
     gwas_files = {}
@@ -360,6 +369,7 @@ def process_gwas_file_pattern(args_tuple):
                      f"--gwas_files {gwas_files_list} "
                      f"--ld_files {ld_files_list} "
                      f"--n_gwas {n_gwas_list} "
+                     f"--ref_panels {','.join(plink_paths)} "
                      f"--output_file {output_path}")
         
         # Store command with metadata
@@ -410,8 +420,8 @@ def parse_populations(populations_string):
     
     return pop_list if pop_list else ["AFR", "EUR"]
 
-def create_susiex_commands(gwas_base_dir, ld_base_dir, output_base_dir, wrapper_script, output_commands_file,
-                          populations, matrix_filter=None, n_processes=None, skip_existing=False):
+def create_susiex_commands(gwas_base_dir, ld_base_dir, geno_base_dir, output_base_dir, wrapper_script, output_commands_file,
+                          populations, plink_conv, matrix_filter=None, n_processes=None, skip_existing=False):
     """
     Generate SuSiEx multi-population fine-mapping commands for all loci using parallel processing.
     
@@ -491,8 +501,8 @@ def create_susiex_commands(gwas_base_dir, ld_base_dir, output_base_dir, wrapper_
     # Prepare arguments for parallel processing
     process_args = []
     for gwas_file_pattern in gwas_file_patterns:
-        args_tuple = (gwas_file_pattern, gwas_base_dir, ld_base_dir, matrix_types, 
-                     output_base_dir, wrapper_script, populations, skip_existing)
+        args_tuple = (gwas_file_pattern, gwas_base_dir, ld_base_dir, geno_base_dir, matrix_types, 
+                     output_base_dir, wrapper_script, populations, plink_conv, skip_existing)
         process_args.append(args_tuple)
     
     # Process file patterns in parallel
@@ -580,43 +590,36 @@ def main():
     # Define default paths
     default_wrapper = "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/finemap_SuSiEx.py"
     default_gwas = "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step2_results"
+    default_geno = "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/simulated_genotypes"
     default_ld = "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices"
     default_output = "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/fine-mapping_results/susiex_results"
     default_commands = f"{default_output}/susiex_commands.txt"
-
     parser.add_argument('--wrapper-script', '-w', default=default_wrapper,
                        help=f'Path to finemap_SuSiEx.py script (default: {default_wrapper})')
-
     parser.add_argument('--gwas-dir', '-g', default=default_gwas,
                        help=f'Base directory containing GWAS summary statistics with population subdirectories (default: {default_gwas})')
-
     parser.add_argument('--ld-dir', '-l', default=default_ld,
                        help=f'Base directory containing LD matrices (default: {default_ld})')
-
+    parser.add_argument('--geno-dir', '-n', default=default_geno,
+                       help=f'Base directory of Genotype (Plink) Files (default: {default_geno})')
     parser.add_argument('--output-dir', '-o', default=default_output,
                        help=f'Base directory for fine-mapping results (default: {default_output})')
-
     parser.add_argument('--commands-file', '-c', default=default_commands,
                        help=f'Output file for commands (default: {default_commands})')
-
     parser.add_argument('--populations', '-pop', type=str, default="AFR,EUR",
                        help='Comma-delimited list of population names (default: "AFR,EUR")')
-
+    parser.add_argument('--plink_conv', '-pc', type=str, default="CHR#.plink.maf",
+                       help='Frequency ref file naming convention (default: "CHR#.plink.maf")')
     parser.add_argument('--matrix-types', '-m', type=str, default=None,
                        help='Comma-delimited list of matrix subdirectory names to process (e.g., "raw_in-sample,PC-corrected"). If not specified, all detected matrix types will be processed.')
-
     parser.add_argument('--processes', '-p', type=int, default=None,
                        help='Number of processes to use for parallel processing (default: use all available cores)')
-
     parser.add_argument('--skip-existing', '-s', action='store_true',
                        help='Skip generating commands for output files that already exist and appear complete')
-
     parser.add_argument('--dry-run', '-d', action='store_true',
                        help='Print first 10 commands without writing to file')
-
     parser.add_argument('--list-matrices', action='store_true',
                        help='List available matrix subdirectories and exit')
-
     args = parser.parse_args()
 
     # Parse populations
@@ -629,13 +632,13 @@ def main():
         if not os.path.exists(args.ld_dir):
             print(f"Error: LD directory does not exist: {args.ld_dir}")
             return 1
-
+        
         matrix_types = detect_matrix_subdirs(args.ld_dir)
         if matrix_types:
             print("\nAvailable matrix types:")
             for matrix_type in matrix_types:
                 print(f"  {matrix_type}")
-
+                
                 # Show sample matrix files for this type from first population
                 first_pop = populations[0]
                 search_dir = os.path.join(args.ld_dir, matrix_type, first_pop)
@@ -646,10 +649,10 @@ def main():
                         for f in sample_files:
                             print(f"      {os.path.basename(f)}")
                         if len(glob.glob(os.path.join(search_dir, "*.vcor1"))) > 3:
-                            print(f"      ... and more")
-
+                            print("      ... and more")
+                
             print("\nExample usage:")
-            print(f"  --matrix-types \"raw_in-sample,PC-corrected\"")
+            print("  --matrix-types \"raw_in-sample,PC-corrected\"")
             print(f"  --matrix-types \"{','.join(matrix_types)}\"")
         else:
             print("No valid matrix configurations found.")
@@ -686,10 +689,12 @@ def main():
     commands = create_susiex_commands(
         gwas_base_dir=args.gwas_dir,
         ld_base_dir=args.ld_dir,
+        geno_base_dir=args.geno_dir,
         output_base_dir=args.output_dir,
         wrapper_script=args.wrapper_script,
         output_commands_file=args.commands_file if not args.dry_run else None,
         populations=populations,
+        plink_conv=args.plink_conv,
         matrix_filter=matrix_filter,
         n_processes=args.processes,
         skip_existing=args.skip_existing
