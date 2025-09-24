@@ -9,7 +9,7 @@
 ################################################################################################################
 
 # Check if minimum required arguments are provided
-if [ $# -lt 4 ]; then
+if [ $# -lt 3 ]; then
     echo "Usage: $0 <gwas_file> <ld_file> <output_file> [varcol] [zscore_col] [beta_col] [se_col]"
     echo ""
     echo "Required arguments:"
@@ -19,7 +19,6 @@ if [ $# -lt 4 ]; then
     echo ""
     echo "Optional arguments (provide either zscore_col OR both beta_col and se_col):"
     echo "  varcol        - Column name for variant IDs (default: rsid)"
-    echo "  zscore_col    - Column name for Z-scores (if available)"
     echo "  beta_col      - Column name for beta coefficients (default: beta)"
     echo "  se_col        - Column name for standard errors (default: se)"
     echo ""
