@@ -33,6 +33,8 @@ def parse_arguments():
                         help='Full path for final output file')
     parser.add_argument('--n_gwas', '-n', required=True,
                         help='Comma-delimited list of GWAS sample sizes, same order as GWAS files')
+    parser.add_argument('--ref_panels', required=True,
+                        help='Comma-delimited list of reference panel prefixes (.bed/.bim/.fam) for PLINK frequency calculation')
     parser.add_argument('--maf', type=float, default=0.005)
     parser.add_argument('--n_sig', type=int, default=10)
     parser.add_argument('--level', type=int, default=0.95)
@@ -49,8 +51,6 @@ def parse_arguments():
     parser.add_argument('--plink_bin', required=False,
                         default='/lustre/orion/bif154/proj-shared/mconery/tools/bin/plink',
                         help='Path to PLINK executable')
-    parser.add_argument('--ref_panels', required=False,
-                        help='Comma-delimited list of reference panel prefixes (.bed/.bim/.fam) for PLINK frequency calculation')
     return parser.parse_args()
 
 def convert_text_ld_to_bin4(text_file, output_prefix):
