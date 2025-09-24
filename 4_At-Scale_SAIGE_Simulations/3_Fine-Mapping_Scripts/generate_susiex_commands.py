@@ -274,7 +274,7 @@ def process_gwas_file_pattern(args_tuple):
     #Verify plink files exist
     for extension in [".bed", ".bim", ".fam"]:
         for plink_path in plink_paths:
-            if not os.path.exists(os.path.join(plink_path, extension)):
+            if not os.path.exists(str(plink_path) + extension):
                 warnings.append(f"Missing Plink Ref File: {str(os.path.join(plink_path, extension))}")
                 return commands, warnings, skipped_info
     
