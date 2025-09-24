@@ -100,8 +100,7 @@ def main():
             variant_col=args.variant_col,
             variant_id_format = args.variant_id_format,
             zero_based=args.zero_based,
-            force=args.force,
-            variant_col="MarkerID"
+            force=args.force
         )
         
         print(f"Successfully indexed -> {os.path.basename(bgzf_path)}, {os.path.basename(tbi_path)}")
