@@ -372,20 +372,19 @@ out_data <- cbind.data.frame(
   
 )
 
-#Get credible sets
-
-cred_sets <- rep(0, nrow(out_data))
-
-for (set in seq(1,length(carma.results[[1]]$'Credible set'[[2]]))){
-  
-  cred_sets[carma.results[[1]]$'Credible set'[[2]][[set]]] <- as.numeric(set)
-  
+#Check to see if any credible sets were mapped
+if (length(carma.results[[1]]$'Credible set'[[2]]) > 0) {
+  #Get credible sets
+  cred_sets <- rep(0, nrow(out_data))
+  for (set in seq(1,length(carma.results[[1]]$'Credible set'[[2]]))){
+    cred_sets[carma.results[[1]]$'Credible set'[[2]][[set]]] <- as.numeric(set)
+  }
+  out_data <- cbind.data.frame(out_data, iterations_z=attempts, cs=cred_sets)
+} else {
+  out_data <- cbind.data.frame(out_data, iterations_z=attempts, cs=rep(0, nrow(out_data)))
 }
 
-out_data <- cbind.data.frame(out_data, iterations_z=attempts, cs=cred_sets)
-
 #Save output dataframe
-
 write.table(out_data, file = out_file, col.names = TRUE, row.names = FALSE, quote = FALSE, sep="\t")
 
 # 7) Write Timing File ====
