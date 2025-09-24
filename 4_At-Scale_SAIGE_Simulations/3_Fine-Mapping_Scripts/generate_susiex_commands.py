@@ -7,7 +7,9 @@ This script creates a command file where each line runs SuSiEx fine-mapping
 for a different locus across all available matrix types and populations.
 Optimized for parallel processing on HPC systems with file existence checks.
 
-UPDATED: GWAS files are located directly in population directories, not subdirectories.
+UPDATED: 
+- GWAS files are located directly in population directories
+- LD matrices are located in matrix_type/population/ structure (no weighted/Meta subdirs)
 """
 
 import os
@@ -19,21 +21,21 @@ from functools import partial
 
 def detect_matrix_subdirs(ld_base_dir, matrix_filter=None):
     """
-    Automatically detect matrix subdirectories and their subfolder structure.
+    Automatically detect matrix subdirectories that contain population subdirectories.
 
     Parameters:
     - ld_base_dir: Base directory containing LD matrices
     - matrix_filter: Optional list of matrix subdirectory names to include
 
     Returns:
-    - dict: mapping of matrix_type -> subfolder_name
+    - list: List of matrix type directory names
     """
-    matrix_configs = {}
+    matrix_types = []
 
     # Look for all subdirectories in ld_base_dir
     if not os.path.exists(ld_base_dir):
         print(f"Warning: LD base directory does not exist: {ld_base_dir}")
-        return matrix_configs
+        return matrix_types
 
     for item in os.listdir(ld_base_dir):
         matrix_dir = os.path.join(ld_base_dir, item)
@@ -45,29 +47,31 @@ def detect_matrix_subdirs(ld_base_dir, matrix_filter=None):
             print(f"Skipping matrix type (not in filter): {item}")
             continue
 
-        # Check for 'weighted' or 'Meta' subdirectory
-        weighted_path = os.path.join(matrix_dir, "weighted")
-        meta_path = os.path.join(matrix_dir, "Meta")
+        # Check if this directory contains population subdirectories
+        has_population_subdirs = False
+        common_populations = ['AFR', 'EUR', 'EAS', 'SAS', 'AMR']
 
-        if os.path.isdir(weighted_path):
-            matrix_configs[item] = "weighted"
-            print(f"Found matrix type: {item} -> weighted")
-        elif os.path.isdir(meta_path):
-            matrix_configs[item] = "Meta"
-            print(f"Found matrix type: {item} -> Meta")
+        for pop in common_populations:
+            pop_dir = os.path.join(matrix_dir, pop)
+            if os.path.isdir(pop_dir):
+                has_population_subdirs = True
+                break
+
+        if has_population_subdirs:
+            matrix_types.append(item)
+            print(f"Found matrix type: {item}")
         else:
-            print(f"Warning: No 'weighted' or 'Meta' subdirectory found in {matrix_dir}")
+            print(f"Warning: No population subdirectories found in {matrix_dir}")
 
-    return matrix_configs
+    return matrix_types
 
-def find_matrix_files_by_population(ld_base_dir, matrix_type, subfolder, pheno_causal, populations):
+def find_matrix_files_by_population(ld_base_dir, matrix_type, pheno_causal, populations):
     """
     Search for matrix files for all populations that match the given phenotype/causal pattern.
 
     Parameters:
     - ld_base_dir: Base directory containing LD matrices
-    - matrix_type: Matrix type directory name (e.g., "beta-inferred_2000")
-    - subfolder: Subfolder name ("weighted" or "Meta")
+    - matrix_type: Matrix type directory name (e.g., "raw_in-sample")
     - pheno_causal: Phenotype pattern (e.g., "Pheno1.2_causal")
     - populations: List of population names (e.g., ["AFR", "EUR"])
 
@@ -77,8 +81,8 @@ def find_matrix_files_by_population(ld_base_dir, matrix_type, subfolder, pheno_c
     matrix_files = {}
 
     for pop in populations:
-        # Check population-specific directory
-        search_dir = os.path.join(ld_base_dir, matrix_type, subfolder, pop)
+        # Check population-specific directory directly under matrix_type
+        search_dir = os.path.join(ld_base_dir, matrix_type, pop)
         if not os.path.exists(search_dir):
             matrix_files[pop] = None
             continue
@@ -101,7 +105,7 @@ def find_matrix_files_by_population(ld_base_dir, matrix_type, subfolder, pheno_c
 def parse_gwas_filename(meta_filename):
     """
     Parse GWAS filename to extract components, handling decimal heritability values.
-    Expected format: Pheno#.#_causal.heritability_#.#.continuous/binary_0.25.chr#.step2.txt
+    Expected format: Pheno#.#_causal.heritability_#.#.continuous/binary_0.25.chr#.meta.out
 
     Parameters:
     - meta_filename: The GWAS filename
@@ -109,8 +113,8 @@ def parse_gwas_filename(meta_filename):
     Returns:
     - dict: Dictionary with parsed components or None if parsing fails
     """
-    # Remove the .step2.txt extension
-    base_name = meta_filename.replace('.step2.txt', '')
+    # Remove the .meta.out extension
+    base_name = meta_filename.replace('.meta.out', '')
 
     # Split by dots
     parts = base_name.split('.')
@@ -241,13 +245,13 @@ def process_gwas_file_pattern(args_tuple):
     This function is designed to be called in parallel.
 
     Parameters:
-    - args_tuple: Tuple containing (gwas_file_pattern, gwas_base_dir, ld_base_dir, matrix_configs, 
+    - args_tuple: Tuple containing (gwas_file_pattern, gwas_base_dir, ld_base_dir, matrix_types, 
                   output_base_dir, wrapper_script, populations, skip_existing)
 
     Returns:
     - tuple: (commands, warnings, skipped_info)
     """
-    gwas_file_pattern, gwas_base_dir, ld_base_dir, matrix_configs, output_base_dir, wrapper_script, populations, skip_existing = args_tuple
+    gwas_file_pattern, gwas_base_dir, ld_base_dir, matrix_types, output_base_dir, wrapper_script, populations, skip_existing = args_tuple
 
     commands = []
     warnings = []
@@ -274,19 +278,19 @@ def process_gwas_file_pattern(args_tuple):
             continue
 
         # Look for files that match this exact pattern
-        expected_filename = f"{pheno_causal}.{heritability}.{trait_type}.{chromosome}.step2.txt"
+        expected_filename = f"{pheno_causal}.{heritability}.{trait_type}.{chromosome}.meta.out"
         expected_path = os.path.join(pop_gwas_dir, expected_filename)
 
         if os.path.exists(expected_path):
             gwas_files[pop] = expected_path
         else:
             # Try broader pattern matching
-            broad_pattern = f"{pheno_causal}.*.{trait_type}.{chromosome}.step2.txt"
+            broad_pattern = f"{pheno_causal}.*.{trait_type}.{chromosome}.meta.out"
             matching_files = glob.glob(os.path.join(pop_gwas_dir, broad_pattern))
 
             if not matching_files:
                 # Even broader - just look for files with the phenotype and check details
-                all_causal_files = glob.glob(os.path.join(pop_gwas_dir, f"{pheno_causal}*.step2.txt"))
+                all_causal_files = glob.glob(os.path.join(pop_gwas_dir, f"{pheno_causal}*.meta.out"))
                 matching_files = []
                 for f in all_causal_files:
                     fname = os.path.basename(f)
@@ -314,22 +318,22 @@ def process_gwas_file_pattern(args_tuple):
     # Get sample sizes for populations
     sample_sizes = get_population_sample_sizes(populations)
 
-    # For each detected matrix configuration
-    for matrix_type, subfolder in matrix_configs.items():
+    # For each detected matrix type
+    for matrix_type in matrix_types:
         # Find matrix files for all populations
-        matrix_files = find_matrix_files_by_population(ld_base_dir, matrix_type, subfolder, pheno_causal, populations)
+        matrix_files = find_matrix_files_by_population(ld_base_dir, matrix_type, pheno_causal, populations)
 
         # Check if we have matrix files for all populations
         missing_matrices = [pop for pop, path in matrix_files.items() if path is None]
         if missing_matrices:
-            warnings.append(f"Missing matrix files for populations {missing_matrices} in {pheno_causal}, {matrix_type}/{subfolder}")
+            warnings.append(f"Missing matrix files for populations {missing_matrices} in {pheno_causal}, {matrix_type}")
             continue
 
         # Construct output directory and file
         output_dir = os.path.join(output_base_dir, matrix_type)
 
-        # Output filename format: Pheno#.#_causal.continuous/binary_0.25.weighted/Meta.txt
-        output_filename = f"{pheno_causal}.{trait_type}.{subfolder}.txt"
+        # Output filename format: Pheno#.#_causal.continuous/binary_0.25.matrix_type.txt
+        output_filename = f"{pheno_causal}.{trait_type}.{matrix_type}.txt"
         output_path = os.path.join(output_dir, output_filename)
 
         # Check if output file already exists and is complete
@@ -422,21 +426,21 @@ def create_susiex_commands(gwas_base_dir, ld_base_dir, output_base_dir, wrapper_
     - n_processes: Number of processes to use (None = use all available cores)
     - skip_existing: Whether to skip generating commands for existing complete output files
     """
-    # Automatically detect matrix configurations
+    # Automatically detect matrix types
     print(f"Detecting matrix subdirectories in: {ld_base_dir}")
     if matrix_filter:
         print(f"Filtering for matrix types: {matrix_filter}")
 
-    matrix_configs = detect_matrix_subdirs(ld_base_dir, matrix_filter)
+    matrix_types = detect_matrix_subdirs(ld_base_dir, matrix_filter)
 
-    if not matrix_configs:
+    if not matrix_types:
         if matrix_filter:
             print(f"Error: No valid matrix configurations found matching filter: {matrix_filter}")
         else:
             print("Error: No valid matrix configurations found!")
         return []
 
-    print(f"Matrix configurations to process: {matrix_configs}")
+    print(f"Matrix types to process: {matrix_types}")
     print(f"Populations to process: {populations}")
 
     if skip_existing:
@@ -446,7 +450,7 @@ def create_susiex_commands(gwas_base_dir, ld_base_dir, output_base_dir, wrapper_
 
     # Create output directories now
     print(f"\nCreating output directories...")
-    for matrix_type in matrix_configs.keys():
+    for matrix_type in matrix_types:
         output_dir = os.path.join(output_base_dir, matrix_type)
         os.makedirs(output_dir, exist_ok=True)
         os.makedirs(os.path.join(output_dir, "timing"), exist_ok=True)
@@ -461,7 +465,7 @@ def create_susiex_commands(gwas_base_dir, ld_base_dir, output_base_dir, wrapper_
         print(f"Error: Population GWAS directory does not exist: {pop_gwas_dir}")
         return []
 
-    causal_files = glob.glob(os.path.join(pop_gwas_dir, "*_causal*.step2.txt"))
+    causal_files = glob.glob(os.path.join(pop_gwas_dir, "*_causal*.meta.out"))
     print(f"Found {len(causal_files)} causal files")
 
     # Group files by phenotype pattern to avoid duplicates
@@ -487,7 +491,7 @@ def create_susiex_commands(gwas_base_dir, ld_base_dir, output_base_dir, wrapper_
     # Prepare arguments for parallel processing
     process_args = []
     for gwas_file_pattern in gwas_file_patterns:
-        args_tuple = (gwas_file_pattern, gwas_base_dir, ld_base_dir, matrix_configs, 
+        args_tuple = (gwas_file_pattern, gwas_base_dir, ld_base_dir, matrix_types, 
                      output_base_dir, wrapper_script, populations, skip_existing)
         process_args.append(args_tuple)
 
@@ -626,15 +630,15 @@ def main():
             print(f"Error: LD directory does not exist: {args.ld_dir}")
             return 1
 
-        matrix_configs = detect_matrix_subdirs(args.ld_dir)
-        if matrix_configs:
+        matrix_types = detect_matrix_subdirs(args.ld_dir)
+        if matrix_types:
             print("\nAvailable matrix types:")
-            for matrix_type, subfolder in matrix_configs.items():
-                print(f"  {matrix_type} ({subfolder})")
+            for matrix_type in matrix_types:
+                print(f"  {matrix_type}")
 
                 # Show sample matrix files for this type from first population
                 first_pop = populations[0]
-                search_dir = os.path.join(args.ld_dir, matrix_type, subfolder, first_pop)
+                search_dir = os.path.join(args.ld_dir, matrix_type, first_pop)
                 if os.path.exists(search_dir):
                     sample_files = glob.glob(os.path.join(search_dir, "*.vcor1"))[:3]
                     if sample_files:
@@ -646,7 +650,7 @@ def main():
 
             print("\nExample usage:")
             print(f"  --matrix-types \"raw_in-sample,PC-corrected\"")
-            print(f"  --matrix-types \"{','.join(matrix_configs.keys())}\"")
+            print(f"  --matrix-types \"{','.join(matrix_types)}\"")
         else:
             print("No valid matrix configurations found.")
         return 0
