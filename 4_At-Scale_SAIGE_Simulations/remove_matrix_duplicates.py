@@ -88,7 +88,7 @@ def write_matrix_file(matrix, matrix_file):
     """
     try:
         # Write in space-delimited format (PLINK standard)
-        np.savetxt(matrix_file, matrix, fmt='%.6g', delimiter=' ')
+        np.savetxt(matrix_file, matrix, fmt='%.6g', delimiter='\t')
     except Exception as e:
         print(f"Error writing matrix file {matrix_file}: {e}")
         raise
