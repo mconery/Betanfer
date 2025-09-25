@@ -10,7 +10,7 @@ chrom:pos:ref:alt
 this script determines a locus window (min-pos – padding, max-pos + padding)
 and writes individual shell scripts that extract those windows from one or more plink
 datasets and compute LD matrices with `--r square --unphased`.
-MODIFICATION: Added duplicate variant removal to prevent issues with fine-mapping algorithms.
+MODIFICATION: Added duplicate variant removal using --update-name to prevent issues with fine-mapping algorithms.
 
 Usage
 -----
@@ -31,7 +31,6 @@ from pathlib import Path
 import re
 from textwrap import dedent
 import multiprocessing as mp
-from functools import partial
 import os
 
 VAR_RE = re.compile(r"^(\w+):(\d+):")
@@ -121,7 +120,6 @@ set -e
             print(f"Error writing script {script_counter}: {e}")
             continue
     return written_scripts
-
 def prepare_script_tasks(variant_files, plink_dirs, populations, naming_conventions,
                         matrix_root, script_dir, plink_path, padding, variant_file_suffix):
     """
@@ -143,28 +141,44 @@ def prepare_script_tasks(variant_files, plink_dirs, populations, naming_conventi
                 #Check if output files exist and skip if it does
                 if os.path.exists(f"{out_prefix}.unphased.vcor1") and os.path.exists(f"{out_prefix}.unphased.vcor1.vars"):
                     continue
-                # MODIFIED COMMAND: Add duplicate removal steps
+                # MODIFIED COMMAND: Use --update-name approach to handle duplicates
                 # Step 1: Extract region to temporary files
-                temp_prefix = f"{out_prefix}.temp_dedup"             
+                temp_prefix = f"{out_prefix}.temp_dedup"              
                 cmd_parts = []                
                 # Extract the region and create temporary plink files
                 cmd_parts.append(f"{plink_path} --bfile {plink_root} --chr {chrom} --from-bp {start} --to-bp {end} --keep-allele-order --make-bed --out {temp_prefix}")
-                # Remove duplicates by variant ID (chr:pos:ref:alt format)
-                # First, extract unique variants by creating a list of unique variant IDs
-                cmd_parts.append(f"awk '!seen[$2]++' {temp_prefix}.bim > {temp_prefix}.unique.bim")
-                # Extract the unique variant IDs to a file
-                cmd_parts.append(f"awk '{{print $2}}' {temp_prefix}.unique.bim > {temp_prefix}.unique_vars.txt")
-                # Create deduplicated plink files using the unique variant list
-                cmd_parts.append(f"{plink_path} --bfile {temp_prefix} --extract {temp_prefix}.unique_vars.txt --keep-allele-order --make-bed --out {temp_prefix}.dedup")
-                # Now compute LD matrix on deduplicated data
+                # Step 2: Identify duplicates and create update file
+                # Create an awk script that identifies duplicates and creates update file
+                # Format: OLD_ID NEW_ID (where duplicates get renamed to "duplicated")
+                awk_script = """
+                awk '
+                {
+                    if (seen[$2]) {
+                        # This is a duplicate - mark it for renaming
+                        print $2 "\\tduplicated"
+                    } else {
+                        # First occurrence - mark as seen
+                        seen[$2] = 1
+                    }
+                }' """
+                cmd_parts.append(f"{awk_script} {temp_prefix}.bim > {temp_prefix}.update_names.txt")
+                # Step 3: Apply name updates to rename duplicates
+                cmd_parts.append(f"{plink_path} --bfile {temp_prefix} --update-name {temp_prefix}.update_names.txt --make-bed --out {temp_prefix}.renamed")
+                # Step 4: Create exclusion list for variants named "duplicated"
+                cmd_parts.append(f"echo 'duplicated' > {temp_prefix}.exclude_dups.txt")
+                # Step 5: Remove duplicated variants
+                cmd_parts.append(f"{plink_path} --bfile {temp_prefix}.renamed --exclude {temp_prefix}.exclude_dups.txt --keep-allele-order --make-bed --out {temp_prefix}.dedup")
+                # Step 6: Compute LD matrix on deduplicated data
                 cmd_parts.append(f"{plink_path} --bfile {temp_prefix}.dedup --r square --out {out_prefix}")
-                # Rename LD matrix file and create variant list
+                # Step 7: Rename LD matrix file and create variant list
                 cmd_parts.append(f"mv {out_prefix}.ld {out_prefix}.unphased.vcor1")
                 cmd_parts.append(f"awk '{{print $2}}' {temp_prefix}.dedup.bim > {out_prefix}.unphased.vcor1.vars")
-                # Clean up temporary files
+                # Step 8: Clean up temporary files
                 cleanup_files = [
                     f"{temp_prefix}.bed", f"{temp_prefix}.bim", f"{temp_prefix}.fam",
-                    f"{temp_prefix}.unique.bim", f"{temp_prefix}.unique_vars.txt",
+                    f"{temp_prefix}.update_names.txt", 
+                    f"{temp_prefix}.renamed.bed", f"{temp_prefix}.renamed.bim", f"{temp_prefix}.renamed.fam",
+                    f"{temp_prefix}.exclude_dups.txt",
                     f"{temp_prefix}.dedup.bed", f"{temp_prefix}.dedup.bim", f"{temp_prefix}.dedup.fam",
                     f"{out_prefix}.log", f"{out_prefix}.nosex"
                 ]
