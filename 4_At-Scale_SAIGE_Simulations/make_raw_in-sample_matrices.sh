@@ -22,6 +22,7 @@ script_list_file="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_
 
 # Set script locations
 command_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/make_raw_in-sample_matrix_command_writer.py"
+dedup_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/remove_matrix_duplicates.py"
 
 # Set populations
 populations=AFR,EUR
@@ -74,5 +75,6 @@ echo "Cleaning up temporary files..."
 rm -f $matrix_dir/*/*.nosex
 rm -f $matrix_dir/*/*.log
 rm -f $matrix_dir/scripts/*
+rm -f $matrix_dir/*/*temp_dedup*
 
 echo 'SUCCESS: All raw in-sample matrices created.'
