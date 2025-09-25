@@ -169,8 +169,8 @@ def prepare_script_tasks(variant_files, plink_dirs, populations, naming_conventi
                 #Check if output files exist and skip if it does
                 if os.path.exists(f"{out_prefix}.unphased.vcor1") and os.path.exists(f"{out_prefix}.unphased.vcor1.vars"):
                     continue
-                cmd = f"{plink_path} --bfile {plink_root} --chr {chrom} --from-bp {start} --to-bp {end} --keep-allele-order --r square --make-just-bim --out {out_prefix}; "
-                cmd = cmd + f'mv {out_prefix}.ld {out_prefix}.unphased.vcor1; awk ' + "\'{print $2}\' " + f'{out_prefix}.bim > {out_prefix}.unphased.vcor1.vars; rm {out_prefix}.bim' 
+                cmd = f"{plink_path} --bfile {plink_root} --chr {chrom} --from-bp {start} --to-bp {end} --rm-dup --keep-allele-order --r square"
+                #cmd = cmd + f'mv {out_prefix}.ld {out_prefix}.unphased.vcor1; awk ' + "\'{print $2}\' " + f'{out_prefix}.bim > {out_prefix}.unphased.vcor1.vars; rm {out_prefix}.bim' 
 
                 # Add task to list
                 task = (script_counter, locus_name, pop, cmd, str(script_dir))
@@ -197,7 +197,7 @@ def chunk_tasks(tasks, n_chunks):
 
 def main():
     # Set plink path
-    plink = "/lustre/orion/bif154/proj-shared/mconery/tools/bin/plink"
+    plink = "/lustre/orion/bif154/proj-shared/mconery/tools/bin/plink2"
 
     # Parse arguments
     args = parse_args()
