@@ -536,6 +536,8 @@ run_mesusie <- function(validated_inputs, args) {
       stop("ERROR: For 2 populations, ancestry_weight must have exactly 3 values (pop1, pop2, shared)")
     }
     
+    # Time the meSuSie_core function specifically
+    mesusie_start_time <- Sys.time()
     mesusie_result <- meSuSie_core(
       organized_ld,
       organized_gwas,
@@ -546,6 +548,10 @@ run_mesusie <- function(validated_inputs, args) {
       prior_weights = args$prior_weights,
       ancestry_weight = ancestry_weight
     )
+    mesusie_end_time <- Sys.time()
+    
+    # Calculate timing in seconds
+    mesusie_time_seconds <- as.numeric(difftime(mesusie_end_time, mesusie_start_time, units = "secs"))
   } else {
     # For >2 populations, first try to see if MESuSiE can handle it directly
     cat(sprintf("Attempting MESuSiE analysis with %d populations...\n", n_pops))
@@ -559,6 +565,8 @@ run_mesusie <- function(validated_inputs, args) {
       
       cat(sprintf("Using ancestry weights: %s\n", paste(ancestry_weight, collapse = ", ")))
       
+      # Time the meSuSie_core function specifically
+      mesusie_start_time <- Sys.time()
       mesusie_result <- meSuSie_core(
         organized_ld,
         organized_gwas,
@@ -569,6 +577,10 @@ run_mesusie <- function(validated_inputs, args) {
         prior_weights = args$prior_weights,
         ancestry_weight = ancestry_weight
       )
+      mesusie_end_time <- Sys.time()
+      
+      # Calculate timing in seconds
+      mesusie_time_seconds <- as.numeric(difftime(mesusie_end_time, mesusie_start_time, units = "secs"))
       
       cat("SUCCESS: MESuSiE handled multiple populations directly!\n")
       
@@ -580,7 +592,7 @@ run_mesusie <- function(validated_inputs, args) {
     })
   }
   
-  return(list(mesusie_result, organized_gwas))
+  return(list(mesusie_result, organized_gwas, mesusie_time_seconds))
 }
 
 # Save results
@@ -759,14 +771,36 @@ main <- function() {
     temp <- run_mesusie(validated_inputs, args)
     mesusie_result <- temp[[1]]
     organized_gwas <- temp[[2]]
+    mesusie_time_seconds <- temp[[3]]
     
     # Save results
     save_results(mesusie_result, organized_gwas, validated_inputs$ancestry_labels, args$output_file, args)
     
+    # Create timing file
+    timing_dir <- file.path(dirname(args$output_file), "timing")
+    dir.create(timing_dir, recursive = TRUE, showWarnings = FALSE)
+    timing_file <- file.path(timing_dir, basename(args$output_file))
+    
+    # Write timing data with proper header
+    timing_data <- data.frame(mesusie_time_seconds = mesusie_time_seconds)
+    write.table(timing_data, file = timing_file, col.names = TRUE, row.names = FALSE, quote = FALSE, sep = "\t")
+    
+    cat(sprintf("Timing information written to: %s\n", timing_file))
+    cat(sprintf("MESuSiE execution completed in %.2f seconds\n", mesusie_time_seconds))
+    
     cat("\n=== Analysis completed successfully! ===\n")
     
   }, error = function(e) {
-    cat(sprintf("ERROR: %s\n", e$message))
+    cat(sprintf("ERROR: %s
+", e$message))
+    
+    # Create timing file with NA for failed runs
+    timing_dir <- file.path(dirname(args$output_file), "timing")
+    dir.create(timing_dir, recursive = TRUE, showWarnings = FALSE)
+    timing_file <- file.path(timing_dir, basename(args$output_file))
+    write.table(data.frame(mesusie_time_seconds = NA), file = timing_file,
+                col.names = TRUE, row.names = FALSE, quote = FALSE, sep = "	")
+    
     quit(status = 1)
   })
 }
