@@ -108,7 +108,6 @@ def write_script_batch(script_batch_info):
             script_content = dedent(f"""#!/bin/bash
 set -e
 # Generated script for locus {locus_name}, population {pop}
-# Command: {cmd}
 {cmd}
 """)
             with open(script_path, 'w') as script_fh:
