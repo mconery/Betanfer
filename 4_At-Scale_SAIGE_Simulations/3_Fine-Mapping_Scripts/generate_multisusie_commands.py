@@ -40,7 +40,6 @@ from typing import Dict, List, Tuple
 # Utility functions
 # ---------------------------------------------------------------------------
 
-
 def detect_matrix_subdirs(ld_base_dir: str, matrix_filter=None) -> List[str]:
     """Return all matrix-type subdirs that contain at least one population."""
     if not os.path.exists(ld_base_dir):
@@ -61,7 +60,6 @@ def detect_matrix_subdirs(ld_base_dir: str, matrix_filter=None) -> List[str]:
     
     return matrix_types
 
-
 def parse_gwas_filename(fname: str) -> Dict[str, str] | None:
     """
     Expected pattern (same as in the original script):
@@ -70,15 +68,16 @@ def parse_gwas_filename(fname: str) -> Dict[str, str] | None:
     """
     base = fname.replace(".step2.txt", "")
     parts = base.split(".")
-    if len(parts) < 5 or not parts[1].endswith("_causal"):
+    if len(parts) < 6 or not parts[1].endswith("_causal"):
         return None
     pheno_causal = f"{parts[0]}.{parts[1]}"        # Pheno#.##_causal
-    trait_type   = parts[-3]                       # continuous | binary_0.25
-    chromosome   = parts[-2]                       # chr#
+    trait_type   = parts[-2]                       # continuous | binary_0.25
+    chromosome   = parts[-1]                       # chr#
+    heritability = ".".join(parts[2:len(parts)-2]).lstrip("heritability_")
     return {"pheno_causal": pheno_causal,
             "trait_type": trait_type,
-            "chromosome": chromosome}
-
+            "chromosome": chromosome, 
+            "heritability": heritability}
 
 def find_files(pop_dir: str, pattern: str) -> str | None:
     """Return a single file matching *pattern* inside *pop_dir*, or None."""
@@ -90,27 +89,17 @@ def find_files(pop_dir: str, pattern: str) -> str | None:
         return matches[0]
     return None
 
-
 # ---------------------------------------------------------------------------
 # Core processing
 # ---------------------------------------------------------------------------
 
-
-def process_one_pattern(
-    gwas_example_file: str,
-    gwas_base: str,
-    pheno_base: str,
-    ld_base: str,
-    matrix_types: List[str],
-    wrapper: str,
-    out_base: str,
-    populations: List[str],
-    skip_existing: bool,
-) -> Tuple[List[str], List[str]]:
+def process_one_pattern(args_tuple) -> Tuple[List[str], List[str]]:
     """
     Build Multi-SuSiE commands for a single phenotype/locus pattern.
     Returns (cmd_list, warnings)
     """
+    gwas_example_file, gwas_base, pheno_base, ld_base, matrix_types, wrapper, out_base, populations, heritabilities, skip_existing = args_tuple
+    
     warnings: List[str] = []
     cmds: List[str] = []
     meta = parse_gwas_filename(os.path.basename(gwas_example_file))
@@ -120,12 +109,13 @@ def process_one_pattern(
     pheno_causal = meta["pheno_causal"]
     trait_type   = meta["trait_type"]
     chrom        = meta["chromosome"]
+    heritability = meta["heritability"]
     # ------------------------------------------------------------------ GWAS
     gwas_files: Dict[str, str] = {}
     for pop in populations:
         g_dir = os.path.join(gwas_base, pop)
         g_file = find_files(g_dir,
-                            f"{pheno_causal}.*.{trait_type}.{chrom}.step2.txt")
+                            f"{pheno_causal}.heritability_{heritability}.{trait_type}.{chrom}.step2.txt")
         if g_file:
             gwas_files[pop] = g_file
         else:
@@ -138,7 +128,7 @@ def process_one_pattern(
         p_dir = os.path.join(pheno_base, pop)
         p_file = find_files(
             p_dir,
-            f"{pheno_causal}.*.{trait_type}.{chrom}.pheno*"
+            f"{pheno_causal}.heritability_{heritability}.{trait_type}.txt"
         )
         if p_file:
             pheno_files[pop] = p_file
@@ -184,11 +174,9 @@ def process_one_pattern(
         cmds.append(cmd)
     return cmds, warnings
 
-
 # ---------------------------------------------------------------------------
 # High-level driver
 # ---------------------------------------------------------------------------
-
 
 def generate_multisusie_commands(
     gwas_dir: str,
@@ -198,6 +186,7 @@ def generate_multisusie_commands(
     out_dir: str,
     cmd_file: str,
     populations: List[str],
+    heritabilities: List[str],
     matrix_filter: List[str] | None,
     processes: int | None,
     skip_existing: bool,
@@ -231,6 +220,7 @@ def generate_multisusie_commands(
             wrapper_script,
             out_dir,
             populations,
+            heritabilities,
             skip_existing,
         )
         for f in gwas_example_list
@@ -281,6 +271,8 @@ def cli() -> None:
                    help="Destination *.txt file holding all commands")
     p.add_argument("--populations", "-P", default="AFR,EUR",
                    help="Comma-delimited population codes (default: AFR,EUR)")
+    p.add_argument("--heritabilities", "-h", default="0.0003,0.0003",
+                   help="Comma-delimited trait heritabilities (default: 0.0003,0.0003)")
     p.add_argument("--matrix-types", "-m", default=None,
                    help="Comma list of matrix types to keep (else: all)")
     p.add_argument("--processes", "-t", type=int, default=None,
@@ -289,6 +281,7 @@ def cli() -> None:
                    help="Skip loci whose output already exists")
     args = p.parse_args()
     pops = [s.strip().upper() for s in args.populations.split(",") if s.strip()]
+    heritabilities = [s for s in args.heritabilities.split(",") if s.strip()]
     mfilter = (
         [m.strip() for m in args.matrix_types.split(",") if m.strip()]
         if args.matrix_types
@@ -302,6 +295,7 @@ def cli() -> None:
         out_dir=args.output_dir,
         cmd_file=args.commands_file,
         populations=pops,
+        heritabilities=heritabilities,
         matrix_filter=mfilter,
         processes=args.processes,
         skip_existing=args.skip_existing,
