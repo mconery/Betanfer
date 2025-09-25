@@ -46,10 +46,10 @@ def detect_matrix_subdirs(ld_base_dir: str, matrix_filter=None) -> List[str]:
     if not os.path.exists(ld_base_dir):
         print(f"⚠️  LD base directory does not exist: {ld_base_dir}")
         return []
-
+    
     common_pops = {"AFR", "EUR", "EAS", "SAS", "AMR"}
     matrix_types = []
-
+    
     for entry in os.listdir(ld_base_dir):
         mdir = os.path.join(ld_base_dir, entry)
         if not os.path.isdir(mdir):
@@ -58,14 +58,13 @@ def detect_matrix_subdirs(ld_base_dir: str, matrix_filter=None) -> List[str]:
             continue
         if any(os.path.isdir(os.path.join(mdir, p)) for p in common_pops):
             matrix_types.append(entry)
-
+    
     return matrix_types
 
 
 def parse_gwas_filename(fname: str) -> Dict[str, str] | None:
     """
     Expected pattern (same as in the original script):
-
         Pheno1.2_causal.heritability_0.05.continuous.chr1.step2.txt
                                               └────trait_type────┘
     """
@@ -73,7 +72,6 @@ def parse_gwas_filename(fname: str) -> Dict[str, str] | None:
     parts = base.split(".")
     if len(parts) < 5 or not parts[1].endswith("_causal"):
         return None
-
     pheno_causal = f"{parts[0]}.{parts[1]}"        # Pheno#.##_causal
     trait_type   = parts[-3]                       # continuous | binary_0.25
     chromosome   = parts[-2]                       # chr#
@@ -115,16 +113,13 @@ def process_one_pattern(
     """
     warnings: List[str] = []
     cmds: List[str] = []
-
     meta = parse_gwas_filename(os.path.basename(gwas_example_file))
     if meta is None:
         warnings.append(f"Unparsable GWAS file name: {gwas_example_file}")
         return cmds, warnings
-
     pheno_causal = meta["pheno_causal"]
     trait_type   = meta["trait_type"]
     chrom        = meta["chromosome"]
-
     # ------------------------------------------------------------------ GWAS
     gwas_files: Dict[str, str] = {}
     for pop in populations:
@@ -137,7 +132,6 @@ def process_one_pattern(
             warnings.append(f"Missing GWAS for {pop}: {pheno_causal}, {chrom}")
     if len(gwas_files) != len(populations):
         return cmds, warnings
-
     # ------------------------------------------------------------- phenotype
     pheno_files: Dict[str, str] = {}
     for pop in populations:
@@ -152,7 +146,6 @@ def process_one_pattern(
             warnings.append(f"Missing PHENO for {pop}: {pheno_causal}, {chrom}")
     if len(pheno_files) != len(populations):
         return cmds, warnings
-
     # -------------------------------------------------------------- matrices
     for m_type in matrix_types:
         ld_files: Dict[str, str] = {}
@@ -166,7 +159,6 @@ def process_one_pattern(
                     f"Missing LD for {m_type}/{pop}: {pheno_causal}")
         if len(ld_files) != len(populations):
             continue
-
         # Output path
         out_dir = os.path.join(out_base, m_type)
         Path(out_dir).mkdir(parents=True, exist_ok=True)
@@ -175,15 +167,12 @@ def process_one_pattern(
         )
         if skip_existing and os.path.isfile(out_file):
             continue
-
         # ---------------------------------------------------- build command
         gwas_list   = ",".join(gwas_files[p]  for p in populations)
         ld_list     = ",".join(ld_files[p]    for p in populations)
         pheno_list  = ",".join(pheno_files[p] for p in populations)
         labels_list = ",".join(populations)
-
         launcher = "Rscript" if wrapper.endswith(".R") else "python"
-
         cmd = (
             f"{launcher} {wrapper} "
             f"--gwas_files {gwas_list} "
@@ -193,7 +182,6 @@ def process_one_pattern(
             f"--ancestry_labels {labels_list}"
         )
         cmds.append(cmd)
-
     return cmds, warnings
 
 
@@ -219,13 +207,11 @@ def generate_multisusie_commands(
     if not matrix_types:
         print("❌ No matrix types detected – check --ld-dir or --matrix-types.")
         return
-
     # Discover unique GWAS patterns using the *first* population folder
     first_pop_dir = os.path.join(gwas_dir, populations[0])
     example_files = glob.glob(os.path.join(first_pop_dir, "*_causal*.step2.txt"))
     patterns: set[str] = set()
     gwas_example_list: List[str] = []
-
     for f in example_files:
         meta = parse_gwas_filename(os.path.basename(f))
         if meta:
@@ -233,7 +219,6 @@ def generate_multisusie_commands(
             if key not in patterns:
                 patterns.add(key)
                 gwas_example_list.append(f)
-
     # Parallel processing
     pool_size = processes or cpu_count()
     args_list = [
@@ -250,27 +235,22 @@ def generate_multisusie_commands(
         )
         for f in gwas_example_list
     ]
-
     all_cmds: List[str] = []
     all_warnings: List[str] = []
-
     with Pool(pool_size) as pool:
         for cmd_list, warn_list in pool.map(process_one_pattern, args_list):
             all_cmds.extend(cmd_list)
             all_warnings.extend(warn_list)
-
     # Write commands
     Path(Path(cmd_file).parent).mkdir(parents=True, exist_ok=True)
     with open(cmd_file, "w") as fh:
         for c in all_cmds:
             fh.write(c + "\n")
-
     print(f"✅  Wrote {len(all_cmds)} commands → {cmd_file}")
     if all_warnings:
         print(f"⚠️  {len(all_warnings)} warnings – see stderr for details")
         for w in all_warnings:
             print("  ", w)
-
 
 # ---------------------------------------------------------------------------
 # CLI
@@ -284,11 +264,9 @@ def cli() -> None:
     default_out    = f"{default_root}/multisusie_results"
     default_cmds   = f"{default_out}/multisusie_commands.txt"
     default_wrap   = f"{default_root}/finemap_MultiSuSiE.py"
-
     p = argparse.ArgumentParser(
         description="Generate command file for Multi-SuSiE fine-mapping."
     )
-
     p.add_argument("--wrapper-script", "-w", default=default_wrap,
                    help="Path to finemap_MultiSuSiE.{py|R}")
     p.add_argument("--gwas-dir", "-g", default=default_gwas,
@@ -310,14 +288,12 @@ def cli() -> None:
     p.add_argument("--skip-existing", "-s", action="store_true",
                    help="Skip loci whose output already exists")
     args = p.parse_args()
-
     pops = [s.strip().upper() for s in args.populations.split(",") if s.strip()]
     mfilter = (
         [m.strip() for m in args.matrix_types.split(",") if m.strip()]
         if args.matrix_types
         else None
     )
-
     generate_multisusie_commands(
         gwas_dir=args.gwas_dir,
         pheno_dir=args.pheno_dir,
