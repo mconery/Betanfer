@@ -16,6 +16,7 @@ import pandas as pd
 import numpy as np
 import re
 from typing import List, Dict, Tuple, Any
+import time
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
@@ -398,7 +399,8 @@ def run_multisusie(gwas_files, ld_files, pheno_files, ancestry_labels, args):
             prior_weights = np.array([float(w.strip()) for w in args.prior_weights.split(',')])
         print(f"Using prior weights: {prior_weights.shape if hasattr(prior_weights, 'shape') else len(prior_weights)} elements")
     
-    # Run MultiSuSiE
+    # Run MultiSuSiE with timing
+    start_time = time.time()
     result = MultiSuSiE.multisusie_rss(
         b_list=b_list,
         s_list=s_list,
@@ -415,6 +417,17 @@ def run_multisusie(gwas_files, ld_files, pheno_files, ancestry_labels, args):
         coverage=args.coverage,
         min_abs_corr=args.min_purity
     )
+    end_time = time.time()
+    elapsed_seconds = end_time - start_time
+    
+    #Write timing file
+    timing_dir = os.path.join(os.path.dirname(args.outputfile), "timing")
+    os.makedirs(timing_dir, exist_ok=True)
+    timing_file = os.path.join(timing_dir, os.path.basename(args.outputfile))
+    with open(timing_file, "w") as f:
+        f.write("multisusie_time_seconds\n")
+        f.write(f"{elapsed_seconds:.6f}\n")
+    print(f"Timing information written to {timing_file}")
     
     print("MultiSuSiE analysis completed successfully!")
     return result, summ_stat_list
