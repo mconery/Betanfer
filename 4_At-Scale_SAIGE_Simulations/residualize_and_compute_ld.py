@@ -99,6 +99,19 @@ def parse_args():
                        help="Count A1 alleles (like plink2 ALT). Default: count A2 alleles (like plink1.9).")
     return parser.parse_args()
 
+def remove_duplicate_variants(corr_matrix, snp_info):
+    variant_ids = snp_info['SNP'].values
+    _, unique_indices = np.unique(variant_ids, return_index=True)
+    mask = np.zeros_like(variant_ids, dtype=bool)
+    mask[unique_indices] = True
+    cleaned_corr_matrix = corr_matrix[np.ix_(mask, mask)]
+    cleaned_snp_info = snp_info.iloc[mask].reset_index(drop=True)
+    n_removed = len(variant_ids) - len(unique_indices)
+    if n_removed > 0:
+        print(f"Removed {n_removed} duplicate variants from LD matrix and variant list.")
+    return cleaned_corr_matrix, cleaned_snp_info
+
+
 def load_genotype_data(geno_file_prefix, count_a1=False):
     """Load PLINK binary format genotype data using pysnptools with correct allele encoding."""
     bed_file = f"{geno_file_prefix}.bed"
@@ -447,6 +460,7 @@ def write_output_files(corr_matrix, out_prefix, args, snp_info=None):
     vars_file = f"{out_prefix}.unphased.vcor1.vars"
     print(f'Saving variant list to {vars_file}')
     
+    
     if snp_info is not None and 'SNP' in snp_info.columns:
         # Use SNP IDs from snp_info DataFrame
         variant_ids = snp_info['SNP'].values
@@ -507,6 +521,8 @@ def main():
         # PyTorch-accelerated correlation computation
         corr_matrix = compute_correlation_matrix_pytorch(residual_genotypes, args.gpu_batch_size)
         
+        # Remove duplicates before output
+        corr_matrix, snp_info = remove_duplicate_variants(corr_matrix, snp_info)
         # Write output files
         write_output_files(corr_matrix, args.out_prefix, args, snp_info)
         
