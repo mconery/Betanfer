@@ -149,17 +149,7 @@ def prepare_script_tasks(variant_files, plink_dirs, populations, naming_conventi
                 # Step 2: Identify duplicates and create update file
                 # Create an awk script that identifies duplicates and creates update file
                 # Format: OLD_ID NEW_ID (where duplicates get renamed to "duplicated")
-                awk_script = """
-                awk '
-                {
-                    if (seen[$2]) {
-                        # This is a duplicate - mark it for renaming
-                        print $2 "\\tduplicated"
-                    } else {
-                        # First occurrence - mark as seen
-                        seen[$2] = 1
-                    }
-                }' """
+                awk_script = """awk '{if (seen[$2]) {print $2 "\\tduplicated"} else {seen[$2] = 1}}'"""
                 cmd_parts.append(f"{awk_script} {temp_prefix}.bim > {temp_prefix}.update_names.txt")
                 # Step 3: Apply name updates to rename duplicates
                 cmd_parts.append(f"{plink_path} --bfile {temp_prefix} --update-name {temp_prefix}.update_names.txt --make-bed --out {temp_prefix}.renamed")
