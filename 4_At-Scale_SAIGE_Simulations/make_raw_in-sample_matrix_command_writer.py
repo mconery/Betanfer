@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 
 """
-make_raw_matrix_command_writer_parallel.py
 
+make_raw_matrix_command_writer_parallel.py
 Parallelized version that creates individual shell scripts for LD matrix computation.
 Uses multiprocessing to speed up file writing operations across all available CPUs.
 For each text file whose first column contains variants in the form
+
 chrom:pos:ref:alt
+
 this script determines a locus window (min-pos – padding, max-pos + padding)
 and writes individual shell scripts that extract those windows from one or more plink
 datasets and compute LD matrices with `--r square --unphased`.
-MODIFICATION: Added duplicate variant removal using --update-name to prevent issues with fine-mapping algorithms.
+MODIFICATION: Added post-hoc duplicate removal using a Python helper script.
 
 Usage
 -----
@@ -23,7 +25,9 @@ python make_ld_commands.py \
 --variant_lists_file list_of_variant_files.txt \
 [--padding 250000] \
 [--n_processes 0] # 0 = use all available CPUs
+[--dedup_script /path/to/remove_matrix_duplicates.py] # Path to duplicate removal script
 The file *list_of_variant_files.txt* should contain one path per line.
+
 """
 
 import argparse
@@ -59,6 +63,8 @@ def parse_args():
                         help="Optional suffix to remove from variant file name when making matrix file (default [empty string]).")
     parser.add_argument("--n_processes", type=int, default=0,
                         help="Number of processes to use (0 = use all available CPUs).")
+    parser.add_argument("--dedup_script", type=str, default="remove_matrix_duplicates.py",
+                        help="Path to the duplicate removal helper script (default: remove_matrix_duplicates.py in current directory).")
     return parser.parse_args()
 
 def find_plink_root(plink_dir, naming_convention, chrom):
@@ -108,6 +114,7 @@ def write_script_batch(script_batch_info):
             script_content = dedent(f"""#!/bin/bash
 set -e
 # Generated script for locus {locus_name}, population {pop}
+
 {cmd}
 """)
             with open(script_path, 'w') as script_fh:
@@ -119,8 +126,9 @@ set -e
             print(f"Error writing script {script_counter}: {e}")
             continue
     return written_scripts
+
 def prepare_script_tasks(variant_files, plink_dirs, populations, naming_conventions,
-                        matrix_root, script_dir, plink_path, padding, variant_file_suffix):
+                        matrix_root, script_dir, plink_path, padding, variant_file_suffix, dedup_script_path):
     """
     Prepare all script writing tasks without actually writing them.
     Returns a list of tasks that can be distributed to worker processes.
@@ -140,38 +148,16 @@ def prepare_script_tasks(variant_files, plink_dirs, populations, naming_conventi
                 #Check if output files exist and skip if it does
                 if os.path.exists(f"{out_prefix}.unphased.vcor1") and os.path.exists(f"{out_prefix}.unphased.vcor1.vars"):
                     continue
-                # MODIFIED COMMAND: Use --update-name approach to handle duplicates
-                # Step 1: Extract region to temporary files
-                temp_prefix = f"{out_prefix}.temp_dedup"              
-                cmd_parts = []                
-                # Extract the region and create temporary plink files
-                cmd_parts.append(f"{plink_path} --bfile {plink_root} --chr {chrom} --from-bp {start} --to-bp {end} --keep-allele-order --make-bed --out {temp_prefix}")
-                # Step 2: Identify duplicates and create update file
-                # Create an awk script that identifies duplicates and creates update file
-                # Format: OLD_ID NEW_ID (where duplicates get renamed to "duplicated")
-                awk_script = """awk '{if (seen[$2]) {print $2 "\\tduplicated"} else {seen[$2] = 1}}'"""
-                cmd_parts.append(f"{awk_script} {temp_prefix}.bim > {temp_prefix}.update_names.txt")
-                # Step 3: Apply name updates to rename duplicates
-                cmd_parts.append(f"{plink_path} --bfile {temp_prefix} --update-name {temp_prefix}.update_names.txt --make-bed --out {temp_prefix}.renamed")
-                # Step 4: Create exclusion list for variants named "duplicated"
-                cmd_parts.append(f"echo 'duplicated' > {temp_prefix}.exclude_dups.txt")
-                # Step 5: Remove duplicated variants
-                cmd_parts.append(f"{plink_path} --bfile {temp_prefix}.renamed --exclude {temp_prefix}.exclude_dups.txt --keep-allele-order --make-bed --out {temp_prefix}.dedup")
-                # Step 6: Compute LD matrix on deduplicated data
-                cmd_parts.append(f"{plink_path} --bfile {temp_prefix}.dedup --r square --out {out_prefix}")
-                # Step 7: Rename LD matrix file and create variant list
+                # Generate LD matrix and variant files
+                cmd_parts = []           
+                # Step 1: Generate LD matrix with PLINK (original command)
+                cmd_parts.append(f"{plink_path} --bfile {plink_root} --chr {chrom} --from-bp {start} --to-bp {end} --keep-allele-order --r square --make-just-bim --out {out_prefix}")
+                # Step 2: Rename and create variant files (original commands)
                 cmd_parts.append(f"mv {out_prefix}.ld {out_prefix}.unphased.vcor1")
-                cmd_parts.append(f"awk '{{print $2}}' {temp_prefix}.dedup.bim > {out_prefix}.unphased.vcor1.vars")
-                # Step 8: Clean up temporary files
-                cleanup_files = [
-                    f"{temp_prefix}.bed", f"{temp_prefix}.bim", f"{temp_prefix}.fam",
-                    f"{temp_prefix}.update_names.txt", 
-                    f"{temp_prefix}.renamed.bed", f"{temp_prefix}.renamed.bim", f"{temp_prefix}.renamed.fam",
-                    f"{temp_prefix}.exclude_dups.txt",
-                    f"{temp_prefix}.dedup.bed", f"{temp_prefix}.dedup.bim", f"{temp_prefix}.dedup.fam",
-                    f"{out_prefix}.log", f"{out_prefix}.nosex"
-                ]
-                cmd_parts.append("rm -f " + " ".join(cleanup_files))
+                cmd_parts.append(f"awk '{{print $2}}' {out_prefix}.bim > {out_prefix}.unphased.vcor1.vars")
+                cmd_parts.append(f"rm {out_prefix}.bim")
+                # Step 3: Call duplicate removal helper script
+                cmd_parts.append(f"python {dedup_script_path} {out_prefix}.unphased.vcor1 {out_prefix}.unphased.vcor1.vars")
                 # Join all command parts
                 cmd = "; ".join(cmd_parts)
                 # Add task to list
@@ -198,6 +184,14 @@ def main():
     plink = "/lustre/orion/bif154/proj-shared/mconery/tools/bin/plink"
     # Parse arguments
     args = parse_args()
+    # Verify deduplication script exists
+    dedup_script_path = Path(args.dedup_script)
+    if not dedup_script_path.is_absolute():
+        # If relative path, make it relative to the current working directory
+        dedup_script_path = Path.cwd() / dedup_script_path
+    if not dedup_script_path.exists():
+        raise FileNotFoundError(f"Deduplication script not found: {dedup_script_path}")
+    print(f"Using deduplication script: {dedup_script_path}")
     # Determine number of processes
     if args.n_processes <= 0:
         n_processes = mp.cpu_count()
@@ -231,7 +225,7 @@ def main():
     print("Preparing script tasks...")
     all_tasks = prepare_script_tasks(
         variant_files, plink_dirs, populations, naming_conventions,
-        matrix_root, script_dir, plink, args.padding, args.variant_file_suffix
+        matrix_root, script_dir, plink, args.padding, args.variant_file_suffix, str(dedup_script_path)
     )
     print(f"Prepared {len(all_tasks)} script writing tasks")
     if not all_tasks:
@@ -265,6 +259,8 @@ def main():
     print(f"SUCCESS: Created {len(all_script_paths)} shell scripts in {args.script_dir}")
     print(f"Script list written to {args.script_list_file}")
     print(f"Used {n_processes} processes for parallel generation")
+    print(f"Each script will use deduplication helper: {dedup_script_path}")
 
 if __name__ == "__main__":
+
     main()
