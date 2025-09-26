@@ -149,6 +149,146 @@ def delete_susiex_output_files(output_file):
     else:
         print("No SuSiEx output files found to delete")
 
+def remove_duplicates_from_frq_file(frq_file):
+    """
+    Read a PLINK .frq file, remove duplicate variants, and rewrite the file.
+    Preserves the original file delimiter and header structure.
+    """
+    if not os.path.exists(frq_file):
+        print(f"[DEDUP] ERROR: Frequency file not found: {frq_file}")
+        return False
+
+    print(f"[DEDUP] Checking for duplicates in: {frq_file}")
+
+    try:
+        # Read the file and detect delimiter
+        with open(frq_file, 'r') as f:
+            first_line = f.readline().strip()
+            second_line = f.readline().strip() if f.tell() < os.path.getsize(frq_file) else ""
+
+        # Detect delimiter by checking common separators
+        delimiter = '\t'  # Default to tab
+        if first_line.count(' ') > first_line.count('\t') and second_line.count(' ') > second_line.count('\t'):
+            delimiter = ' '
+        elif first_line.count(',') > first_line.count('\t'):
+            delimiter = ','
+
+        print(f"[DEDUP] Detected delimiter: {'TAB' if delimiter == chr(9) else repr(delimiter)}")
+
+        # Read the entire file
+        df = pd.read_csv(frq_file, sep=delimiter, dtype=str)
+        original_count = len(df)
+
+        if original_count == 0:
+            print(f"[DEDUP] WARNING: Frequency file is empty")
+            return True
+
+        # Identify duplicate variants based on SNP column (usually column 1 in PLINK .frq files)
+        # PLINK .frq file typically has columns: CHR SNP A1 A2 MAF NCHROBS
+        if 'SNP' in df.columns:
+            snp_col = 'SNP'
+        elif len(df.columns) >= 2:
+            snp_col = df.columns[1]  # Second column is usually SNP
+        else:
+            print(f"[DEDUP] ERROR: Cannot identify SNP column in {frq_file}")
+            return False
+
+        # Find duplicates
+        duplicates = df[df.duplicated(subset=[snp_col], keep=False)]
+        n_duplicates = len(duplicates)
+
+        if n_duplicates == 0:
+            print(f"[DEDUP] No duplicates found in {frq_file}")
+            return True
+
+        print(f"[DEDUP] Found {n_duplicates} duplicate variants")
+        duplicate_snps = duplicates[snp_col].unique()
+        print(f"[DEDUP] Duplicate SNP IDs: {duplicate_snps[:10]}{'...' if len(duplicate_snps) > 10 else ''}")
+
+        # Remove duplicates, keeping the first occurrence
+        df_dedup = df.drop_duplicates(subset=[snp_col], keep='first')
+        final_count = len(df_dedup)
+        removed_count = original_count - final_count
+
+        print(f"[DEDUP] Removed {removed_count} duplicate variants")
+        print(f"[DEDUP] Final variant count: {final_count}")
+
+        # Write back to the same file, preserving the delimiter
+        df_dedup.to_csv(frq_file, sep=delimiter, index=False, na_rep='NA')
+
+        print(f"[DEDUP] Successfully rewrote {frq_file} without duplicates")
+        return True
+
+    except Exception as e:
+        print(f"[DEDUP] ERROR: Failed to process {frq_file}: {e}")
+        return False
+
+def remove_duplicates_from_bim_file(bim_file):
+    """
+    Read a PLINK .bim file, remove duplicate variants, and rewrite the file.
+    Preserves the original file delimiter (typically tab) and structure.
+    .bim files have columns: CHR SNP MORGANS BP A1 A2
+    """
+    if not os.path.exists(bim_file):
+        print(f"[DEDUP BIM] ERROR: .bim file not found: {bim_file}")
+        return False
+
+    print(f"[DEDUP BIM] Checking for duplicates in: {bim_file}")
+
+    try:
+        # Read the file and detect delimiter
+        with open(bim_file, 'r') as f:
+            first_line = f.readline().strip()
+            second_line = f.readline().strip() if f.tell() < os.path.getsize(bim_file) else ""
+
+        # Detect delimiter (typically tab for .bim files)
+        delimiter = '\t'  # Default to tab
+        if first_line.count(' ') > first_line.count('\t') and second_line.count(' ') > second_line.count('\t'):
+            delimiter = ' '
+        elif first_line.count(',') > first_line.count('\t'):
+            delimiter = ','
+
+        print(f"[DEDUP BIM] Detected delimiter: {'TAB' if delimiter == chr(9) else repr(delimiter)}")
+
+        # Read the entire file - .bim files don't have headers
+        column_names = ['CHR', 'SNP', 'MORGANS', 'BP', 'A1', 'A2']
+        df = pd.read_csv(bim_file, sep=delimiter, header=None, names=column_names, dtype=str)
+        original_count = len(df)
+
+        if original_count == 0:
+            print(f"[DEDUP BIM] WARNING: .bim file is empty")
+            return True
+
+        # Find duplicates based on SNP column (column 1, 0-indexed)
+        duplicates = df[df.duplicated(subset=['SNP'], keep=False)]
+        n_duplicates = len(duplicates)
+
+        if n_duplicates == 0:
+            print(f"[DEDUP BIM] No duplicates found in {bim_file}")
+            return True
+
+        print(f"[DEDUP BIM] Found {n_duplicates} duplicate variants")
+        duplicate_snps = duplicates['SNP'].unique()
+        print(f"[DEDUP BIM] Duplicate SNP IDs: {duplicate_snps[:10]}{'...' if len(duplicate_snps) > 10 else ''}")
+
+        # Remove duplicates, keeping the first occurrence
+        df_dedup = df.drop_duplicates(subset=['SNP'], keep='first')
+        final_count = len(df_dedup)
+        removed_count = original_count - final_count
+
+        print(f"[DEDUP BIM] Removed {removed_count} duplicate variants")
+        print(f"[DEDUP BIM] Final variant count: {final_count}")
+
+        # Write back to the same file, preserving the delimiter and NO header
+        df_dedup.to_csv(bim_file, sep=delimiter, index=False, header=False, na_rep='NA')
+
+        print(f"[DEDUP BIM] Successfully rewrote {bim_file} without duplicates")
+        return True
+
+    except Exception as e:
+        print(f"[DEDUP BIM] ERROR: Failed to process {bim_file}: {e}")
+        return False
+
 def read_vars_file(vars_file):
     """Reads variant IDs from .vars file. Returns chromosome, min_bp, max_bp."""
     variant_ids = []
@@ -227,9 +367,10 @@ def generate_plink_ref_bim_file(ld_prefix, vars_file, chrom, bp_start, bp_end, p
     """
     Generate the _ref.bim file that SuSiEx expects using PLINK.
     This creates ld_prefix_ref.bim with the variants specified in the .vars file.
+    After generation, removes duplicate variants from the .bim file.
     """
     print(f"[PLINK REF.BIM] Generating _ref.bim file for {ld_prefix}")
-    
+
     # If no reference panel provided, look for common patterns
     if ref_panel is None:
         possible_refs = [
@@ -238,18 +379,18 @@ def generate_plink_ref_bim_file(ld_prefix, vars_file, chrom, bp_start, bp_end, p
             f"{os.path.dirname(ld_prefix)}/reference",
             f"{os.path.dirname(ld_prefix)}/ref"
         ]
-        
+
         for ref_candidate in possible_refs:
             if os.path.exists(f"{ref_candidate}.bed"):
                 ref_panel = ref_candidate
                 print(f"[PLINK REF.BIM] Found reference panel: {ref_panel}")
                 break
-        
+
         if ref_panel is None:
             print(f"[PLINK REF.BIM] ERROR: No reference panel found for {ld_prefix}")
             print(f"[PLINK REF.BIM] Please provide --ref_panels argument or ensure reference files exist")
             return False
-    
+
     # Run PLINK to generate reference subset that matches the LD matrix
     ref_output = f"{ld_prefix}_ref"
     plink_cmd = [
@@ -263,36 +404,45 @@ def generate_plink_ref_bim_file(ld_prefix, vars_file, chrom, bp_start, bp_end, p
         '--make-bed',
         '--out', ref_output
     ]
-    
+
     print(f"[PLINK REF.BIM] Running: {' '.join(plink_cmd)}")
-    
+
     try:
         result = subprocess.run(plink_cmd, check=True, capture_output=True, text=True)
         print(f"[PLINK REF.BIM] PLINK reference subset generation completed")
-        
+
         # Check if _ref.bim file was created
         ref_bim_file = f"{ref_output}.bim"
         if os.path.exists(ref_bim_file):
-            # Count variants
+            # Count variants before duplicate removal
             with open(ref_bim_file, 'r') as f:
-                n_variants = sum(1 for line in f)
-            print(f"[PLINK REF.BIM] Generated _ref.bim file: {ref_bim_file} ({n_variants} variants)")
-            
+                n_variants_before = sum(1 for line in f)
+            print(f"[PLINK REF.BIM] Generated _ref.bim file: {ref_bim_file} ({n_variants_before} variants)")
+
+            # Remove duplicates from the .bim file
+            if remove_duplicates_from_bim_file(ref_bim_file):
+                # Count variants after duplicate removal
+                with open(ref_bim_file, 'r') as f:
+                    n_variants_after = sum(1 for line in f)
+                print(f"[PLINK REF.BIM] Final _ref.bim file: {ref_bim_file} ({n_variants_after} variants)")
+            else:
+                print(f"[PLINK REF.BIM] WARNING: Failed to remove duplicates from {ref_bim_file}")
+
             # Clean up temporary files, but keep the _ref.bim file
             for temp_file in [f"{ref_output}.log", f"{ref_output}.nosex"]:
                 if os.path.exists(temp_file):
                     os.remove(temp_file)
-            
+
             # Remove .bed and .fam files as SuSiEx only needs .bim
             for temp_file in [f"{ref_output}.bed", f"{ref_output}.fam"]:
                 if os.path.exists(temp_file):
                     os.remove(temp_file)
-            
+
             return ref_bim_file
         else:
             print(f"[PLINK REF.BIM] ERROR: Expected _ref.bim file {ref_bim_file} was not created")
             return False
-            
+
     except subprocess.CalledProcessError as e:
         print(f"[PLINK REF.BIM] ERROR: PLINK failed with return code {e.returncode}")
         if e.stdout:
@@ -300,14 +450,14 @@ def generate_plink_ref_bim_file(ld_prefix, vars_file, chrom, bp_start, bp_end, p
         if e.stderr:
             print(f"[PLINK REF.BIM] STDERR: {e.stderr}")
         return False
-
 def generate_plink_frequency_file(ld_prefix, vars_file, chrom, bp_start, bp_end, plink_bin, ref_panel=None):
     """
     Generate PLINK-format frequency file using PLINK directly.
     If ref_panel is provided, use it. Otherwise, try to find a reference panel.
+    After generation, removes duplicate variants from the .frq file.
     """
     print(f"[PLINK FREQ] Generating frequency file for {ld_prefix}")
-    
+
     # If no reference panel provided, look for common patterns
     if ref_panel is None:
         # Try common reference panel naming patterns
@@ -317,18 +467,18 @@ def generate_plink_frequency_file(ld_prefix, vars_file, chrom, bp_start, bp_end,
             f"{os.path.dirname(ld_prefix)}/reference",
             f"{os.path.dirname(ld_prefix)}/ref"
         ]
-        
+
         for ref_candidate in possible_refs:
             if os.path.exists(f"{ref_candidate}.bed"):
                 ref_panel = ref_candidate
                 print(f"[PLINK FREQ] Found reference panel: {ref_panel}")
                 break
-        
+
         if ref_panel is None:
             print(f"[PLINK FREQ] ERROR: No reference panel found for {ld_prefix}")
             print(f"[PLINK FREQ] Please provide --ref_panels argument or ensure reference files exist")
             return False
-        
+
     # Run PLINK to generate frequency file
     freq_output = f"{ld_prefix}_frq"
     plink_cmd = [
@@ -341,31 +491,40 @@ def generate_plink_frequency_file(ld_prefix, vars_file, chrom, bp_start, bp_end,
         '--freq', '--keep-allele-order',
         '--out', freq_output
     ]
-    
+
     print(f"[PLINK FREQ] Running: {' '.join(plink_cmd)}")
-    
+
     try:
         result = subprocess.run(plink_cmd, check=True, capture_output=True, text=True)
         print(f"[PLINK FREQ] PLINK frequency calculation completed")
-        
+
         # Check if frequency file was created
         freq_file = f"{freq_output}.frq"
         if os.path.exists(freq_file):
-            # Count variants
+            # Count variants before duplicate removal
             with open(freq_file, 'r') as f:
-                n_variants = sum(1 for line in f) - 1  # Subtract header
-            print(f"[PLINK FREQ] Generated frequency file: {freq_file} ({n_variants} variants)")
-            
+                n_variants_before = sum(1 for line in f) - 1  # Subtract header
+            print(f"[PLINK FREQ] Generated frequency file: {freq_file} ({n_variants_before} variants)")
+
+            # Remove duplicates from the .frq file
+            if remove_duplicates_from_frq_file(freq_file):
+                # Count variants after duplicate removal
+                with open(freq_file, 'r') as f:
+                    n_variants_after = sum(1 for line in f) - 1  # Subtract header
+                print(f"[PLINK FREQ] Final frequency file: {freq_file} ({n_variants_after} variants)")
+            else:
+                print(f"[PLINK FREQ] WARNING: Failed to remove duplicates from {freq_file}")
+
             # Clean up temporary files
             for temp_file in [f"{freq_output}.log", f"{freq_output}.nosex"]:
                 if os.path.exists(temp_file):
                     os.remove(temp_file)
-            
+
             return freq_file
         else:
             print(f"[PLINK FREQ] ERROR: Expected frequency file {freq_file} was not created")
             return False
-            
+
     except subprocess.CalledProcessError as e:
         print(f"[PLINK FREQ] ERROR: PLINK failed with return code {e.returncode}")
         if e.stdout:
@@ -373,7 +532,6 @@ def generate_plink_frequency_file(ld_prefix, vars_file, chrom, bp_start, bp_end,
         if e.stderr:
             print(f"[PLINK FREQ] STDERR: {e.stderr}")
         return False
-
 def extract_population_names(gwas_files):
     """Extract population names from GWAS file paths."""
     pop_names = []
