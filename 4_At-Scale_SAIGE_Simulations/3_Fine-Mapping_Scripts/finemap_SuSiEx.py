@@ -960,15 +960,18 @@ def main():
     finally:
         # Clean up frequency files
         if 'frq_files' in locals():
-            cleanup_frequency_files(frq_files)
+            #cleanup_frequency_files(frq_files)
+            pass
         
         # Clean up _ref.bim files (commented out for safety)
         if 'ref_bim_files' in locals():
-            delete_ref_bim_files(ref_bim_files)
+            #delete_ref_bim_files(ref_bim_files)
+            pass
         
         # Clean up bin4 files (commented out for safety)
         if bin4_created:
             delete_bin4_files(bin4_created)
+            pass
 
 if __name__ == '__main__':
     main()
