@@ -128,6 +128,17 @@ def process_single_result_file(args: Tuple[str, str]) -> Optional[Dict]:
         # Count causal variants in credible sets
         causal_in_cs = sum(1 for variant in cs_variants['VARIANT_ID'] if variant in causal_variants)
         
+        # Count number of non-zero credible sets mapped at this locus
+        num_credible_sets = len(cs_variants['cs'].unique()) if len(cs_variants) > 0 else 0
+        
+        # Count number of credible sets that contain at least one true causal variant
+        credible_sets_with_causal = 0
+        if len(cs_variants) > 0:
+            for cs_id in cs_variants['cs'].unique():
+                cs_variants_in_set = cs_variants[cs_variants['cs'] == cs_id]['VARIANT_ID']
+                if any(variant in causal_variants for variant in cs_variants_in_set):
+                    credible_sets_with_causal += 1
+        
         # Calculate average number of variants per credible set
         if len(cs_variants) > 0:
             cs_counts = cs_variants['cs'].value_counts()
@@ -162,6 +173,8 @@ def process_single_result_file(args: Tuple[str, str]) -> Optional[Dict]:
             'phenotype_number': pheno_num,
             'causal_variant_count': causal_count,
             'causal_in_credible_sets': causal_in_cs,
+            'num_credible_sets': num_credible_sets,
+            'credible_sets_with_causal': credible_sets_with_causal,
             'avg_variants_per_cs': round(avg_variants_per_cs, 3),
             'causal_variant_pips': ','.join(map(str, causal_pips)),
             'method': method or 'unknown',
@@ -169,7 +182,8 @@ def process_single_result_file(args: Tuple[str, str]) -> Optional[Dict]:
             'result_file': result_file_path
         }
         
-        logger.debug(f"Processed {filename}: {causal_in_cs}/{causal_count} causal variants in CS")
+        logger.debug(f"Processed {filename}: {causal_in_cs}/{causal_count} causal variants in CS, "
+                    f"{num_credible_sets} total credible sets, {credible_sets_with_causal} contain causal variants")
         return result_dict
         
     except Exception as e:
@@ -191,7 +205,6 @@ def find_all_result_files(results_base_dir: str, methods: List[str] = None) -> L
         methods = ['susie', 'carma', 'rsparsepro', 'susiex', 'mesusie', 'multisusie']
     
     result_files = []
-    
     for method in methods:
         method_dir = os.path.join(results_base_dir, f"{method}_results")
         if os.path.exists(method_dir):
@@ -227,7 +240,7 @@ def validate_directory_structure(causal_variants_dir: str, results_base_dir: str
         valid = False
     else:
         # Check for causal variant files
-        causal_files = [f for f in os.listdir(causal_variants_dir) 
+        causal_files = [f for f in os.listdir(causal_variants_dir)
                        if f.endswith('.variant_set.txt') and 'Pheno' in f]
         if not causal_files:
             logger.warning(f"No causal variant files found in {causal_variants_dir}")
@@ -272,7 +285,6 @@ def collate_fine_mapping_results(
         n_processes: Number of processes for parallel processing (default: CPU count)
         methods: List of method names to process (default: all standard methods)
     """
-    
     if n_processes is None:
         n_processes = cpu_count()
     
@@ -285,7 +297,6 @@ def collate_fine_mapping_results(
     
     # Find all result files
     result_files = find_all_result_files(results_base_dir, methods)
-    
     if not result_files:
         logger.error("No result files found!")
         return
@@ -300,7 +311,6 @@ def collate_fine_mapping_results(
     
     # Filter out None results and convert to DataFrame
     valid_results = [r for r in results if r is not None]
-    
     if not valid_results:
         logger.error("No valid results processed!")
         return
@@ -312,10 +322,12 @@ def collate_fine_mapping_results(
     
     # Reorder columns for the output
     output_columns = [
-        'phenotype_number', 
-        'causal_variant_count', 
+        'phenotype_number',
+        'causal_variant_count',
         'causal_in_credible_sets',
-        'avg_variants_per_cs', 
+        'num_credible_sets',
+        'credible_sets_with_causal',
+        'avg_variants_per_cs',
         'causal_variant_pips',
         'method',
         'ld_matrix'
@@ -350,54 +362,54 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Example usage:
-    python fine_mapping_collator.py \\
-        --causal-dir /path/to/causal_variants \\
-        --results-dir /path/to/fine-mapping_results \\
-        --output summary_results.txt \\
-        --processes 8
-        """
+  python fine_mapping_collator.py \\
+    --causal-dir /path/to/causal_variants \\
+    --results-dir /path/to/fine-mapping_results \\
+    --output summary_results.txt \\
+    --processes 8
+"""
     )
     
     parser.add_argument(
-        '--causal-dir', 
+        '--causal-dir',
         required=True,
         help='Directory containing causal variant files'
     )
     
     parser.add_argument(
-        '--results-dir', 
+        '--results-dir',
         required=True,
         help='Base directory containing fine-mapping results'
     )
     
     parser.add_argument(
-        '--output', 
+        '--output',
         default='fine_mapping_summary_results.txt',
         help='Output summary file path (default: fine_mapping_summary_results.txt)'
     )
     
     parser.add_argument(
-        '--processes', 
-        type=int, 
+        '--processes',
+        type=int,
         default=None,
         help='Number of processes for parallel processing (default: all available CPUs)'
     )
     
     parser.add_argument(
-        '--methods', 
+        '--methods',
         nargs='+',
         default=['susie', 'carma', 'rsparsepro', 'susiex', 'mesusie', 'multisusie'],
         help='Fine-mapping methods to process (default: all standard methods)'
     )
     
     parser.add_argument(
-        '--validate-only', 
+        '--validate-only',
         action='store_true',
         help='Only validate directory structure without processing'
     )
     
     parser.add_argument(
-        '--verbose', 
+        '--verbose',
         action='store_true',
         help='Enable verbose logging'
     )
