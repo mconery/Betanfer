@@ -421,9 +421,9 @@ def run_multisusie(gwas_files, ld_files, pheno_files, ancestry_labels, args):
     elapsed_seconds = end_time - start_time
     
     #Write timing file
-    timing_dir = os.path.join(os.path.dirname(args.outputfile), "timing")
+    timing_dir = os.path.join(os.path.dirname(args.output_file), "timing")
     os.makedirs(timing_dir, exist_ok=True)
-    timing_file = os.path.join(timing_dir, os.path.basename(args.outputfile))
+    timing_file = os.path.join(timing_dir, os.path.basename(args.output_file))
     with open(timing_file, "w") as f:
         f.write("multisusie_time_seconds\n")
         f.write(f"{elapsed_seconds:.6f}\n")
