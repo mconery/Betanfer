@@ -271,7 +271,7 @@ def cli() -> None:
                    help="Destination *.txt file holding all commands")
     p.add_argument("--populations", "-P", default="AFR,EUR",
                    help="Comma-delimited population codes (default: AFR,EUR)")
-    p.add_argument("--heritabilities", "-h", default="0.0003,0.0003",
+    p.add_argument("--heritabilities", "-b", default="0.0003,0.0003",
                    help="Comma-delimited trait heritabilities (default: 0.0003,0.0003)")
     p.add_argument("--matrix-types", "-m", default=None,
                    help="Comma list of matrix types to keep (else: all)")
