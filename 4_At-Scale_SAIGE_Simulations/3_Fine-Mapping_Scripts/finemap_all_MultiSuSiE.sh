@@ -3,8 +3,8 @@
 #SBATCH -A bif154
 #SBATCH -J MultiSuSiE_finemap
 #SBATCH -o finemap_MultiSuSiE.log
-#SBATCH -N 30
-#SBATCH -p batch
+#SBATCH -N 10
+#SBATCH -q debug
 #SBATCH -t 1:00:00
 
 ################################################################################################################
