@@ -209,6 +209,9 @@ def load_gwas_data_to_common_variants(gwas_file: str, detected_cols: Dict[str, s
     if snp_col is None or snp_col not in gwas_df.columns:
         raise ValueError(f'SNP column not found in GWAS file: {gwas_file}')
     
+    #Drop duplicate variants
+    gwas_df = gwas_df.drop_duplicates(subset=[snp_col])
+    
     # Filter to common variants
     gwas_sub = gwas_df[gwas_df[snp_col].isin(common_variants)]
     if gwas_sub.empty:
@@ -452,7 +455,7 @@ def save_results(multisusie_result, summ_stat_list, ancestry_labels, output_file
     # Add credible set assignments
     df['cs'] = 0
     if hasattr(multisusie_result, 'sets'):
-        for i in range(len(multisusie_result.sets)):
+        for i in range(len(multisusie_result.sets[0])):
             cslist=multisusie_result.sets[0][i]
             for indx in cslist:
                 if indx < len(df):
