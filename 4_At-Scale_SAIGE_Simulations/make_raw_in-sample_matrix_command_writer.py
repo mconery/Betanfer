@@ -3,19 +3,22 @@
 """
 
 make_raw_matrix_command_writer_parallel.py
+
 Parallelized version that creates individual shell scripts for LD matrix computation.
 Uses multiprocessing to speed up file writing operations across all available CPUs.
 For each text file whose first column contains variants in the form
-
 chrom:pos:ref:alt
-
 this script determines a locus window (min-pos – padding, max-pos + padding)
 and writes individual shell scripts that extract those windows from one or more plink
 datasets and compute LD matrices with `--r square --unphased`.
+
 MODIFICATION: Added post-hoc duplicate removal using a Python helper script.
+MODIFICATION: Added --keep-individuals flag to filter individuals using plink's --keep option.
 
 Usage
+
 -----
+
 python make_ld_commands.py \
 --script_dir /path/to/script_directory \
 --script_list_file /path/to/script_list.txt \
@@ -26,6 +29,8 @@ python make_ld_commands.py \
 [--padding 250000] \
 [--n_processes 0] # 0 = use all available CPUs
 [--dedup_script /path/to/remove_matrix_duplicates.py] # Path to duplicate removal script
+[--keep_individuals /path/to/individuals_to_keep.txt] # Path to file with individuals to keep
+
 The file *list_of_variant_files.txt* should contain one path per line.
 
 """
@@ -65,6 +70,8 @@ def parse_args():
                         help="Number of processes to use (0 = use all available CPUs).")
     parser.add_argument("--dedup_script", type=str, default="remove_matrix_duplicates.py",
                         help="Path to the duplicate removal helper script (default: remove_matrix_duplicates.py in current directory).")
+    parser.add_argument("--keep_individuals", type=str, default=None,
+                        help="Path to file containing individuals to keep (compatible with plink --keep format). Optional.")
     return parser.parse_args()
 
 def find_plink_root(plink_dir, naming_convention, chrom):
@@ -114,7 +121,6 @@ def write_script_batch(script_batch_info):
             script_content = dedent(f"""#!/bin/bash
 set -e
 # Generated script for locus {locus_name}, population {pop}
-
 {cmd}
 """)
             with open(script_path, 'w') as script_fh:
@@ -128,7 +134,8 @@ set -e
     return written_scripts
 
 def prepare_script_tasks(variant_files, plink_dirs, populations, naming_conventions,
-                        matrix_root, script_dir, plink_path, padding, variant_file_suffix, dedup_script_path):
+                        matrix_root, script_dir, plink_path, padding, variant_file_suffix, 
+                        dedup_script_path, keep_individuals_file=None):
     """
     Prepare all script writing tasks without actually writing them.
     Returns a list of tasks that can be distributed to worker processes.
@@ -149,9 +156,13 @@ def prepare_script_tasks(variant_files, plink_dirs, populations, naming_conventi
                 if os.path.exists(f"{out_prefix}.unphased.vcor1") and os.path.exists(f"{out_prefix}.unphased.vcor1.vars"):
                     continue
                 # Generate LD matrix and variant files
-                cmd_parts = []           
+                cmd_parts = []
                 # Step 1: Generate LD matrix with PLINK (original command)
-                cmd_parts.append(f"{plink_path} --bfile {plink_root} --chr {chrom} --from-bp {start} --to-bp {end} --keep-allele-order --r square --make-just-bim --out {out_prefix}")
+                # Add --keep flag if individuals file is provided
+                plink_cmd = f"{plink_path} --bfile {plink_root} --chr {chrom} --from-bp {start} --to-bp {end} --keep-allele-order --r square --make-just-bim --out {out_prefix}"
+                if keep_individuals_file:
+                    plink_cmd = f"{plink_path} --bfile {plink_root} --keep {keep_individuals_file} --chr {chrom} --from-bp {start} --to-bp {end} --keep-allele-order --r square --make-just-bim --out {out_prefix}"
+                cmd_parts.append(plink_cmd)
                 # Step 2: Rename and create variant files (original commands)
                 cmd_parts.append(f"mv {out_prefix}.ld {out_prefix}.unphased.vcor1")
                 cmd_parts.append(f"awk '{{print $2}}' {out_prefix}.bim > {out_prefix}.unphased.vcor1.vars")
@@ -192,6 +203,16 @@ def main():
     if not dedup_script_path.exists():
         raise FileNotFoundError(f"Deduplication script not found: {dedup_script_path}")
     print(f"Using deduplication script: {dedup_script_path}")
+    # Verify individuals file exists if provided
+    keep_individuals_file = None
+    if args.keep_individuals:
+        keep_individuals_path = Path(args.keep_individuals)
+        if not keep_individuals_path.exists():
+            raise FileNotFoundError(f"Individuals file not found: {keep_individuals_path}")
+        keep_individuals_file = str(keep_individuals_path.resolve())
+        print(f"Using individuals file for filtering: {keep_individuals_file}")
+    else:
+        print("No individual filtering will be applied")
     # Determine number of processes
     if args.n_processes <= 0:
         n_processes = mp.cpu_count()
@@ -225,7 +246,8 @@ def main():
     print("Preparing script tasks...")
     all_tasks = prepare_script_tasks(
         variant_files, plink_dirs, populations, naming_conventions,
-        matrix_root, script_dir, plink, args.padding, args.variant_file_suffix, str(dedup_script_path)
+        matrix_root, script_dir, plink, args.padding, args.variant_file_suffix, 
+        str(dedup_script_path), keep_individuals_file
     )
     print(f"Prepared {len(all_tasks)} script writing tasks")
     if not all_tasks:
@@ -248,9 +270,9 @@ def main():
         # Multiple processes
         with mp.Pool(processes=n_processes) as pool:
             results = pool.map(write_script_batch, batch_infos)
-        # Collect all script paths
-        for script_paths in results:
-            all_script_paths.extend(script_paths)
+            # Collect all script paths
+            for script_paths in results:
+                all_script_paths.extend(script_paths)
     # Write list of all script paths
     print(f"Writing script list to {args.script_list_file}...")
     with open(args.script_list_file, 'w') as list_fh:
@@ -260,7 +282,8 @@ def main():
     print(f"Script list written to {args.script_list_file}")
     print(f"Used {n_processes} processes for parallel generation")
     print(f"Each script will use deduplication helper: {dedup_script_path}")
+    if keep_individuals_file:
+        print(f"Individual filtering will be applied using: {keep_individuals_file}")
 
 if __name__ == "__main__":
-
     main()
