@@ -212,7 +212,7 @@ def check_output_completeness(output_path, min_file_size=100):
         # If we can't read the file, consider it incomplete
         return False
 
-def get_population_sample_sizes(populations, default_n=10000):
+def get_population_sample_sizes(populations, default_n=40000):
     """
     Get sample sizes for each population. For now, using default values.
     In the future, this could read from a config file or be passed as arguments.
@@ -226,11 +226,11 @@ def get_population_sample_sizes(populations, default_n=10000):
     """
     # Default sample sizes - could be made configurable
     default_sizes = {
-        'AFR': 10000,
-        'EUR': 10000,
-        'EAS': 10000,
-        'SAS': 10000,
-        'AMR': 10000
+        'AFR': 40000,
+        'EUR': 40000,
+        'EAS': 40000,
+        'SAS': 40000,
+        'AMR': 40000
     }
     
     sample_sizes = {}
