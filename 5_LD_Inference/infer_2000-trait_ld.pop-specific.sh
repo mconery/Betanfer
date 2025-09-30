@@ -28,13 +28,13 @@ command_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fin
 
 # Set directory locations for EUR population
 eur_scratch_dir="/lustre/orion/bif154/scratch/mconery/indexed_EUR_sumstats"
-eur_variant_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/raw_in-sample/weighted"
+eur_variant_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/raw_in-sample/EUR"
 eur_output_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_2000/EUR"
 eur_commands_file="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_2000/eur_matrix_commands.txt"
 
 # Set directory locations for AFR population
 afr_scratch_dir="/lustre/orion/bif154/scratch/mconery/indexed_AFR_sumstats"
-afr_variant_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/raw_in-sample/weighted"
+afr_variant_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/raw_in-sample/AFR"
 afr_output_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_2000/AFR"
 afr_commands_file="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_2000/afr_matrix_commands.txt"
 
