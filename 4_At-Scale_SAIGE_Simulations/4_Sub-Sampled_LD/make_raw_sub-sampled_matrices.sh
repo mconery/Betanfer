@@ -94,7 +94,7 @@ echo "Starting flux and submitting jobs..."
 mapfile -t script_paths < $script_dir/all.script_list.sub-sample.txt
 
 srun -N ${num_nodes} -n ${num_nodes} -c 56 flux start \
-"flux resource list; mapfile -t script_paths < ${script_list_file}; for ((i=0; i<\${#script_paths[@]}; i++)); do flux submit -N1 -n1 -c4 --output=flux_output/make_sampled_raw_matrix_\$i.txt \${script_paths[\$i]}; done; flux queue drain;"
+"flux resource list; mapfile -t script_paths < $script_dir/all.script_list.sub-sample.txt; for ((i=0; i<\${#script_paths[@]}; i++)); do flux submit -N1 -n1 -c4 --output=flux_output/make_sampled_raw_matrix_\$i.txt \${script_paths[\$i]}; done; flux queue drain;"
 
 # Clean-up log and nosex files
 for size in ${size_arr[@]}; do 
