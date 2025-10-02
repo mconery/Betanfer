@@ -2,12 +2,12 @@
 
 """
 
-Fine-mapping Results Collation Script
+Fine-mapping Results Collation Script with Timing Extraction
 
 This script collates results from genetic fine-mapping experiments using simulated datasets.
 It processes results from multiple fine-mapping methods and generates a summary file with
-key statistics for each experiment.
-Author: Mitch Conery
+key statistics for each experiment, including execution times.
+Author: Generated for genetic fine-mapping analysis
 Date: September 2025
 
 """
@@ -16,6 +16,7 @@ import os
 import pandas as pd
 import numpy as np
 from multiprocessing import Pool, cpu_count
+from pathlib import Path
 import re
 from typing import Dict, List, Tuple, Optional
 import logging
@@ -73,6 +74,48 @@ def load_causal_variants(causal_variants_dir: str, pheno_num: int, causal_count:
         logger.error(f"Error loading causal variants from {causal_path}: {e}")
         return set()
 
+def extract_execution_time(result_file_path: str) -> Optional[float]:
+    """
+    Extract execution time from the corresponding timing file.
+    Args:
+        result_file_path: Path to the result file
+    Returns:
+        Execution time in seconds, or None if timing file not found or invalid
+    """
+    try:
+        # Get the directory and filename of the result file
+        result_dir = os.path.dirname(result_file_path)
+        result_filename = os.path.basename(result_file_path)
+        # Construct timing file path: same directory + timing subdirectory + same filename
+        timing_dir = os.path.join(result_dir, "timing")
+        timing_file_path = os.path.join(timing_dir, result_filename)
+        # Check if timing file exists
+        if not os.path.exists(timing_file_path):
+            logger.warning(f"Timing file not found: {timing_file_path}")
+            return None
+        # Read the timing file
+        with open(timing_file_path, 'r') as f:
+            lines = f.readlines()
+        # Check if we have at least 2 lines
+        if len(lines) < 2:
+            logger.warning(f"Timing file has fewer than 2 lines: {timing_file_path}")
+            return None
+        # Extract execution time from the second line
+        execution_time_str = lines[1].strip()
+        # Convert to float
+        execution_time = float(execution_time_str)
+        logger.debug(f"Extracted execution time: {execution_time}s from {timing_file_path}")
+        return execution_time        
+    except FileNotFoundError:
+        logger.warning(f"Timing file not found for result file: {result_file_path}")
+        return None
+    except ValueError as e:
+        logger.error(f"Could not parse execution time from {timing_file_path}: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Error extracting execution time for {result_file_path}: {e}")
+        return None
+
 def process_single_result_file(args: Tuple[str, str]) -> Optional[Dict]:
     """
     Process a single fine-mapping result file and extract summary statistics.
@@ -94,6 +137,8 @@ def process_single_result_file(args: Tuple[str, str]) -> Optional[Dict]:
         if not causal_variants:
             logger.warning(f"No causal variants found for {filename}")
             return None
+        # Extract execution time
+        execution_time = extract_execution_time(result_file_path)
         # Read the results file
         try:
             df = pd.read_csv(result_file_path, sep='\t')
@@ -138,11 +183,11 @@ def process_single_result_file(args: Tuple[str, str]) -> Optional[Dict]:
             else:
                 # If causal variant not found in results, assume PIP = 0
                 causal_pips.append(0.0)
-        # NEW: Calculate total number of variants at this locus
+        # Calculate total number of variants at this locus
         total_variants = len(df)
-        # NEW: Get non-causal variants and their PIPs
+        # Get non-causal variants and their PIPs
         non_causal_variants = df[~df['VARIANT_ID'].isin(causal_variants)].copy()
-        # NEW: Count non-causal variants with PIPs >= each threshold (0.01 to 1.00)
+        # Count non-causal variants with PIPs >= each threshold (0.01 to 1.00)
         non_causal_pip_counts = {}
         for threshold_int in range(1, 101):  # 1 to 100 (representing 0.01 to 1.00)
             threshold = threshold_int / 100.0
@@ -170,13 +215,14 @@ def process_single_result_file(args: Tuple[str, str]) -> Optional[Dict]:
             'method': method or 'unknown',
             'ld_matrix': ld_matrix or 'unknown',
             'result_file': result_file_path,
-            'total_variants': total_variants  # NEW COLUMN
+            'total_variants': total_variants,
+            'execution_time_seconds': execution_time  # NEW COLUMN FOR EXECUTION TIME
         }
         # Add the non-causal PIP count columns
         result_dict.update(non_causal_pip_counts)
         logger.debug(f"Processed {filename}: {causal_in_cs}/{causal_count} causal variants in CS, "
                     f"{num_credible_sets} total credible sets, {credible_sets_with_causal} contain causal variants, "
-                    f"{total_variants} total variants")
+                    f"{total_variants} total variants, execution time: {execution_time}s")
         return result_dict
     except Exception as e:
         logger.error(f"Error processing {result_file_path}: {e}")
@@ -303,7 +349,8 @@ def collate_fine_mapping_results(
         'causal_variant_pips',
         'method',
         'ld_matrix',
-        'total_variants'
+        'total_variants',
+        'execution_time_seconds'  # NEW COLUMN IN OUTPUT
     ]
     # Add the non-causal PIP count columns in order
     pip_columns = [f'non_causal_pip_ge_{threshold:.2f}' for threshold in np.arange(0.01, 1.01, 0.01)]
@@ -320,6 +367,17 @@ def collate_fine_mapping_results(
     logger.info(f" Unique phenotypes: {summary_df['phenotype_number'].nunique()}")
     logger.info(f" Methods: {list(summary_df['method'].unique())}")
     logger.info(f" LD matrices: {list(summary_df['ld_matrix'].unique())}")
+    # Print execution time statistics
+    execution_times = summary_df['execution_time_seconds'].dropna()
+    if len(execution_times) > 0:
+        logger.info(" Execution time statistics:")
+        logger.info(f"   Mean: {execution_times.mean():.2f}s")
+        logger.info(f"   Median: {execution_times.median():.2f}s")
+        logger.info(f"   Min: {execution_times.min():.2f}s")
+        logger.info(f"   Max: {execution_times.max():.2f}s")
+        logger.info(f"   Missing timing data: {summary_df['execution_time_seconds'].isna().sum()} files")
+    else:
+        logger.warning("No execution timing data found")
     # Print sample of results
     logger.info("Sample results (first 5 rows):")
     print(summary_df.head().to_string(index=False))
@@ -329,7 +387,7 @@ def main():
     Main execution function with command line argument parsing.
     """
     parser = argparse.ArgumentParser(
-        description="Collate genetic fine-mapping results from multiple experiments",
+        description="Collate genetic fine-mapping results from multiple experiments with execution timing",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Example usage:
