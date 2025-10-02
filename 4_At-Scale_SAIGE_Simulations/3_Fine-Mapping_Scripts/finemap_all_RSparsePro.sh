@@ -42,7 +42,7 @@ num_nodes=${SLURM_NNODES}
 ############################################## Prep Mapping Commands ###########################################
 ################################################################################################################
 
-python $command_script --wrapper-script $map_script --gwas-dir $sumstats_dir --ld-dir $matrix_dir --output-dir $out_dir --commands-file $command_file --skip-existing
+python $command_script --wrapper-script $map_script --gwas-dir $sumstats_dir --ld-dir $matrix_dir --output-dir $out_dir --commands-file $command_file --matrix-types raw_in-sample,PC-corrected,beta-inferred_2000 --skip-existing
 
 ################################################################################################################
 ################################## Execute Mapping Commands in Parallel ########################################
