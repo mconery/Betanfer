@@ -32,7 +32,6 @@ input_dirs=(
     "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/raw_in-sample/sub-sample_100000"
     "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/raw_in-sample/sub-sample_200000"
     "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/raw_in-sample/sub-sample_300000"
-    "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/raw_in-sample/sub-sample_400000"
 )
 
 # Output location for commands and flux output
@@ -68,8 +67,6 @@ for input_dir in "${input_dirs[@]}"; do
         echo "WARNING: Input directory does not exist: ${input_dir}"
     fi
 done
-
-echo ""
 
 ################################################################################################################
 ################################## Generate merge commands ###################################################
