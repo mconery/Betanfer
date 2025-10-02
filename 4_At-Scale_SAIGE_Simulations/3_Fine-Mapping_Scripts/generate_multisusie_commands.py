@@ -60,24 +60,61 @@ def detect_matrix_subdirs(ld_base_dir: str, matrix_filter=None) -> List[str]:
     
     return matrix_types
 
-def parse_gwas_filename(fname: str) -> Dict[str, str] | None:
+def parse_gwas_filename(meta_filename):
     """
-    Expected pattern (same as in the original script):
-        Pheno1.2_causal.heritability_0.05.continuous.chr1.step2.txt
-                                              └────trait_type────┘
+    Parse GWAS filename to extract components, handling decimal heritability values.
+    Expected format: Pheno#.#_causal.heritability_#.#.continuous/binary_0.25.chr#.step2.txt
+    Parameters:
+    - meta_filename: The GWAS filename
+
+    Returns:
+    - dict: Dictionary with parsed components or None if parsing fails
     """
-    base = fname.replace(".step2.txt", "")
-    parts = base.split(".")
-    if len(parts) < 6 or not parts[1].endswith("_causal"):
+    # Remove the .step2.txt extension
+    base_name = meta_filename.replace('.step2.txt', '')
+    # Split by dots
+    parts = base_name.split('.')
+    if len(parts) < 5:  # Need at least: Pheno#, #_causal, heritability_#, #, trait_type, chr#
         return None
-    pheno_causal = f"{parts[0]}.{parts[1]}"        # Pheno#.##_causal
-    trait_type   = parts[-2]                       # continuous | binary_0.25
-    chromosome   = parts[-1]                       # chr#
-    heritability = ".".join(parts[2:len(parts)-2]).lstrip("heritability_")
-    return {"pheno_causal": pheno_causal,
-            "trait_type": trait_type,
-            "chromosome": chromosome, 
-            "heritability": heritability}
+    try:
+        # First two parts: Pheno# and #_causal
+        pheno_causal = parts[0] + "." + parts[1]  # e.g., "Pheno1.2_causal"
+        # Find heritability parts - they start with "heritability_" and continue until we hit trait type
+        heritability_parts = []
+        trait_type_index = None
+        for i in range(2, len(parts)):
+            part = parts[i]
+            # Check if this is a trait type (continuous or binary_0.25)
+            if part in ['continuous', 'binary_0'] or (part == '25' and i > 2 and parts[i-1] == 'binary_0'):
+                trait_type_index = i
+                break
+            else:
+                heritability_parts.append(part)
+        if trait_type_index is None:
+            return None
+        # Reconstruct heritability (e.g., "heritability_0.01" from ["heritability_0", "01"])
+        heritability = ".".join(heritability_parts)
+        # Handle trait type - could be "continuous" or "binary_0.25"
+        if parts[trait_type_index] == 'continuous':
+            trait_type = 'continuous'
+            chromosome_index = trait_type_index + 1
+        elif parts[trait_type_index] == 'binary_0' and trait_type_index + 1 < len(parts) and parts[trait_type_index + 1] == '25':
+            trait_type = 'binary_0.25'
+            chromosome_index = trait_type_index + 2
+        else:
+            return None
+        # Get chromosome
+        if chromosome_index >= len(parts):
+            return None
+        chromosome = parts[chromosome_index]
+        return {
+            'pheno_causal': pheno_causal,
+            'heritability': heritability,
+            'trait_type': trait_type,
+            'chromosome': chromosome
+        }
+    except (IndexError, ValueError):
+        return None
 
 def find_files(pop_dir: str, pattern: str) -> str | None:
     """Return a single file matching *pattern* inside *pop_dir*, or None."""
