@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH -A bif154
-#SBATCH -J SuSiEx_finemap
+#SBATCH -J SuSiEx_sub-sample
 #SBATCH -o finemap_all_sub-sample_SuSiEx.log
 #SBATCH -N 20
 #SBATCH -p batch

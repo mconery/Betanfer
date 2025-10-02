@@ -1,8 +1,8 @@
 #!/bin/bash
 
 #SBATCH -A bif154
-#SBATCH -J MESuSiE_finemap
-#SBATCH -o finemap_MESuSiE.log
+#SBATCH -J MESuSiE_sub-sample
+#SBATCH -o finemap_all_sub-sample_MESuSiE.log
 #SBATCH -N 20
 #SBATCH -p batch
 #SBATCH -t 1:00:00
