@@ -102,50 +102,80 @@ def find_matrix_files_by_population(ld_base_dir, matrix_type, pheno_causal, popu
     
     return matrix_files
 
-def parse_gwas_filename(meta_filename):
+def normalize_heritability(heritability_str):
+    """
+    Normalize heritability string for comparison.
+    Converts decimal representations to consistent format.
+    
+    Parameters:
+    - heritability_str: Heritability string from filename (e.g., "heritability_0.0003")
+    
+    Returns:
+    - float: Normalized heritability value
+    """
+    try:
+        # Remove "heritability_" prefix if present
+        if heritability_str.startswith("heritability_"):
+            heritability_str = heritability_str.replace("heritability_", "")
+        
+        # Convert to float for consistent comparison
+        return float(heritability_str)
+    except (ValueError, TypeError):
+        return None
+
+def parse_gwas_filename(meta_filename, target_heritability=None):
     """
     Parse GWAS filename to extract components, handling decimal heritability values.
     Expected format: Pheno#.#_causal.heritability_#.#.continuous/binary_0.25.chr#.step2.txt
-    
+
     Parameters:
     - meta_filename: The GWAS filename
-    
+    - target_heritability: Target heritability value to filter for (None = no filter)
+
     Returns:
     - dict: Dictionary with parsed components or None if parsing fails
     """
     # Remove the .step2.txt extension
     base_name = meta_filename.replace('.step2.txt', '')
-    
+
     # Split by dots
     parts = base_name.split('.')
-    
     if len(parts) < 5:  # Need at least: Pheno#, #_causal, heritability_#, #, trait_type, chr#
         return None
-    
+
     try:
         # First two parts: Pheno# and #_causal
         pheno_causal = parts[0] + "." + parts[1]  # e.g., "Pheno1.2_causal"
-        
+
         # Find heritability parts - they start with "heritability_" and continue until we hit trait type
         heritability_parts = []
         trait_type_index = None
-        
+
         for i in range(2, len(parts)):
             part = parts[i]
-            
             # Check if this is a trait type (continuous or binary_0.25)
             if part in ['continuous', 'binary_0'] or (part == '25' and i > 2 and parts[i-1] == 'binary_0'):
                 trait_type_index = i
                 break
             else:
                 heritability_parts.append(part)
-        
+
         if trait_type_index is None:
             return None
-        
+
         # Reconstruct heritability (e.g., "heritability_0.01" from ["heritability_0", "01"])
         heritability = ".".join(heritability_parts)
         
+        # Filter by heritability if specified
+        if target_heritability is not None:
+            parsed_heritability = normalize_heritability(heritability)
+            if parsed_heritability is None:
+                return None
+            
+            # Compare heritability values with small tolerance for floating point comparison
+            if abs(parsed_heritability - target_heritability) > 1e-10:
+                return None
+
         # Handle trait type - could be "continuous" or "binary_0.25"
         if parts[trait_type_index] == 'continuous':
             trait_type = 'continuous'
@@ -155,20 +185,19 @@ def parse_gwas_filename(meta_filename):
             chromosome_index = trait_type_index + 2
         else:
             return None
-        
+
         # Get chromosome
         if chromosome_index >= len(parts):
             return None
-        
         chromosome = parts[chromosome_index]
-        
+
         return {
             'pheno_causal': pheno_causal,
             'heritability': heritability,
             'trait_type': trait_type,
             'chromosome': chromosome
         }
-        
+
     except (IndexError, ValueError):
         return None
 
@@ -251,7 +280,7 @@ def process_gwas_file_pattern(args_tuple):
     Returns:
     - tuple: (commands, warnings, skipped_info)
     """
-    gwas_file_pattern, gwas_base_dir, ld_base_dir, geno_base_dir, matrix_types, output_base_dir, wrapper_script, populations, plink_conv, skip_existing = args_tuple
+    gwas_file_pattern, gwas_base_dir, ld_base_dir, geno_base_dir, matrix_types, output_base_dir, wrapper_script, populations, plink_conv, skip_existing, target_heritability = args_tuple
     
     commands = []
     warnings = []
@@ -421,7 +450,7 @@ def parse_populations(populations_string):
     return pop_list if pop_list else ["AFR", "EUR"]
 
 def create_susiex_commands(gwas_base_dir, ld_base_dir, geno_base_dir, output_base_dir, wrapper_script, output_commands_file,
-                          populations, plink_conv, matrix_filter=None, n_processes=None, skip_existing=False):
+                          populations, plink_conv, matrix_filter=None, n_processes=None, skip_existing=False, target_heritability=None):
     """
     Generate SuSiEx multi-population fine-mapping commands for all loci using parallel processing.
     
@@ -435,7 +464,15 @@ def create_susiex_commands(gwas_base_dir, ld_base_dir, geno_base_dir, output_bas
     - matrix_filter: Optional list of matrix subdirectory names to include
     - n_processes: Number of processes to use (None = use all available cores)
     - skip_existing: Whether to skip generating commands for existing complete output files
+    - target_heritability: Target heritability value to filter for (None = no filter)
     """
+    # Print heritability filter information
+    if target_heritability is not None:
+        print(f"Heritability filter: {target_heritability}")
+        print(f"Only processing traits with heritability = {target_heritability}")
+    else:
+        print(f"Heritability filter: DISABLED - processing all heritability values")
+    
     # Automatically detect matrix types
     print(f"Detecting matrix subdirectories in: {ld_base_dir}")
     if matrix_filter:
@@ -484,7 +521,7 @@ def create_susiex_commands(gwas_base_dir, ld_base_dir, geno_base_dir, output_bas
     
     for causal_file in causal_files:
         filename = os.path.basename(causal_file)
-        parsed = parse_gwas_filename(filename)
+        parsed = parse_gwas_filename(filename, target_heritability=target_heritability)
         if parsed:
             pattern_key = f"{parsed['pheno_causal']}.{parsed['trait_type']}.{parsed['chromosome']}"
             if pattern_key not in unique_patterns:
@@ -502,7 +539,7 @@ def create_susiex_commands(gwas_base_dir, ld_base_dir, geno_base_dir, output_bas
     process_args = []
     for gwas_file_pattern in gwas_file_patterns:
         args_tuple = (gwas_file_pattern, gwas_base_dir, ld_base_dir, geno_base_dir, matrix_types, 
-                     output_base_dir, wrapper_script, populations, plink_conv, skip_existing)
+                     output_base_dir, wrapper_script, populations, plink_conv, skip_existing, target_heritability)
         process_args.append(args_tuple)
     
     # Process file patterns in parallel
@@ -553,6 +590,8 @@ def create_susiex_commands(gwas_base_dir, ld_base_dir, geno_base_dir, output_bas
         if len(all_skipped) > 3:
             print(f"    ... and {len(all_skipped) - 3} more")
             
+    if target_heritability is not None:
+        print(f"  Heritability filter applied: only traits with h² = {target_heritability}")
     # Print processing summary
     print(f"\nProcessing Summary:")
     print(f"  Total commands generated: {len(all_commands)}")
@@ -616,6 +655,8 @@ def main():
                        help='Number of processes to use for parallel processing (default: use all available cores)')
     parser.add_argument('--skip-existing', '-s', action='store_true',
                        help='Skip generating commands for output files that already exist and appear complete')
+    parser.add_argument('--heritability', type=float, default=0.0003,
+                        help='Target heritability value to filter traits (default: 0.0003)')
     parser.add_argument('--dry-run', '-d', action='store_true',
                        help='Print first 10 commands without writing to file')
     parser.add_argument('--list-matrices', action='store_true',
@@ -697,7 +738,8 @@ def main():
         plink_conv=args.plink_conv,
         matrix_filter=matrix_filter,
         n_processes=args.processes,
-        skip_existing=args.skip_existing
+        skip_existing=args.skip_existing,
+        target_heritability=args.heritability
     )
 
     if args.dry_run:
