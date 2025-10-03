@@ -47,7 +47,7 @@ num_nodes=${SLURM_NNODES}
 ############################################## Prep Mapping Commands ###########################################
 ################################################################################################################
 
-python $command_script --wrapper-script $map_script --gwas-dir $sumstats_dir --ld-dir $matrix_dir --pheno-dir $pheno_dir --output-dir $out_dir --commands-file $command_file --matrix-types sub-sample_1000,sub-sample_5000,sub-sample_10000,sub-sample_50000,sub-sample_100000,sub-sample_200000,sub-sample_300000 --populations $populations --skip-existing 
+python $command_script --wrapper-script $map_script --gwas-dir $sumstats_dir --ld-dir $matrix_dir --pheno-dir $pheno_dir --output-dir $out_dir --commands-file $command_file --matrix-types sub-sample_1000,sub-sample_5000,sub-sample_10000,sub-sample_50000,sub-sample_100000,sub-sample_200000,sub-sample_300000 --populations $populations --skip-existing --heritability 0.0003
 
 ################################################################################################################
 ################################## Execute Mapping Commands in Parallel ########################################
