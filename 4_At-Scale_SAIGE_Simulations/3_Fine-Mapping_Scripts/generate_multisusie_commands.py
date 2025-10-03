@@ -60,28 +60,55 @@ def detect_matrix_subdirs(ld_base_dir: str, matrix_filter=None) -> List[str]:
     
     return matrix_types
 
-def parse_gwas_filename(meta_filename):
+def normalize_heritability(heritability_str):
+    """
+    Normalize heritability string for comparison.
+    Converts decimal representations to consistent format.
+    
+    Parameters:
+    - heritability_str: Heritability string from filename (e.g., "heritability_0.0003")
+    
+    Returns:
+    - float: Normalized heritability value
+    """
+    try:
+        # Remove "heritability_" prefix if present
+        if heritability_str.startswith("heritability_"):
+            heritability_str = heritability_str.replace("heritability_", "")
+        
+        # Convert to float for consistent comparison
+        return float(heritability_str)
+    except (ValueError, TypeError):
+        return None
+
+def parse_gwas_filename(meta_filename, target_heritability=None):
     """
     Parse GWAS filename to extract components, handling decimal heritability values.
     Expected format: Pheno#.#_causal.heritability_#.#.continuous/binary_0.25.chr#.step2.txt
+
     Parameters:
     - meta_filename: The GWAS filename
+    - target_heritability: Target heritability value to filter for (None = no filter)
 
     Returns:
     - dict: Dictionary with parsed components or None if parsing fails
     """
     # Remove the .step2.txt extension
     base_name = meta_filename.replace('.step2.txt', '')
+
     # Split by dots
     parts = base_name.split('.')
     if len(parts) < 5:  # Need at least: Pheno#, #_causal, heritability_#, #, trait_type, chr#
         return None
+
     try:
         # First two parts: Pheno# and #_causal
         pheno_causal = parts[0] + "." + parts[1]  # e.g., "Pheno1.2_causal"
+
         # Find heritability parts - they start with "heritability_" and continue until we hit trait type
         heritability_parts = []
         trait_type_index = None
+
         for i in range(2, len(parts)):
             part = parts[i]
             # Check if this is a trait type (continuous or binary_0.25)
@@ -90,10 +117,23 @@ def parse_gwas_filename(meta_filename):
                 break
             else:
                 heritability_parts.append(part)
+
         if trait_type_index is None:
             return None
+
         # Reconstruct heritability (e.g., "heritability_0.01" from ["heritability_0", "01"])
         heritability = ".".join(heritability_parts)
+        
+        # Filter by heritability if specified
+        if target_heritability is not None:
+            parsed_heritability = normalize_heritability(heritability)
+            if parsed_heritability is None:
+                return None
+            
+            # Compare heritability values with small tolerance for floating point comparison
+            if abs(parsed_heritability - target_heritability) > 1e-10:
+                return None
+
         # Handle trait type - could be "continuous" or "binary_0.25"
         if parts[trait_type_index] == 'continuous':
             trait_type = 'continuous'
@@ -103,19 +143,22 @@ def parse_gwas_filename(meta_filename):
             chromosome_index = trait_type_index + 2
         else:
             return None
+
         # Get chromosome
         if chromosome_index >= len(parts):
             return None
         chromosome = parts[chromosome_index]
+
         return {
             'pheno_causal': pheno_causal,
             'heritability': heritability,
             'trait_type': trait_type,
             'chromosome': chromosome
         }
+
     except (IndexError, ValueError):
         return None
-
+    
 def find_files(pop_dir: str, pattern: str) -> str | None:
     """Return a single file matching *pattern* inside *pop_dir*, or None."""
     matches = glob.glob(os.path.join(pop_dir, pattern))
@@ -135,7 +178,7 @@ def process_one_pattern(args_tuple) -> Tuple[List[str], List[str]]:
     Build Multi-SuSiE commands for a single phenotype/locus pattern.
     Returns (cmd_list, warnings)
     """
-    gwas_example_file, gwas_base, pheno_base, ld_base, matrix_types, wrapper, out_base, populations, heritabilities, skip_existing = args_tuple
+    gwas_example_file, gwas_base, pheno_base, ld_base, matrix_types, wrapper, out_base, populations, heritabilities, skip_existing, target_heritability = args_tuple
     
     warnings: List[str] = []
     cmds: List[str] = []
@@ -227,7 +270,14 @@ def generate_multisusie_commands(
     matrix_filter: List[str] | None,
     processes: int | None,
     skip_existing: bool,
+    target_heritability=None
 ):
+    # Print heritability filter information
+    if target_heritability is not None:
+        print(f"Heritability filter: {target_heritability}")
+        print(f"Only processing traits with heritability = {target_heritability}")
+    else:
+        print(f"Heritability filter: DISABLED - processing all heritability values")
     # Discover matrix types
     matrix_types = detect_matrix_subdirs(ld_dir, matrix_filter)
     if not matrix_types:
@@ -239,7 +289,7 @@ def generate_multisusie_commands(
     patterns: set[str] = set()
     gwas_example_list: List[str] = []
     for f in example_files:
-        meta = parse_gwas_filename(os.path.basename(f))
+        meta = parse_gwas_filename(os.path.basename(f), target_heritability=target_heritability)
         if meta:
             key = f"{meta['pheno_causal']}.{meta['trait_type']}.{meta['chromosome']}"
             if key not in patterns:
@@ -258,7 +308,8 @@ def generate_multisusie_commands(
             out_dir,
             populations,
             heritabilities,
-            skip_existing,
+            skip_existing, 
+            target_heritability
         )
         for f in gwas_example_list
     ]
@@ -316,6 +367,8 @@ def cli() -> None:
                    help="Parallel processes (default: CPU count)")
     p.add_argument("--skip-existing", "-s", action="store_true",
                    help="Skip loci whose output already exists")
+    p.add_argument('--heritability', type=float, default=0.0003,
+                        help='Target heritability value to filter traits (default: 0.0003)')
     args = p.parse_args()
     pops = [s.strip().upper() for s in args.populations.split(",") if s.strip()]
     heritabilities = [s for s in args.heritabilities.split(",") if s.strip()]
@@ -336,6 +389,7 @@ def cli() -> None:
         matrix_filter=mfilter,
         processes=args.processes,
         skip_existing=args.skip_existing,
+        target_heritability=args.heritability
     )
 
 
