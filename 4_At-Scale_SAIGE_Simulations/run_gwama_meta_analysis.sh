@@ -51,7 +51,7 @@ python ${CMD_SCRIPT} \
     --pop_names ${POP_NAMES} \
     --pop_dirs ${POP_DIRS} \
     --output_dir ${OUTPUT_DIR} \
-    --commands_file ${COMMANDS_FILE}
+    --commands_file ${COMMANDS_FILE} \
     --analysis_type $analysis_type
 
 if [ ! -f ${COMMANDS_FILE} ] || [ ! -s ${COMMANDS_FILE} ]; then
