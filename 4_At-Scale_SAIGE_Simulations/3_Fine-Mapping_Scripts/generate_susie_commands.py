@@ -252,7 +252,7 @@ def process_causal_dir(args_tuple):
     This function is designed to be called in parallel.
 
     Parameters:
-    - args_tuple: Tuple containing (causal_dir, ld_base_dir, matrix_configs, output_base_dir, wrapper_script, skip_existing)
+    - args_tuple: Tuple containing (causal_dir, ld_base_dir, matrix_configs, output_base_dir, wrapper_script, skip_existing, analysis_type, target_heritability)
 
     Returns:
     - tuple: (commands, warnings, skipped_info)
