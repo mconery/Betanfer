@@ -513,7 +513,7 @@ def create_mesusie_commands(gwas_base_dir, ld_base_dir, output_base_dir, wrapper
 
     for causal_file in causal_files:
         filename = os.path.basename(causal_file)
-        parsed = parse_gwas_filename(filename)
+        parsed = parse_gwas_filename(filename, target_heritability=target_heritability)
         if parsed:
             pattern_key = f"{parsed['pheno_causal']}.{parsed['trait_type']}.{parsed['chromosome']}"
             if pattern_key not in unique_patterns:
