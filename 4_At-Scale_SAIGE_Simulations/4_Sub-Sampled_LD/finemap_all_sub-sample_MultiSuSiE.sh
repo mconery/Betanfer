@@ -3,9 +3,9 @@
 #SBATCH -A bif154
 #SBATCH -J MultiSuSiE_sub-sample
 #SBATCH -o finemap_all_sub-sample_MultiSuSiE.log
-#SBATCH -N 40
+#SBATCH -N 60
 #SBATCH -p batch
-#SBATCH -t 1:00:00
+#SBATCH -t 2:00:00
 
 ################################################################################################################
 ################################################### Load Modules ###############################################
