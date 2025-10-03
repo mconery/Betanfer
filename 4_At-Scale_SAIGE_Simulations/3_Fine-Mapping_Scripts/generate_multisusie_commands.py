@@ -152,7 +152,7 @@ def process_one_pattern(args_tuple) -> Tuple[List[str], List[str]]:
     for pop in populations:
         g_dir = os.path.join(gwas_base, pop)
         g_file = find_files(g_dir,
-                            f"{pheno_causal}.heritability_{heritability}.{trait_type}.{chrom}.step2.txt")
+                            f"{pheno_causal}.{heritability}.{trait_type}.{chrom}.step2.txt")
         if g_file:
             gwas_files[pop] = g_file
         else:
@@ -165,7 +165,7 @@ def process_one_pattern(args_tuple) -> Tuple[List[str], List[str]]:
         p_dir = os.path.join(pheno_base, pop)
         p_file = find_files(
             p_dir,
-            f"{pheno_causal}.heritability_{heritability}.{trait_type}.txt"
+            f"{pheno_causal}.{heritability}.{trait_type}.txt"
         )
         if p_file:
             pheno_files[pop] = p_file
