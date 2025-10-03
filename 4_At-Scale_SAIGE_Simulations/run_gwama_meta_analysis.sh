@@ -29,6 +29,9 @@ CMD_SCRIPT="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Ma
 # Number of nodes allocated by SLURM
 NNODES=${SLURM_NNODES}
 
+#Set analysis type
+analysis_type="fixed"
+
 ##################################################################################################################
 ############################################## Load Modules and Setup ###########################################
 ##################################################################################################################
@@ -49,6 +52,7 @@ python ${CMD_SCRIPT} \
     --pop_dirs ${POP_DIRS} \
     --output_dir ${OUTPUT_DIR} \
     --commands_file ${COMMANDS_FILE}
+    --analysis_type
 
 if [ ! -f ${COMMANDS_FILE} ] || [ ! -s ${COMMANDS_FILE} ]; then
     echo "Error: No commands generated or commands file is empty"
