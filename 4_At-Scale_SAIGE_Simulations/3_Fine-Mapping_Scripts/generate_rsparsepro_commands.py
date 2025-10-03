@@ -79,27 +79,72 @@ def find_matrix_file(ld_base_dir, matrix_type, subfolder, pheno_causal):
         # No matches found
         return None
     
-def parse_gwas_filename(meta_filename):
+def normalize_heritability(heritability_str):
+    """
+    Normalize heritability string for comparison.
+    Converts decimal representations to consistent format.
+    
+    Parameters:
+    - heritability_str: Heritability string from filename (e.g., "heritability_0.0003")
+    
+    Returns:
+    - float: Normalized heritability value
+    """
+    try:
+        # Remove "heritability_" prefix if present
+        if heritability_str.startswith("heritability_"):
+            heritability_str = heritability_str.replace("heritability_", "")
+        
+        # Convert to float for consistent comparison
+        return float(heritability_str)
+    except (ValueError, TypeError):
+        return None
+    
+def parse_gwas_filename(meta_filename, analysis_type='random', target_heritability=None):
     """
     Parse GWAS filename to extract components, handling decimal heritability values.
-    Expected format: Pheno#.#_causal.heritability_#.#.continuous/binary_0.25.chr#.meta.out
+    Updated to handle both random and fixed effect analyses.
+    Updated to filter by heritability value.
+    
+    Expected format: Pheno#.#_causal.heritability_#.#.continuous/binary_0.25.chr#.random_meta.out or .fixed_meta.out
+    
     Parameters:
     - meta_filename: The GWAS filename
+    - analysis_type: Type of analysis ('random' or 'fixed')
+    - target_heritability: Target heritability value to filter for (None = no filter)
+    
     Returns:
-    - dict: Dictionary with parsed components or None if parsing fails
+    - dict: Dictionary with parsed components or None if parsing fails or heritability doesn't match
     """
-    # Remove the .meta.out extension
-    base_name = meta_filename.replace('.meta.out', '')
+    # Determine the expected extension based on analysis type
+    if analysis_type == 'random':
+        expected_extension = '.random_meta.out'
+    elif analysis_type == 'fixed':
+        expected_extension = '.fixed_meta.out'
+    else:
+        # For backward compatibility, also check for old .meta.out format
+        expected_extension = '.meta.out'
+    
+    # Check if the filename has the expected extension
+    if not meta_filename.endswith(expected_extension):
+        return None
+    
+    # Remove the extension
+    base_name = meta_filename.replace(expected_extension, '')
+    
     # Split by dots
     parts = base_name.split('.')
-    if len(parts) < 5: # Need at least: Pheno#, #_causal, heritability_#, #, trait_type, chr#
+    if len(parts) < 5:  # Need at least: Pheno#, #_causal, heritability_#, #, trait_type, chr#
         return None
+    
     try:
         # First two parts: Pheno# and #_causal
-        pheno_causal = parts[0] + "." + parts[1] # e.g., "Pheno1.2_causal"
+        pheno_causal = parts[0] + "." + parts[1]  # e.g., "Pheno1.2_causal"
+        
         # Find heritability parts - they start with "heritability_" and continue until we hit trait type
         heritability_parts = []
         trait_type_index = None
+        
         for i in range(2, len(parts)):
             part = parts[i]
             # Check if this is a trait type (continuous or binary_0.25)
@@ -108,10 +153,23 @@ def parse_gwas_filename(meta_filename):
                 break
             else:
                 heritability_parts.append(part)
+        
         if trait_type_index is None:
             return None
-        # Reconstruct heritability (e.g., "heritability_0.01" from ["heritability_0", "01"])
+        
+        # Reconstruct heritability (e.g., "heritability_0.0003" from ["heritability_0", "0003"])
         heritability = ".".join(heritability_parts)
+        
+        # Filter by heritability if specified
+        if target_heritability is not None:
+            parsed_heritability = normalize_heritability(heritability)
+            if parsed_heritability is None:
+                return None
+            
+            # Compare heritability values with small tolerance for floating point comparison
+            if abs(parsed_heritability - target_heritability) > 1e-10:
+                return None
+        
         # Handle trait type - could be "continuous" or "binary_0.25"
         if parts[trait_type_index] == 'continuous':
             trait_type = 'continuous'
@@ -121,16 +179,19 @@ def parse_gwas_filename(meta_filename):
             chromosome_index = trait_type_index + 2
         else:
             return None
+        
         # Get chromosome
         if chromosome_index >= len(parts):
             return None
         chromosome = parts[chromosome_index]
+        
         return {
             'pheno_causal': pheno_causal,
             'heritability': heritability,
             'trait_type': trait_type,
             'chromosome': chromosome
         }
+    
     except (IndexError, ValueError):
         return None
 
@@ -175,12 +236,20 @@ def process_causal_dir(args_tuple):
     Returns:
     - tuple: (commands, warnings, skipped_info)
     """
-    causal_dir, ld_base_dir, matrix_configs, output_base_dir, wrapper_script, skip_existing = args_tuple
+    causal_dir, ld_base_dir, matrix_configs, output_base_dir, wrapper_script, skip_existing, analysis_type, target_heritability = args_tuple
     commands = []
     warnings = []
     skipped_info = []
     if not os.path.isdir(causal_dir):
         return commands, warnings, skipped_info
+    # Determine the file extension pattern based on analysis type
+    if analysis_type == 'random':
+        file_pattern = "*.random_meta.out"
+    elif analysis_type == 'fixed':
+        file_pattern = "*.fixed_meta.out"
+    else:
+        # For backward compatibility
+        file_pattern = "*.meta.out"
     # Find the .meta.out file in this directory
     meta_files = glob.glob(os.path.join(causal_dir, "*.meta.out"))
     if len(meta_files) != 1:
@@ -192,8 +261,15 @@ def process_causal_dir(args_tuple):
     meta_file = meta_files[0]
     meta_filename = os.path.basename(meta_file)
     # Parse the filename using the improved parser
-    parsed = parse_gwas_filename(meta_filename)
+    parsed = parse_gwas_filename(meta_filename, analysis_type, target_heritability)
     if parsed is None:
+        # This could be due to parsing failure or heritability filter - don't generate warning for filter
+        if target_heritability is not None:
+            # Check if it's just a heritability mismatch
+            parsed_no_filter = parse_gwas_filename(meta_filename, analysis_type, None)
+            if parsed_no_filter is not None:
+                # It was filtered out due to heritability, don't add warning
+                return commands, warnings, skipped_info
         warnings.append(f"Could not parse filename: {meta_filename}")
         return commands, warnings, skipped_info
     pheno_causal = parsed['pheno_causal']
@@ -247,7 +323,8 @@ def parse_matrix_filter(matrix_string):
     return matrix_list if matrix_list else None
 
 def create_rsparsepro_commands(gwas_dir, ld_base_dir, output_base_dir, wrapper_script, output_commands_file,
-                         matrix_filter=None, n_processes=None, skip_existing=False):
+                         matrix_filter=None, n_processes=None, skip_existing=False, analysis_type='random',
+                         target_heritability=None):
     """
     Generate RSparsePro fine-mapping commands for all loci using parallel processing.
     Parameters:
@@ -259,7 +336,23 @@ def create_rsparsepro_commands(gwas_dir, ld_base_dir, output_base_dir, wrapper_s
     - matrix_filter: Optional list of matrix subdirectory names to include
     - n_processes: Number of processes to use (None = use all available cores)
     - skip_existing: Whether to skip generating commands for existing complete output files
+    - analysis_type: Type of meta-analysis ('random' or 'fixed')
+    - target_heritability: Target heritability value to filter for (None = no filter)
     """
+    # Print analysis type information
+    print(f"Analysis type: {analysis_type.upper()}")
+    if analysis_type == 'random':
+        print(f"Looking for files ending in: .random_meta.out")
+    elif analysis_type == 'fixed':
+        print(f"Looking for files ending in: .fixed_meta.out")
+    
+    # Print heritability filter information
+    if target_heritability is not None:
+        print(f"Heritability filter: {target_heritability}")
+        print(f"Only processing traits with heritability = {target_heritability}")
+    else:
+        print(f"Heritability filter: DISABLED - processing all heritability values")
+    
     # Automatically detect matrix configurations
     print(f"Detecting matrix subdirectories in: {ld_base_dir}")
     if matrix_filter:
@@ -294,7 +387,7 @@ def create_rsparsepro_commands(gwas_dir, ld_base_dir, output_base_dir, wrapper_s
     # Prepare arguments for parallel processing
     process_args = []
     for causal_dir in causal_dirs:
-        args_tuple = (causal_dir, ld_base_dir, matrix_configs, output_base_dir, wrapper_script, skip_existing)
+        args_tuple = (causal_dir, ld_base_dir, matrix_configs, output_base_dir, wrapper_script, skip_existing, analysis_type, target_heritability)
         process_args.append(args_tuple)
     # Process directories in parallel
     print(f"\nProcessing {len(process_args)} directories in parallel...")
@@ -341,6 +434,8 @@ def create_rsparsepro_commands(gwas_dir, ld_base_dir, output_base_dir, wrapper_s
     if skip_existing:
         print(f" Existing files skipped: {len(all_skipped)}")
         print(f" New commands needed: {len(all_commands)}")
+    if target_heritability is not None:
+        print(f"  Heritability filter applied: only traits with h² = {target_heritability}")
     for cmd_info in all_commands[:5]: # Show first 5 as examples
         if len(cmd_info) >= 9: # Updated to include heritability
             _, _, matrix_type, pheno_causal, trait_type, chromosome, heritability, matrix_file, output_filename = cmd_info
@@ -381,6 +476,10 @@ def main():
                         help=f'Output file for commands (default: {default_commands})')
     parser.add_argument('--matrix-types', '-m', type=str, default=None,
                         help='Comma-delimited list of matrix subdirectory names to process (e.g., "raw_in-sample,PC-corrected"). If not specified, all detected matrix types will be processed.')
+    parser.add_argument('--analysis-type', '-a', choices=['random', 'fixed'], default='random',
+                        help='Type of meta-analysis to process: random or fixed effect (default: random)')
+    parser.add_argument('--heritability', type=float, default=0.0003,
+                        help='Target heritability value to filter traits (default: 0.0003)')
     parser.add_argument('--processes', '-p', type=int, default=None,
                         help='Number of processes to use for parallel processing (default: use all available cores)')
     parser.add_argument('--skip-existing', '-s', action='store_true',
@@ -434,6 +533,12 @@ def main():
     if args.processes is not None and args.processes < 1:
         print(f"Error: Number of processes must be >= 1, got {args.processes}")
         return 1
+    
+    # Validate heritability
+    if args.heritability < 0:
+        print(f"Error: Heritability must be non-negative, got {args.heritability}")
+        return 1
+    
     # Generate commands
     commands = create_rsparsepro_commands(
         gwas_dir=args.gwas_dir,
@@ -443,7 +548,9 @@ def main():
         output_commands_file=args.commands_file if not args.dry_run else None,
         matrix_filter=matrix_filter,
         n_processes=args.processes,
-        skip_existing=args.skip_existing
+        skip_existing=args.skip_existing,
+        analysis_type=args.analysis_type,
+        target_heritability=args.heritability
     )
     if args.dry_run:
         print("\nDry run - first 10 commands:")
