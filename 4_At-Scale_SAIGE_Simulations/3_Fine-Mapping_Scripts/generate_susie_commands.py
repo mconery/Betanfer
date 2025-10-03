@@ -276,7 +276,7 @@ def process_causal_dir(args_tuple):
         file_pattern = "*.meta.out"
 
     # Find the .meta.out file in this directory
-    meta_files = glob.glob(os.path.join(causal_dir, "*.meta.out"))
+    meta_files = glob.glob(os.path.join(causal_dir, file_pattern))
 
     if len(meta_files) != 1:
         warning = f"Expected 1 .meta.out file in {causal_dir}, found {len(meta_files)}"
