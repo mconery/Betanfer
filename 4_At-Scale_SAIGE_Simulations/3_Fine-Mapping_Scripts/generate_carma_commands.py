@@ -544,7 +544,7 @@ def main():
                         help=f'Output file for commands (default: {default_commands})')
     parser.add_argument('--analysis-type', '-a', choices=['random', 'fixed'], default='random',
                         help='Type of meta-analysis to process: random or fixed effect (default: random)')
-    parser.add_argument('--heritability', '-h', type=float, default=0.0003,
+    parser.add_argument('--heritability', type=float, default=0.0003,
                         help='Target heritability value to filter traits (default: 0.0003)')
     parser.add_argument('--matrix-types', '-m', type=str, default=None,
                         help='Comma-delimited list of matrix subdirectory names to process (e.g., "raw_in-sample,PC-corrected"). If not specified, all detected matrix types will be processed.')
