@@ -12,6 +12,28 @@ library(stringr)
 library(viridis)
 library(PRROC)  # For precision-recall curves
 
+# Function to format method names with proper capitalization
+format_method_names <- function(data) {
+  data %>%
+    mutate(method = case_when(
+      method == "susie" ~ "SuSiE",
+      method == "rsparsepro" ~ "RSparsePro",
+      method == "carma" ~ "CARMA",
+      method == "mesusie" ~ "MESuSiE",
+      method == "multisusie" ~ "MultiSuSiE",
+      method == "susiex" ~ "SuSiEx",
+      TRUE ~ method
+    ))
+}
+
+# Function to format LD matrix names with camel case and spaces
+format_ld_matrix_names <- function(data) {
+  data %>%
+    mutate(ld_matrix = str_replace_all(ld_matrix, "_", " ") %>%
+           str_to_title()) %>% mutate(ld_matrix = str_replace_all(ld_matrix, "Pc", "PC"))
+}
+
+
 # Function to read and prepare summary-level fine-mapping data
 read_finemapping_summary <- function(file_path) {
   # Read the data (adjust based on your file format)
@@ -42,6 +64,10 @@ read_finemapping_summary <- function(file_path) {
         as.numeric(str_split(as.character(x), ",")[[1]])
       })
     )
+  # Apply formatting to method and LD matrix names
+  data <- format_method_names(data)
+  data <- format_ld_matrix_names(data)
+
   return(data)
 }
 
@@ -237,11 +263,11 @@ plot_coverage_vs_power_summary <- function(metrics_data, title_suffix = "") {
   p <- ggplot(metrics_data, aes(x = power, y = coverage)) +
     geom_point(aes(color = method, shape = ld_matrix, size = factor(causal_variant_count)),
                alpha = 0.8) +
-    scale_color_viridis_d(name = "Fine-mapping\nMethod") +
-    scale_shape_manual(name = "LD Matrix\nType",
+    scale_color_viridis_d(name = "Fine-mapping Method") +
+    scale_shape_manual(name = "LD Type",
                        values = c(16, 17, 15, 18, 8, 13, 10, 12, 14, 11)) +
-    scale_size_manual(name = "Causal\nVariants",
-                      values = c("1" = 2, "2" = 3, "3" = 4)) +
+    scale_size_manual(name = "Causal Variants",
+                      values = c("1" = 4, "2" = 6, "3" = 8)) +
     labs(
       y = "Coverage (Proportion of credible sets with a causal variant)",
       x = "Power (Proportion of causal variants in a credible set)"
@@ -249,11 +275,13 @@ plot_coverage_vs_power_summary <- function(metrics_data, title_suffix = "") {
     theme_minimal() +
     theme(
       plot.title = element_blank(),
-      axis.title = element_text(size=14),
-      axis.text = element_text(size=14),
-      legend.position = "right",
-      legend.text = element_text(size=14),
-      legend.title  = element_text(size=14),
+      axis.title = element_text(size=18),
+      axis.text = element_text(size=18),
+      legend.position = "bottom",
+      legend.text = element_text(size=16),
+      legend.title  = element_text(size=16),
+      legend.box = "vertical",
+      legend.direction = "horizontal",
       panel.grid.minor = element_blank()
     ) +
     coord_cartesian(xlim = c(0, 1), ylim = c(0, 1))
@@ -271,7 +299,7 @@ plot_auprc_summary <- function(metrics_data, title_suffix = "") {
   p <- ggplot(plot_data, aes(x = method_ld, y = auprc, fill = method)) +
     geom_col(alpha = 0.8, position = "dodge") +
     facet_wrap(~causal_count_label, ncol = 3) +
-    scale_fill_viridis_d(name = "Fine-mapping\nMethod") +
+    scale_fill_viridis_d(name = "Fine-mapping Method") +
     labs(
       title = paste0("Area Under Precision-Recall Curve (True AUPRC)", title_suffix),
       x = "Method + LD Matrix Type",
@@ -281,7 +309,9 @@ plot_auprc_summary <- function(metrics_data, title_suffix = "") {
     theme(
       plot.title = element_text(size = 14, face = "bold"),
       axis.text.x = element_text(angle = 45, hjust = 1),
-      legend.position = "right",
+      legend.position = "bottom",
+      legend.box = "vertical",
+      legend.direction = "horizontal",
       panel.grid.minor = element_blank(),
       strip.text = element_text(face = "bold")
     ) +
@@ -300,7 +330,7 @@ plot_credible_set_sizes_summary <- function(metrics_data, title_suffix = "") {
   p <- ggplot(plot_data, aes(x = method_ld, y = mean_credible_set_size, fill = method)) +
     geom_col(alpha = 0.8, position = "dodge") +
     facet_wrap(~causal_count_label, ncol = 3, scales = "free_y") +
-    scale_fill_viridis_d(name = "Fine-mapping\nMethod") +
+    scale_fill_viridis_d(name = "Fine-mapping Method") +
     labs(
       title = paste0("Mean Credible Set Size", title_suffix),
       x = "Method + LD Matrix Type",
@@ -310,7 +340,9 @@ plot_credible_set_sizes_summary <- function(metrics_data, title_suffix = "") {
     theme(
       plot.title = element_text(size = 14, face = "bold"),
       axis.text.x = element_text(angle = 45, hjust = 1),
-      legend.position = "right",
+      legend.position = "bottom",
+      legend.box = "vertical",
+      legend.direction = "horizontal",
       panel.grid.minor = element_blank(),
       strip.text = element_text(face = "bold")
     )
@@ -328,7 +360,7 @@ plot_convergence_rates <- function(metrics_data, title_suffix = "") {
   p <- ggplot(plot_data, aes(x = method_ld, y = convergence_rate, fill = method)) +
     geom_col(alpha = 0.8, position = "dodge") +
     facet_wrap(~causal_count_label, ncol = 3) +
-    scale_fill_viridis_d(name = "Fine-mapping\nMethod") +
+    scale_fill_viridis_d(name = "Fine-mapping Method") +
     labs(
       title = paste0("Convergence Rates", title_suffix),
       x = "Method + LD Matrix Type",
@@ -338,7 +370,9 @@ plot_convergence_rates <- function(metrics_data, title_suffix = "") {
     theme(
       plot.title = element_text(size = 14, face = "bold"),
       axis.text.x = element_text(angle = 45, hjust = 1),
-      legend.position = "right",
+      legend.position = "bottom",
+      legend.box = "vertical",
+      legend.direction = "horizontal",
       panel.grid.minor = element_blank(),
       strip.text = element_text(face = "bold")
     ) +
@@ -374,7 +408,7 @@ plot_execution_times <- function(metrics_data, title_suffix = "", time_scale = "
   p <- ggplot(plot_data, aes(x = method_ld, y = mean_execution_time, fill = method)) +
     geom_col(alpha = 0.8, position = "dodge") +
     facet_wrap(~causal_count_label, ncol = 3, scales = "free_y") +
-    scale_fill_viridis_d(name = "Fine-mapping\nMethod") +
+    scale_fill_viridis_d(name = "Fine-mapping Method") +
     labs(
       title = paste0("Mean Execution Times", title_suffix),
       x = "Method + LD Matrix Type",
@@ -384,7 +418,9 @@ plot_execution_times <- function(metrics_data, title_suffix = "", time_scale = "
     theme(
       plot.title = element_text(size = 14, face = "bold"),
       axis.text.x = element_text(angle = 45, hjust = 1),
-      legend.position = "right",
+      legend.position = "bottom",
+      legend.box = "vertical",
+      legend.direction = "horizontal",
       panel.grid.minor = element_blank(),
       strip.text = element_text(face = "bold")
     )
@@ -425,7 +461,9 @@ plot_execution_times_simple <- function(metrics_data, title_suffix = "", time_sc
     theme(
       plot.title = element_text(size = 14, face = "bold"),
       axis.text.x = element_text(angle = 45, hjust = 1),
-      legend.position = "right",
+      legend.position = "bottom",
+      legend.box = "vertical",
+      legend.direction = "horizontal",
       panel.grid.minor = element_blank()
     )
   return(p)
@@ -470,7 +508,7 @@ run_finemapping_analysis_summary <- function(file_path, output_dir = "finemappin
   # Coverage vs Power scatter plot
   p1 <- plot_coverage_vs_power_summary(all_metrics)
   ggsave(file.path(output_dir, "coverage_vs_power_all.png"), p1,
-         width = 12, height = 8, dpi = 300)
+         width = 7.5, height = 10, dpi = 300)
   # AUPRC bar plot
   p2 <- plot_auprc_summary(all_metrics)
   ggsave(file.path(output_dir, "auprc_all.png"), p2,
@@ -504,7 +542,7 @@ run_finemapping_analysis_summary <- function(file_path, output_dir = "finemappin
                        if(causal_count > 1) "s" else "", ")")
       p1_strat <- plot_coverage_vs_power_summary(stratified_metrics, suffix)
       ggsave(file.path(output_dir, paste0("coverage_vs_power_", causal_count, "_causal.png")),
-             p1_strat, width = 10, height = 6, dpi = 300)
+             p1_strat, width = 6, height = 10, dpi = 300)
       # For individual causal counts, create simpler bar plots without faceting
       plot_data_simple <- stratified_metrics %>%
         mutate(method_ld = paste(method, ld_matrix, sep = " + "))
