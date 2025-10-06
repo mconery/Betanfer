@@ -252,6 +252,8 @@ plot_coverage_vs_power_summary <- function(metrics_data, title_suffix = "") {
       axis.title = element_text(size=14),
       axis.text = element_text(size=14),
       legend.position = "right",
+      legend.text = element_text(size=14),
+      legend.title  = element_text(size=14),
       panel.grid.minor = element_blank()
     ) +
     coord_cartesian(xlim = c(0, 1), ylim = c(0, 1))
