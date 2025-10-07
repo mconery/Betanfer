@@ -3,7 +3,7 @@
 #SBATCH -A bif154
 #SBATCH -J MultiSuSiE_finemap
 #SBATCH -o finemap_MultiSuSiE.log
-#SBATCH -N 40
+#SBATCH -N 80
 #SBATCH -p batch
 #SBATCH -t 1:00:00
 
@@ -32,7 +32,7 @@ map_enviro="/lustre/orion/bif154/proj-shared/mconery/tools/environments/multisus
 sumstats_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step2_results"
 matrix_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices"
 pheno_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/simulated_phenotypes"
-out_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/fine-mapping_results/random_homo_3e-4/multisusie_results"
+out_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/fine-mapping_results/random_homo_5e-5/multisusie_results"
 
 #Set command file
 command_file=$out_dir/"multisusie_commands.txt"
@@ -47,7 +47,7 @@ num_nodes=${SLURM_NNODES}
 ############################################## Prep Mapping Commands ###########################################
 ################################################################################################################
 
-python $command_script --wrapper-script $map_script --gwas-dir $sumstats_dir --ld-dir $matrix_dir --pheno-dir $pheno_dir --output-dir $out_dir --commands-file $command_file --matrix-types raw_in-sample,PC-corrected,beta-inferred_2000 --populations $populations --skip-existing --heritability 0.0003
+python $command_script --wrapper-script $map_script --gwas-dir $sumstats_dir --ld-dir $matrix_dir --pheno-dir $pheno_dir --output-dir $out_dir --commands-file $command_file --matrix-types raw_in-sample,PC-corrected,beta-inferred_2000 --populations $populations --skip-existing --heritability 0.00005
 
 ################################################################################################################
 ################################## Execute Mapping Commands in Parallel ########################################
