@@ -3,9 +3,9 @@
 #SBATCH -A bif154
 #SBATCH -J infer_2000-trait_ld
 #SBATCH -o infer_2000-trait_ld.log
-#SBATCH -N 15
+#SBATCH -N 20
 #SBATCH -p batch
-#SBATCH -t 1:00:00
+#SBATCH -t 2:00:00
 
 ################################################################################################################
 ###################################### Load Modules and Environment ############################################
@@ -28,10 +28,10 @@ matrix_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine
 command_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/5_LD_Inference/create_beta_inference_commands.py"
 
 # Set directory locations
-scratch_dir="/lustre/orion/bif154/scratch/mconery/indexed_gwama_sumstats_testing"
+scratch_dir="/lustre/orion/bif154/scratch/mconery/indexed_gwama_sumstats_fixed"
 variant_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/raw_in-sample/weighted"
-output_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_2000/Meta"
-commands_file="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_2000/meta_matrix_commands.txt"
+output_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_2000/Fixed_Meta"
+commands_file="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_2000/fixed_meta_matrix_commands.txt"
 
 # Set number of nodes
 num_nodes=${SLURM_NNODES}
@@ -92,6 +92,6 @@ mapfile -t cmds < "$commands_file"
 
 # Launch flux and execute commands in parallel
 echo "Launching flux with $num_nodes nodes..."
-srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start "flux resource list; mapfile -t cmds < ${commands_file}; for ((i=0; i<\${#cmds[@]}; i++)); do flux submit -N1 -n1 -c7 --gpus-per-task=1 --output=flux_output/beta-infer_2000_\$i.txt \${cmds[\$i]}; done; flux queue drain;"
+srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start "flux resource list; mapfile -t cmds < ${commands_file}; for ((i=0; i<\${#cmds[@]}; i++)); do flux submit -N1 -n1 -c7 --gpus-per-task=1 --output=flux_output/beta-infer_2000_fixed_\$i.txt \${cmds[\$i]}; done; flux queue drain;"
 
 echo "All LD matrix inference jobs submitted and completed."
