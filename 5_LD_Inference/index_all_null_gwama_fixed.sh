@@ -2,7 +2,7 @@
 #SBATCH -A bif154
 #SBATCH -J index_gwama_mpi
 #SBATCH -o index_all_null_gwama_fixed.log
-#SBATCH -N 40
+#SBATCH -N 20
 #SBATCH -p batch
 #SBATCH -t 2:00:00                    
 
