@@ -198,7 +198,9 @@ def process_single_result_file(args: Tuple[str, str]) -> Optional[Dict]:
         method = None
         ld_matrix = None
         for i, part in enumerate(path_parts):
-            if part.endswith('_results'):
+            if part.startswith("fine-mapping"):
+                continue
+            elif part.endswith('_results'):
                 method = part.replace('_results', '')
             elif method and i < len(path_parts) - 1:  # LD matrix folder comes after method folder
                 if not part.endswith('.txt'):
