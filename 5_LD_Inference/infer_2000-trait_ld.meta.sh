@@ -30,8 +30,8 @@ command_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fin
 # Set directory locations
 scratch_dir="/lustre/orion/bif154/scratch/mconery/indexed_gwama_sumstats_fixed"
 variant_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/raw_in-sample/weighted"
-output_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_2000/Fixed_Meta"
-commands_file="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_2000/fixed_meta_matrix_commands.txt"
+output_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_2000_fixed/Meta"
+commands_file="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_2000_fixed/fixed_meta_matrix_commands.txt"
 
 # Set number of nodes
 num_nodes=${SLURM_NNODES}
