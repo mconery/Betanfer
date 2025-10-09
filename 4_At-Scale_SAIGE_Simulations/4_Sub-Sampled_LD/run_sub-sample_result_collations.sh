@@ -2,7 +2,7 @@
 
 #SBATCH -A bif154
 #SBATCH -J Collate_finemap
-#SBATCH -o run_result_collations.log
+#SBATCH -o run_sub-sample_result_collations.log
 #SBATCH -N 1
 #SBATCH -q debug
 #SBATCH -t 1:00:00
