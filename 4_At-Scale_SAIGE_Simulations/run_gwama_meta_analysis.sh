@@ -3,9 +3,9 @@
 #SBATCH -A bif154
 #SBATCH -J gwama_meta_analysis
 #SBATCH -o gwama_meta_analysis_%j.log
-#SBATCH -N 1882
+#SBATCH -N 40
 #SBATCH -p batch
-#SBATCH -t 4:00:00
+#SBATCH -t 2:00:00
 
 ##################################################################################################################
 ################################################### Set Needed Variables #########################################
@@ -30,7 +30,7 @@ CMD_SCRIPT="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Ma
 NNODES=${SLURM_NNODES}
 
 #Set analysis type
-analysis_type=fixed
+analysis_type=random
 
 ##################################################################################################################
 ############################################## Load Modules and Setup ###########################################
