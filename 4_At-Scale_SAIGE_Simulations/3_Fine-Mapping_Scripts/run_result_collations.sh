@@ -23,8 +23,8 @@ module load flux
 
 # Define paths - MODIFY THESE TO MATCH YOUR ACTUAL PATHS
 CAUSAL_DIR="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/simulated_phenotypes/causal_variants"
-RESULTS_DIR="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/fine-mapping_results/fixed_homo_3e-4"
-OUTPUT_FILE="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/summary_results/fixed_homo_3e-4.results_file.txt"
+RESULTS_DIR="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/fine-mapping_results/random_homo_5e-5"
+OUTPUT_FILE="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/summary_results/random_homo_5e-5.results_file.txt"
 
 #Fine-mapping collator script
 collate_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/fine_mapping_collator.py"
