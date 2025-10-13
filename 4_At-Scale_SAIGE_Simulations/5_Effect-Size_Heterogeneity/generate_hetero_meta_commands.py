@@ -45,7 +45,7 @@ def parse_filename(filename, default_case_prop=0.25):
     if herit_match:
         parsed['heritability'] = float(herit_match.group(1))
     else:
-        parsed['heritability'] = None
+        parsed['heritability'] = 0
     
     # Look for trait type
     if 'continuous' in basename:
@@ -111,27 +111,46 @@ def match_files_for_meta_analysis(files_by_pop, target_heritabilities):
     if len(pop_names) != len(target_heritabilities):
         raise ValueError(f"Number of populations ({len(pop_names)}) must match number of heritabilities ({len(target_heritabilities)})")
     
+    #Get unique numbers of causal variants (used to handle no causal variant case)
+    unique_causal_counts = []
+    for pop in files_by_pop.keys():
+        temp = files_by_pop[pop]
+        unique_causal_counts.extend(list(set([x['n_causal'] for x in temp if x['n_causal'] != None])))
+    unique_causal_counts = list(set(unique_causal_counts))
+    
     # Group files by phenotype, trait type, and chromosome for each population
     grouped_files = {}
     for pop_name in pop_names:
         grouped_files[pop_name] = defaultdict(list)
         
         for file_info in files_by_pop[pop_name]:
-            # Create key for grouping: (phenotype, trait_type, case_prop, chromosome)
-            key = (
-                file_info['phenotype'],
-                file_info['n_causal'],
-                file_info['trait_type'],
-                file_info.get('case_prop'),
-                file_info['chromosome']
-            )
-            grouped_files[pop_name][key].append(file_info)
+            if file_info['n_causal'] != None:
+                # Create key for grouping: (phenotype, trait_type, case_prop, chromosome)
+                key = (
+                    file_info['phenotype'],
+                    file_info['n_causal'],
+                    file_info['trait_type'],
+                    file_info.get('case_prop'),
+                    file_info['chromosome']
+                )
+                grouped_files[pop_name][key].append(file_info)
+            else:
+                for causal_count in unique_causal_counts:
+                    # Create key for grouping: (phenotype, trait_type, case_prop, chromosome)
+                    key = (
+                        file_info['phenotype'],
+                        causal_count,
+                        file_info['trait_type'],
+                        file_info.get('case_prop'),
+                        file_info['chromosome']
+                    )
+                    grouped_files[pop_name][key].append(file_info)
     
     # Find matches across populations
     matches = []
     
     # Get all possible keys from first population
-    first_pop = pop_names[0]
+    first_pop = [pop_names[x] for x in range(len(target_heritabilities)) if target_heritabilities[x] != 0 ][0]
     for key in grouped_files[first_pop]:
         # Check if this key exists in all populations
         if all(key in grouped_files[pop] for pop in pop_names):
