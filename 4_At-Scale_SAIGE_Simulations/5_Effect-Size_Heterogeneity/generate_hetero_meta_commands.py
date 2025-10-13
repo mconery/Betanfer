@@ -213,7 +213,7 @@ def generate_gwama_commands(matches, output_dir, analysis_type):
         # Add chromosome
         output_parts.append(f"chr{first_file['chromosome']}")
         
-        output_filename = '.'.join(output_parts) + '.meta'
+        output_filename = '.'.join(output_parts) + f'.{analysis_type}_meta'
         output_path = os.path.join(output_dir, output_filename)
         
         # Create input file list for GWAMA
@@ -227,9 +227,11 @@ def generate_gwama_commands(matches, output_dir, analysis_type):
             f"--filelist <(echo '{' '.join(input_files)}')",
             f"--output {output_path}",
             f"--name {output_filename}",
-            f"--{analysis_type}"
+            "--quantitative", "--indel_alleles", "--name_marker MarkerID", "--name_ea Allele2", "--name_nea Allele1",
+            "--name_n N", "--name_eaf AF_Allele2", "--name_beta BETA", "--name_se SE"
         ]
-        
+        if analysis_type == "random":
+            cmd_parts.append("--random")
         commands.append(' '.join(cmd_parts))
     
     return commands
