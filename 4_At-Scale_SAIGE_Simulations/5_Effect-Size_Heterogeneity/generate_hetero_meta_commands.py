@@ -6,6 +6,7 @@ import argparse
 import re
 import glob
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 
 def parse_filename(filename, default_case_prop=0.25):
     """
@@ -165,91 +166,101 @@ def match_files_for_meta_analysis(files_by_pop, target_heritabilities):
     
     return matches
 
-def generate_gwama_commands(matches, output_dir, analysis_type):
+def write_single_gwama_command(args):
+    #Extract the important variables
+    matched_files, output_dir, analysis_type = args
+    # Create output filename based on first file's properties
+    first_file = matched_files[0]
+    
+    # Build output name
+    output_parts = [first_file['phenotype']]
+    
+    # Add causal info if present (use first file's info as reference)
+    if first_file.get('n_causal') is not None:
+        # Format the number to remove unnecessary decimals
+        n_causal = first_file['n_causal']
+        if n_causal == int(n_causal):
+            output_parts.append(f"{int(n_causal)}_causal")
+        else:
+            output_parts.append(f"{n_causal}_causal")
+    
+    # Add heritabilities from all populations
+    herit_parts = []
+    for file_info in matched_files:
+        herit = file_info.get('heritability')
+        if herit is None:
+            herit = 0.0
+        # Format heritability to avoid scientific notation issues
+        if herit == 0:
+            herit_parts.append("0")
+        elif herit == int(herit):
+            herit_parts.append(str(int(herit)))
+        else:
+            herit_parts.append(str(herit))
+    output_parts.append(f"heritability_{'_'.join(herit_parts)}")
+    
+    # Add trait type and case proportion
+    if first_file.get('case_prop') is not None:
+        case_prop = first_file['case_prop']
+        if case_prop == int(case_prop):
+            output_parts.append(f"{first_file['trait_type']}_{int(case_prop)}")
+        else:
+            output_parts.append(f"{first_file['trait_type']}_{case_prop}")
+    else:
+        output_parts.append(first_file['trait_type'])
+    
+    #Make phenotype output directory variable
+    pheno_out_dir = os.path.join(output_dir, '.'.join(output_parts))
+    
+    # Add chromosome
+    output_parts.append(f"chr{first_file['chromosome']}")
+    
+    output_filename = '.'.join(output_parts) + f'.{analysis_type}_meta'
+    output_path = os.path.join(pheno_out_dir, output_filename)
+    expected_output = f"{output_path}.out"
+    input_list_file = f"{output_path}.input_files.txt"
+    # If meta-analysis already run, skip
+    if os.path.exists(expected_output) and os.path.getsize(expected_output) > 0:
+        return None
+    
+    # Create input file list for GWAMA
+    input_files = []
+    for file_info in matched_files:
+        input_files.append(file_info['filepath'])
+    #Make phenotype output directory and gwama input file list if necessary
+    os.makedirs(pheno_out_dir, exist_ok=True)
+    with open(input_list_file, 'w') as f:
+        for fpath in input_files:
+            f.write(f"{fpath}\n")
+    
+    # Generate GWAMA command
+    cmd_parts = [
+        "GWAMA",
+        f"--filelist {input_list_file}",
+        f"--output {output_path}",
+        "--quantitative", "--indel_alleles", "--name_marker MarkerID", "--name_ea Allele2", "--name_nea Allele1",
+        "--name_n N", "--name_eaf AF_Allele2", "--name_beta BETA", "--name_se SE"
+    ]
+    if analysis_type == "random":
+        cmd_parts.append("--random")
+    #Return the command
+    return ' '.join(cmd_parts)
+
+def generate_gwama_commands(matches, output_dir, analysis_type, max_workers=os.cpu_count()):
     """
     Generate GWAMA meta-analysis commands for matched file groups.
     
     Returns list of command strings
     """
     commands = []
+    # Prepare argument tuples for parallelization
+    args_list = [(matched_files, output_dir, analysis_type) for matched_files in matches]
     
-    for i, matched_files in enumerate(matches):
-        # Create output filename based on first file's properties
-        first_file = matched_files[0]
-        
-        # Build output name
-        output_parts = [first_file['phenotype']]
-        
-        # Add causal info if present (use first file's info as reference)
-        if first_file.get('n_causal') is not None:
-            # Format the number to remove unnecessary decimals
-            n_causal = first_file['n_causal']
-            if n_causal == int(n_causal):
-                output_parts.append(f"{int(n_causal)}_causal")
-            else:
-                output_parts.append(f"{n_causal}_causal")
-        
-        # Add heritabilities from all populations
-        herit_parts = []
-        for file_info in matched_files:
-            herit = file_info.get('heritability')
-            if herit is None:
-                herit = 0.0
-            # Format heritability to avoid scientific notation issues
-            if herit == 0:
-                herit_parts.append("0")
-            elif herit == int(herit):
-                herit_parts.append(str(int(herit)))
-            else:
-                herit_parts.append(str(herit))
-        output_parts.append(f"heritability_{'_'.join(herit_parts)}")
-        
-        # Add trait type and case proportion
-        if first_file.get('case_prop') is not None:
-            case_prop = first_file['case_prop']
-            if case_prop == int(case_prop):
-                output_parts.append(f"{first_file['trait_type']}_{int(case_prop)}")
-            else:
-                output_parts.append(f"{first_file['trait_type']}_{case_prop}")
-        else:
-            output_parts.append(first_file['trait_type'])
-        
-        #Make phenotype output directory variable
-        pheno_out_dir = os.path.join(output_dir, '.'.join(output_parts))
-        
-        # Add chromosome
-        output_parts.append(f"chr{first_file['chromosome']}")
-        
-        output_filename = '.'.join(output_parts) + f'.{analysis_type}_meta'
-        output_path = os.path.join(pheno_out_dir, output_filename)
-        expected_output = f"{output_path}.out"
-        input_list_file = f"{output_path}.input_files.txt"
-        # If meta-analysis already run, skip
-        if os.path.exists(expected_output) and os.path.getsize(expected_output) > 0:
-            continue
-        
-        # Create input file list for GWAMA
-        input_files = []
-        for file_info in matched_files:
-            input_files.append(file_info['filepath'])
-        #Make phenotype output directory and gwama input file list if necessary
-        os.makedirs(pheno_out_dir, exist_ok=True)
-        with open(input_list_file, 'w') as f:
-            for fpath in input_files:
-                f.write(f"{fpath}\n")
-        
-        # Generate GWAMA command
-        cmd_parts = [
-            "GWAMA",
-            f"--filelist {input_list_file}",
-            f"--output {output_path}",
-            f"--name {output_filename}",
-            "--quantitative", "--indel_alleles", "--name_marker MarkerID", "--name_ea Allele2", "--name_nea Allele1",
-            "--name_n N", "--name_eaf AF_Allele2", "--name_beta BETA", "--name_se SE"
-        ]
-        if analysis_type == "random":
-            cmd_parts.append("--random")
-        commands.append(' '.join(cmd_parts))
+    #Execute command generation in parallel
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        for res in executor.map(write_single_gwama_command, args_list):
+            if res is not None:
+                commands.append(res)
     
     return commands
 
