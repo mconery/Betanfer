@@ -7,7 +7,7 @@ import re
 import glob
 from collections import defaultdict
 
-def parse_filename(filename):
+def parse_filename(filename, default_case_prop=0.25):
     """
     Parse GWAS filename to extract components.
     
@@ -33,9 +33,9 @@ def parse_filename(filename):
     parsed['phenotype'] = pheno_match.group(1)
     
     # Look for causal variants pattern: #_causal or #.#_causal
-    causal_match = re.search(r'(\d+(?:\.\d+)?)_causal', basename)
+    causal_match = re.search(r'(\d+)_causal', basename)
     if causal_match:
-        parsed['n_causal'] = float(causal_match.group(1))
+        parsed['n_causal'] = int(causal_match.group(1))
     else:
         parsed['n_causal'] = None
     
@@ -57,7 +57,7 @@ def parse_filename(filename):
         if case_match:
             parsed['case_prop'] = float(case_match.group(1))
         else:
-            parsed['case_prop'] = None
+            parsed['case_prop'] = default_case_prop
     else:
         parsed['trait_type'] = None
         parsed['case_prop'] = None
@@ -119,6 +119,7 @@ def match_files_for_meta_analysis(files_by_pop, target_heritabilities):
             # Create key for grouping: (phenotype, trait_type, case_prop, chromosome)
             key = (
                 file_info['phenotype'],
+                file_info['n_causal'],
                 file_info['trait_type'],
                 file_info.get('case_prop'),
                 file_info['chromosome']
@@ -158,6 +159,9 @@ def match_files_for_meta_analysis(files_by_pop, target_heritabilities):
             # Only add to matches if we found files for all populations
             if len(matched_files) == len(pop_names):
                 matches.append(matched_files)
+        #Print keys missing in one or more populations
+        else:
+            print(f"Missing SAIGE Step2 results for chr{key[4]} of {key[2]} {key[0]}.{key[1]}_causal")
     
     return matches
 
