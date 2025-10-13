@@ -231,7 +231,7 @@ def generate_gwama_commands(matches, output_dir, analysis_type):
         #Make phenotype output directory and gwama input file list if necessary
         os.makedirs(pheno_out_dir, exist_ok=True)
         with open(input_list_file, 'w') as f:
-            for fpath in input_files.values():
+            for fpath in input_files:
                 f.write(f"{fpath}\n")
         
         # Generate GWAMA command
