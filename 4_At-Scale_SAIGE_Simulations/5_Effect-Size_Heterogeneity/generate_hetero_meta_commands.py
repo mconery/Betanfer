@@ -210,21 +210,34 @@ def generate_gwama_commands(matches, output_dir, analysis_type):
         else:
             output_parts.append(first_file['trait_type'])
         
+        #Make phenotype output directory variable
+        pheno_out_dir = os.path.join(output_dir, '.'.join(output_parts))
+        
         # Add chromosome
         output_parts.append(f"chr{first_file['chromosome']}")
         
         output_filename = '.'.join(output_parts) + f'.{analysis_type}_meta'
-        output_path = os.path.join(output_dir, output_filename)
+        output_path = os.path.join(pheno_out_dir, output_filename)
+        expected_output = f"{output_path}.out"
+        input_list_file = f"{output_path}.input_files.txt"
+        # If meta-analysis already run, skip
+        if os.path.exists(expected_output) and os.path.getsize(expected_output) > 0:
+            continue
         
         # Create input file list for GWAMA
         input_files = []
         for file_info in matched_files:
             input_files.append(file_info['filepath'])
+        #Make phenotype output directory and gwama input file list if necessary
+        os.makedirs(pheno_out_dir, exist_ok=True)
+        with open(input_list_file, 'w') as f:
+            for fpath in input_files.values():
+                f.write(f"{fpath}\n")
         
         # Generate GWAMA command
         cmd_parts = [
             "GWAMA",
-            f"--filelist <(echo '{' '.join(input_files)}')",
+            f"--filelist {input_list_file}",
             f"--output {output_path}",
             f"--name {output_filename}",
             "--quantitative", "--indel_alleles", "--name_marker MarkerID", "--name_ea Allele2", "--name_nea Allele1",
