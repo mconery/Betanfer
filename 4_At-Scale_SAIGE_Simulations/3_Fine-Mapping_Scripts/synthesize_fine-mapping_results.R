@@ -29,8 +29,9 @@ format_method_names <- function(data) {
 # Function to format LD matrix names with camel case and spaces
 format_ld_matrix_names <- function(data) {
   data %>%
+    mutate(ld_matrix = str_replace_all(ld_matrix, "_fixed", "")) %>% 
     mutate(ld_matrix = str_replace_all(ld_matrix, "_", " ") %>%
-           str_to_title()) %>% mutate(ld_matrix = str_replace_all(ld_matrix, "Pc", "PC"))
+           str_to_title()) %>% mutate(ld_matrix = str_replace_all(ld_matrix, "Pc", "PC")) 
 }
 
 
@@ -579,6 +580,6 @@ run_finemapping_analysis_summary <- function(file_path, output_dir = "finemappin
 }
 
 # Run the full analysis
-out_dir = "C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/SAIGE_Simulations/fine-mapping"
-homogeneity_results_file = "C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/SAIGE_Simulations/fine-mapping/homogeneity_results_file.txt"
+out_dir = "C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/SAIGE_Simulations/fine-mapping/fixed_homo_5e-5"
+homogeneity_results_file = "C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/SAIGE_Simulations/fine-mapping/fixed_homo_5e-5.results_file.txt"
 results <- run_finemapping_analysis_summary(homogeneity_results_file, output_dir = out_dir)
