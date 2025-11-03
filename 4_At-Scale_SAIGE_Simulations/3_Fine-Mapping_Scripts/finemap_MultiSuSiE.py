@@ -456,10 +456,11 @@ def save_results(multisusie_result, summ_stat_list, ancestry_labels, output_file
     df['cs'] = 0
     if hasattr(multisusie_result, 'sets'):
         for i in range(len(multisusie_result.sets[0])):
-            cslist=multisusie_result.sets[0][i]
-            for indx in cslist:
-                if indx < len(df):
-                    df.loc[indx, 'cs'] = i + 1
+            if multisusie_result.sets[3][i]: #Adding check for purity filter pass
+                cslist=multisusie_result.sets[0][i]
+                for indx in cslist:
+                    if indx < len(df):
+                        df.loc[indx, 'cs'] = i + 1
     
     # Write output
     df.to_csv(output_file, sep='\t', index=False, na_rep='NA')
