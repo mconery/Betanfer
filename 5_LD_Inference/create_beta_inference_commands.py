@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 """
-
 create_beta_inference_commands.py
 
 Generate commands for parallel LD matrix inference across multiple variant files.
@@ -11,15 +10,16 @@ This script creates a commands file that can be executed in parallel using flux.
 Usage:
 
 python create_ld_matrix_commands.py \
---variant_dir /path/to/variant/files \
---output_dir /path/to/output \
---commands_file /path/to/commands.txt \
---matrix_script /path/to/infer_matrix_script.py \
---indexed_dir /path/to/indexed/sumstats \
-[--n_traits 2000] \
-[--variant_col '#rs_number'] \
-[--beta_col beta] \
-[--device cuda]
+  --variant_dir /path/to/variant/files \
+  --output_dir /path/to/output \
+  --commands_file /path/to/commands.txt \
+  --matrix_script /path/to/infer_matrix_script.py \
+  --indexed_dir /path/to/indexed/sumstats \
+  [--n_traits 2000] \
+  [--trait_type all] \
+  [--variant_col '#rs_number'] \
+  [--beta_col beta] \
+  [--device cuda]
 
 """
 
@@ -75,7 +75,8 @@ def generate_output_filename(variant_file, output_dir):
     return os.path.join(output_dir, base_name)
 
 def create_matrix_inference_command(matrix_script, indexed_dir, variant_file, output_file,
-                                  n_traits=2000, variant_col='#rs_number', beta_col='beta', device='cuda'):
+                                  n_traits=2000, trait_type="all", variant_col='#rs_number', 
+                                  beta_col='beta', device='cuda'):
     """
     Create a command string for running the LD matrix inference script.
 
@@ -85,6 +86,7 @@ def create_matrix_inference_command(matrix_script, indexed_dir, variant_file, ou
         variant_file: Path to variant file
         output_file: Path to output file
         n_traits: Number of traits to sample
+        trait_type: Trait type filter ('all', 'continuous', or 'binary')
         variant_col: Column name for variant IDs
         beta_col: Column name for beta values
         device: Computation device (cuda/cpu)
@@ -98,6 +100,7 @@ def create_matrix_inference_command(matrix_script, indexed_dir, variant_file, ou
         '--variant_file', variant_file,
         '--output_file', output_file,
         '--n_traits', str(n_traits),
+        '--trait_type', trait_type,
         '--variant_col', f'{variant_col}',
         '--beta_col', beta_col,
         '--device', device
@@ -138,6 +141,8 @@ def main():
     # Optional arguments
     parser.add_argument("--n_traits", type=int, default=2000,
                        help="Number of traits to sample [default: 2000]")
+    parser.add_argument("--trait_type", type=str, default="all", choices=["all", "continuous", "binary"],
+                       help="Trait type filter: 'all', 'continuous', or 'binary' [default: all]")
     parser.add_argument("--variant_col", type=str, default='#rs_number',
                        help="Column name for variant IDs [default: #rs_number]")
     parser.add_argument("--beta_col", type=str, default='beta',
@@ -196,6 +201,7 @@ def main():
                 variant_file=variant_file,
                 output_file=output_file,
                 n_traits=args.n_traits,
+                trait_type=args.trait_type,
                 variant_col=args.variant_col,
                 beta_col=args.beta_col,
                 device=args.device
@@ -248,6 +254,7 @@ def main():
     print(f"  Output directory: {args.output_dir}")
     print(f"  Commands file: {args.commands_file}")
     print(f"  N traits: {args.n_traits}")
+    print(f"  Trait type: {args.trait_type}")
     print(f"  Device: {args.device}")
 
 if __name__ == "__main__":
