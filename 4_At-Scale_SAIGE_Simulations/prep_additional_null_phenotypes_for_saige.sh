@@ -60,7 +60,7 @@ cmds=()
 for pop in AFR EUR; do for trait_type in binary continuous; do cd $pheno_dir/$pop; for i in {1001..2000}; do
 		pheno_col=$(( $i + 12 - 1000 ))
 		if [ ! -f "$pheno_dir"/"$pop"/Pheno"$i"."$trait_type".txt ]; then 
-			cmds+=("python $decode_script -c cut___-f___1-12,"$pheno_col"___"$pheno_dir"/"$pop"/merged.maf.ld."$trait_type".txt___>___"$pheno_dir"/"$pop"/Pheno"$i"."$trait_type".txt")
+			cmds+=("python $decode_script -c cut___-f___1-12,"$pheno_col"___"$pheno_dir"/"$pop"/merged2.maf.ld."$trait_type".txt___>___"$pheno_dir"/"$pop"/Pheno"$i"."$trait_type".txt")
 		fi
 done; done; done
 
