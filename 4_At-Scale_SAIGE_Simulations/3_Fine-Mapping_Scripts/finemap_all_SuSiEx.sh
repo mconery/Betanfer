@@ -14,6 +14,7 @@
 module load miniforge3
 module load amd/6.3.1
 module load rocm/6.3.1
+module load r/4.4.1
 module load hwloc/2.11.1-gpu
 module load flux
 
