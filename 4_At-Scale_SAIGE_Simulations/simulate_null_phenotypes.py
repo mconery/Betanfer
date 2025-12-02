@@ -12,14 +12,14 @@ import pandas as pd
 import numpy as np
 from joblib import Parallel, delayed, cpu_count
 
-def simulate_phenotypes_chunk(chunk, num_pheno, pheno_type, param, seed):
+def simulate_phenotypes_chunk(chunk, num_pheno, pheno_type, param, seed, starting_number):
     rng = np.random.default_rng(seed)
     n = len(chunk)
     if pheno_type == 'binary':
         pheno_matrix = rng.binomial(1, param, (n, num_pheno))
     else:
         pheno_matrix = rng.normal(0, param, (n, num_pheno))
-    pheno_df = pd.DataFrame(pheno_matrix, columns=[f'Pheno{i+1}' for i in range(num_pheno)])
+    pheno_df = pd.DataFrame(pheno_matrix, columns=[f'Pheno{i+1}' for i in range(starting_number - 1, starting_number + num_pheno - 1)])
     return pd.concat([chunk.reset_index(drop=True), pheno_df], axis=1)
 
 def main():
@@ -30,6 +30,8 @@ def main():
     parser.add_argument('-t', '--type', choices=['binary', 'continuous'], default='continuous',
                         help='Phenotype type (default: continuous)')
     parser.add_argument('-p', '--param', type=float, help='Simulation parameter: case probability (binary) or SD (continuous)')
+    parser.add_argument('-r', '--random-seed', type=int, default=42, help="Random seed for simulation (default: 42)")
+    parser.add_argument('-s', '--starting-number', type=int, default=1, help="Number at which to begin number phenotypes (default: 1)")
     parser.add_argument('--n-jobs', type=int, default=-1, help='Number of parallel jobs (-1: all cores)')
     args = parser.parse_args()
 
@@ -50,11 +52,11 @@ def main():
     # Split data into chunks for each core
     chunks = np.array_split(df, n_jobs)
     # Use a unique seed for each chunk for reproducibility
-    seeds = [42 + i for i in range(n_jobs)]
+    seeds = [args.random_seed + i for i in range(n_jobs)]
 
     # Parallel phenotype simulation
     results = Parallel(n_jobs=n_jobs, prefer="threads")(
-        delayed(simulate_phenotypes_chunk)(chunk, args.num_pheno, args.type, args.param, seed)
+        delayed(simulate_phenotypes_chunk)(chunk, args.num_pheno, args.type, args.param, seed, args.starting_number)
         for chunk, seed in zip(chunks, seeds)
     )
 
