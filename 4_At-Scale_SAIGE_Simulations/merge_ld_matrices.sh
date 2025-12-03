@@ -27,8 +27,7 @@ matrix_combiner_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/
 input_dirs=(
     "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/PC-corrected"
     "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/raw_in-sample"
-    "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_2000"
-    "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_2000_fixed"
+    "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_2000_random_all"
 )
 
 # Output location for commands and flux output
