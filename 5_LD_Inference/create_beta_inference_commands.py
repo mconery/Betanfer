@@ -43,7 +43,7 @@ def find_variant_files(variant_dir, pattern="Pheno*raw_in-sample*.vars"):
     variant_files = glob.glob(search_pattern)
     return sorted(variant_files)
 
-def generate_output_filename(variant_file, output_dir):
+def generate_output_filename(variant_file, output_dir, n_traits):
     """
     Generate output filename based on input variant file.
 
@@ -63,14 +63,14 @@ def generate_output_filename(variant_file, output_dir):
 
     # Transform filename: remove raw_in-sample.unphased.vcor1 and add inferred_2000-trait.unphased.vcor1
     if '.raw_in-sample.unphased.vcor1' in base_name:
-        base_name = base_name.replace('.raw_in-sample.unphased.vcor1', '.inferred_2000-trait.unphased.vcor1')
+        base_name = base_name.replace('.raw_in-sample.unphased.vcor1', f'.inferred_{n_traits}-trait.unphased.vcor1')
     elif '.raw_in-sample' in base_name:
-        base_name = base_name.replace('.raw_in-sample', '.inferred_2000-trait')
+        base_name = base_name.replace('.raw_in-sample', f'.inferred_{n_traits}-trait')
         if not base_name.endswith('.unphased.vcor1'):
             base_name += '.unphased.vcor1'
     else:
         # Fallback: just append the suffix
-        base_name += '.inferred_2000-trait.unphased.vcor1'
+        base_name += f'.inferred_{n_traits}-trait.unphased.vcor1'
 
     return os.path.join(output_dir, base_name)
 
@@ -190,7 +190,7 @@ def main():
     skipped_variants = 0
 
     for variant_file in variant_files:
-        output_file = generate_output_filename(variant_file, args.output_dir)
+        output_file = generate_output_filename(variant_file, args.output_dir, args.n_traits)
         variant_copy_path = f"{output_file}.vars"
 
         # Check if matrix file already exists
