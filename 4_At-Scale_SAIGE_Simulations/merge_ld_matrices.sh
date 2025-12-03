@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -A bif154
 #SBATCH -J merge_ld_matrices
-#SBATCH -o merge_in-sample_ld_matrices.log
+#SBATCH -o merge_ld_matrices.log
 #SBATCH -N 20
 #SBATCH -p batch
 #SBATCH -t 2:00:00
