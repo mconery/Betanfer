@@ -176,7 +176,7 @@ def generate_commands(
     # Find all .step2.txt files (excluding already processed ones)
     results_dir_path = Path(results_dir)
     
-    for sumstats_file in sorted(results_dir_path.rglob("*.step2.txt")):
+    for sumstats_file in sorted(results_dir_path.rglob("Pheno*.*_causal.*.step2.txt")):
         # Skip already processed files
         if "drop_causal" in sumstats_file.name:
             continue
