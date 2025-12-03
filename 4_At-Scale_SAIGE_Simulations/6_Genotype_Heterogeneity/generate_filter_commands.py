@@ -35,7 +35,7 @@ def extract_pheno_number(filename: str) -> Optional[str]:
     >>> extract_pheno_number("Pheno1.2_100_causal.heritability_0.5.binary.chr1.step2.txt")
     '1.2'
     """
-    pattern = r"Pheno([0-9]+\.[0-9]+)_[0-9]+_causal"
+    pattern = r"Pheno([0-9]+)_[0-9]+_causal"
     match = re.search(pattern, filename)
     return match.group(1) if match else None
 
