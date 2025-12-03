@@ -3,9 +3,9 @@
 #SBATCH -A bif154
 #SBATCH -J infer_multi_trait_ld_pop-specific
 #SBATCH -o infer_multi_trait_ld.pop-specific.log
-#SBATCH -N 80
-#SBATCH -p batch
-#SBATCH -t 1:00:00
+#SBATCH -N 10
+#SBATCH -p extended
+#SBATCH -t 24:00:00
 
 ################################################################################################################
 ###################################### Load Modules and Environment ############################################
