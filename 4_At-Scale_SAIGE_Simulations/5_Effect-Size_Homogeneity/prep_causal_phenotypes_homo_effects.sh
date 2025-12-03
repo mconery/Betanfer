@@ -59,27 +59,27 @@ while read file; do
 
     # Scenario 1: AFR phenotypes using EUR as reference (effect sizes from EUR)
     if [ $trait_type == "binary" ]; then
-      out_file=$pheno_dir/AFR/$pheno.\"$num_var\"_causal.heritability_\"$heritability\".\"$trait_type\"_\"$prevalence\".matched_to_EUR.txt
+      out_file=$pheno_dir/AFR/$pheno."$num_var"_causal.heritability_"$heritability"."$trait_type"_"$prevalence".matched_to_EUR.txt
       if [ ! -f $out_file ]; then
-        cmds+=(\"python $simulate_script --plink-ref $geno_dir/EUR/chr\"$chromo\".plink.maf --plink-target $geno_dir/AFR/chr\"$chromo\".plink.maf --variants $file --trait-type $trait_type --per-snp-heritability $heritability --prevalence $prevalence --pc-file /mnt/bb/${USER}/AFR.eigenvec --output $out_file\")
+        cmds+=("python $simulate_script --plink-ref $geno_dir/EUR/chr"$chromo".plink.maf --plink-target $geno_dir/AFR/chr"$chromo".plink.maf --variants $file --trait-type $trait_type --per-snp-heritability $heritability --prevalence $prevalence --pc-file /mnt/bb/${USER}/AFR.eigenvec --output $out_file")
       fi
     else
-      out_file=$pheno_dir/AFR/$pheno.\"$num_var\"_causal.heritability_\"$heritability\".\"$trait_type\".matched_to_EUR.txt
+      out_file=$pheno_dir/AFR/$pheno."$num_var"_causal.heritability_"$heritability"."$trait_type".matched_to_EUR.txt
       if [ ! -f $out_file ]; then
-        cmds+=(\"python $simulate_script --plink-ref $geno_dir/EUR/chr\"$chromo\".plink.maf --plink-target $geno_dir/AFR/chr\"$chromo\".plink.maf --variants $file --trait-type $trait_type --per-snp-heritability $heritability --pc-file /mnt/bb/${USER}/AFR.eigenvec --output $out_file\")
+        cmds+=("python $simulate_script --plink-ref $geno_dir/EUR/chr"$chromo".plink.maf --plink-target $geno_dir/AFR/chr"$chromo".plink.maf --variants $file --trait-type $trait_type --per-snp-heritability $heritability --pc-file /mnt/bb/${USER}/AFR.eigenvec --output $out_file")
       fi
     fi
 
     # Scenario 2: EUR phenotypes using AFR as reference (effect sizes from AFR)
     if [ $trait_type == "binary" ]; then
-      out_file=$pheno_dir/EUR/$pheno.\"$num_var\"_causal.heritability_\"$heritability\".\"$trait_type\"_\"$prevalence\".matched_to_AFR.txt
+      out_file=$pheno_dir/EUR/$pheno."$num_var"_causal.heritability_"$heritability"."$trait_type"_"$prevalence".matched_to_AFR.txt
       if [ ! -f $out_file ]; then
-        cmds+=(\"python $simulate_script --plink-ref $geno_dir/AFR/chr\"$chromo\".plink.maf --plink-target $geno_dir/EUR/chr\"$chromo\".plink.maf --variants $file --trait-type $trait_type --per-snp-heritability $heritability --prevalence $prevalence --pc-file /mnt/bb/${USER}/EUR.eigenvec --output $out_file\")
+        cmds+=("python $simulate_script --plink-ref $geno_dir/AFR/chr"$chromo".plink.maf --plink-target $geno_dir/EUR/chr"$chromo".plink.maf --variants $file --trait-type $trait_type --per-snp-heritability $heritability --prevalence $prevalence --pc-file /mnt/bb/${USER}/EUR.eigenvec --output $out_file")
       fi
     else
-      out_file=$pheno_dir/EUR/$pheno.\"$num_var\"_causal.heritability_\"$heritability\".\"$trait_type\".matched_to_AFR.txt
+      out_file=$pheno_dir/EUR/$pheno."$num_var"_causal.heritability_"$heritability"."$trait_type".matched_to_AFR.txt
       if [ ! -f $out_file ]; then
-        cmds+=(\"python $simulate_script --plink-ref $geno_dir/AFR/chr\"$chromo\".plink.maf --plink-target $geno_dir/EUR/chr\"$chromo\".plink.maf --variants $file --trait-type $trait_type --per-snp-heritability $heritability --pc-file /mnt/bb/${USER}/EUR.eigenvec --output $out_file\")
+        cmds+=("python $simulate_script --plink-ref $geno_dir/AFR/chr"$chromo".plink.maf --plink-target $geno_dir/EUR/chr"$chromo".plink.maf --variants $file --trait-type $trait_type --per-snp-heritability $heritability --pc-file /mnt/bb/${USER}/EUR.eigenvec --output $out_file")
       fi
     fi
 
