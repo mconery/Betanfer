@@ -3,9 +3,8 @@
 #SBATCH -A bif154
 #SBATCH -J infer_multi_trait_ld_pop-specific
 #SBATCH -o infer_multi_trait_ld.pop-specific.log
-#SBATCH -N 1
+#SBATCH -N 10
 #SBATCH -p batch
-#SBATCH -q debug
 #SBATCH -t 1:00:00
 
 ################################################################################################################
@@ -173,6 +172,6 @@ mapfile -t master_cmds < "$master_commands_file"
 
 # Launch flux and execute all commands in parallel
 echo "Launching flux with $num_nodes nodes..."
-#srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start "flux resource list; mapfile -t master_cmds < ${master_commands_file}; for ((i=0; i<\${#master_cmds[@]}; i++)); do flux submit -N1 -n1 -c7 --gpus-per-task=1 --output=flux_output/beta-infer_\$i.txt \${master_cmds[\$i]}; done; flux queue drain;"
+srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start "flux resource list; mapfile -t master_cmds < ${master_commands_file}; for ((i=0; i<\${#master_cmds[@]}; i++)); do flux submit -N1 -n1 -c7 --gpus-per-task=1 --output=flux_output/beta-infer_\$i.txt \${master_cmds[\$i]}; done; flux queue drain;"
 
 echo "All LD matrix inference jobs submitted and completed."
