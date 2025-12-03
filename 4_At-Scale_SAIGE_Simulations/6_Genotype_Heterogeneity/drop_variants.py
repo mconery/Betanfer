@@ -48,7 +48,7 @@ def natural_chr_sort_key(chr_val):
         return (999, chr_str)
 
 
-def load_causal_variants(causal_file, variant_id_col):
+def load_causal_variants(causal_file):
     """
     Load causal variants from file.
     
@@ -65,13 +65,8 @@ def load_causal_variants(causal_file, variant_id_col):
         Set of causal variant IDs
     """
     try:
-        causal_df = pd.read_csv(causal_file, sep=r'\s+', engine='python')
-        if variant_id_col not in causal_df.columns:
-            raise ValueError(
-                f"Column '{variant_id_col}' not found in {causal_file}. "
-                f"Available columns: {list(causal_df.columns)}"
-            )
-        causal_variants = set(causal_df[variant_id_col].astype(str).values)
+        causal_df = pd.read_csv(causal_file, sep=r'\s+', engine='python', header=None)
+        causal_variants = set(causal_df.iloc[:,0].astype(str).values)
         print(f"Loaded {len(causal_variants)} causal variants from {causal_file}")
         return causal_variants
     except Exception as e:
@@ -290,7 +285,7 @@ Examples:
     
     causal_variants = None
     if args.drop_causal:
-        causal_variants = load_causal_variants(args.causal_file, args.marker_col)
+        causal_variants = load_causal_variants(args.causal_file)
     
     # Filter variants
     df_filtered = filter_variants(
