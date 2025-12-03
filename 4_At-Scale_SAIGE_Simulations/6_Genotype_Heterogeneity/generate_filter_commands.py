@@ -35,12 +35,12 @@ def extract_pheno_number(filename: str) -> Optional[str]:
     >>> extract_pheno_number("Pheno1.2_100_causal.heritability_0.5.binary.chr1.step2.txt")
     '1.2'
     """
-    pattern = r"Pheno([0-9]+).[0-9]+_causal"
+    pattern = r"Pheno([0-9]+).([0-9]+)_causal"
     match = re.search(pattern, filename)
-    return match.group(1) if match else None
+    return [match.group(1), match.group(2)] if match else None
 
 
-def find_causal_file(pheno_num: str, causal_dir: Path) -> Optional[Path]:
+def find_causal_file(pheno_num: str, causal_num: str, causal_dir: Path) -> Optional[Path]:
     """
     Find causal variants file matching phenotype number.
     
@@ -56,7 +56,7 @@ def find_causal_file(pheno_num: str, causal_dir: Path) -> Optional[Path]:
     Path or None
         Path to matching causal file or None if not found
     """
-    pattern = f"Pheno{pheno_num}_*_causal.variant_set.txt"
+    pattern = f"Pheno{pheno_num}.{causal_num}_causal.variant_set.txt"
     matching_files = list(causal_dir.glob(pattern))
     
     if not matching_files:
@@ -187,14 +187,20 @@ def generate_commands(
         dir_path = sumstats_file.parent
         
         # Extract phenotype number
-        pheno_num = extract_pheno_number(filename)
+        temp = extract_pheno_number(filename)
+        pheno_num = temp[0]
+        causal_num = temp[1]
         if not pheno_num:
             if verbose:
                 print(f"[WARN] Could not extract phenotype from: {filename}", file=sys.stderr)
             continue
+        elif not causal_num:
+            if verbose:
+                print(f"[WARN] Could not extract number of causal variants from: {filename}", file=sys.stderr)
+            continue
         
         # Find causal file
-        causal_file = find_causal_file(pheno_num, Path(causal_dir))
+        causal_file = find_causal_file(pheno_num, causal_num, Path(causal_dir))
         if not causal_file:
             if verbose:
                 print(f"[WARN] Causal file not found for phenotype {pheno_num}", file=sys.stderr)
