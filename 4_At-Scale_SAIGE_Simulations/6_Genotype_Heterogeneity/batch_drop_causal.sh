@@ -2,9 +2,9 @@
 #SBATCH -A bif154
 #SBATCH -J filter_gwas
 #SBATCH -o filter_gwas.log
-#SBATCH -N 1
+#SBATCH -N 4
 #SBATCH -p batch
-#SBATCH -t 1:00:00
+#SBATCH -t 2:00:00
 #SBATCH -C nvme
 
 # ============================================================================
