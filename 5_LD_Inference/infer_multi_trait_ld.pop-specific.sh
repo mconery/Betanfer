@@ -165,9 +165,9 @@ fi
 ####################################### Execute Commands in Parallel ########################################
 ################################################################################################################
 
-echo "Starting AFR parallel execution..."
+echo "Starting parallel execution..."
 
-# Read AFR commands into array
+# Read master commands into array
 mapfile -t master_cmds < "$master_commands_file"
 
 # Launch flux and execute all commands in parallel
