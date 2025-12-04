@@ -108,7 +108,7 @@ for trait_type in "${trait_types[@]}"; do
         ((total_command_files++))
 
         # Append to master commands file
-        cat "$eur_commands_file" >> "$master_commands_file"
+        grep -v "^#" "$eur_commands_file" >> "$master_commands_file"
 
         # AFR population
         echo "  → AFR population..."
@@ -135,7 +135,7 @@ for trait_type in "${trait_types[@]}"; do
         ((total_command_files++))
 
         # Append to master commands file
-        cat "$afr_commands_file" >> "$master_commands_file"
+        grep -v "^#" "$afr_commands_file" >> "$master_commands_file"
 
     done
 done
@@ -165,9 +165,9 @@ fi
 ####################################### Execute Commands in Parallel ########################################
 ################################################################################################################
 
-echo "Starting parallel execution..."
+echo "Starting AFR parallel execution..."
 
-# Read master commands into array
+# Read AFR commands into array
 mapfile -t master_cmds < "$master_commands_file"
 
 # Launch flux and execute all commands in parallel
