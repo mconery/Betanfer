@@ -237,7 +237,7 @@ def main():
         # Still create an empty commands file
         try:
             with open(args.commands_file, 'w') as f:
-                f.write("")
+                f.write("# All files already exist - no commands generated\n")
             print(f"Empty commands file created: {args.commands_file}")
         except Exception as e:
             print(f"Error writing commands file: {e}", file=sys.stderr)
