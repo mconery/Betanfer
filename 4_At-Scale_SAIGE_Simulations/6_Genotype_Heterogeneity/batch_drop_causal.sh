@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH -A bif154
 #SBATCH -J filter_gwas
-#SBATCH -o filter_gwas.log
-#SBATCH -N 4
+#SBATCH -o batch_drop_causal.log
+#SBATCH -N 8
 #SBATCH -p batch
 #SBATCH -t 2:00:00
 #SBATCH -C nvme
