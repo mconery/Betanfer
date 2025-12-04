@@ -26,7 +26,7 @@ simulate_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fi
 #Set key variables for phenotype simulation
 trait_types=(binary continuous)
 prevalence=0.25
-heritability=0.00005
+heritability=0.0003
 
 #Get number of nodes
 num_nodes="$SLURM_NNODES"
