@@ -2,9 +2,9 @@
 #SBATCH -A bif154
 #SBATCH -J saige_step2
 #SBATCH -o run_step2_saige_all_traits.log
-#SBATCH -N 2016
+#SBATCH -N 2000
 #SBATCH -q debug
-#SBATCH -t 1:15:00
+#SBATCH -t 4:00:00
 #SBATCH -C nvme
 
 ##################################################################################################################
