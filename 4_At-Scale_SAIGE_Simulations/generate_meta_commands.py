@@ -88,7 +88,7 @@ def find_gwas_files(directory):
             continue
         
         # Remove the .step2.txt extension
-        base_name = filename[:-9]  # Remove '.step2.txt'
+        base_name = filename[:-10]  # Remove '.step2.txt'
         
         # Determine file type and extract components
         file_type = None
@@ -98,17 +98,27 @@ def find_gwas_files(directory):
         phenotype = None
         
         # Pattern 3: Drop causal (must check before pattern 4 since 4 also has matched_to)
-        if '.drop_causal.' in base_name:
+        if '.drop_causal' in base_name:
             # Format: Pheno#.#_causal.heritability_#.continuous/binary.chr#.drop_causal
             # Split on .drop_causal to separate before and after
-            before_drop = base_name.split('.drop_causal.')[0]
-            after_drop = base_name.split('.drop_causal.')[1]
+            minus_drop = base_name.rstrip('.drop_causal')
             
-            # after_drop should be "chr#"
-            if after_drop.startswith('chr'):
-                chromosome = after_drop[3:]  # Extract chromosome number
+            # Last part before drop should be chromosome number
+            parts = minus_drop.split(".")
+            if parts[-1].startswith("chr"):
+                chromosome = parts[-1].lstrip("chr")  # Extract chromosome number
                 file_type = 'drop_causal'
-                phenotype = before_drop
+                phenotype = ".".join(parts[:-1])
+                for i in range(len(parts)):
+                    if parts[i] == "continuous":
+                        trait_type = "continuous"
+                        break
+                    elif parts[i] == "binary":
+                        trait_type = "binary"
+                        break
+                    elif parts[i] == "binary_0":
+                        trait_type = ".".join(parts[i:i+2])           
+                        break
         
         # Pattern 4: Matched to population
         elif '.matched_to_' in base_name:
@@ -154,6 +164,8 @@ def find_gwas_files(directory):
                         potential_trait = parts[-1]
                         if potential_trait in ['continuous', 'binary']:
                             trait_type = potential_trait
+                        elif "binary_0" == parts[-2]:
+                            trait_type = ".".join(parts[-2:])
         
         # Pattern 1: Basic (no causal, no heritability)
         else:
@@ -174,15 +186,23 @@ def find_gwas_files(directory):
                         potential_trait = parts[-1]
                         if potential_trait in ['continuous', 'binary']:
                             trait_type = potential_trait
+                        elif "binary_0" == parts[-2]:
+                            trait_type = ".".join(parts[-2:])
         
         # If we successfully parsed the file, add it to the dictionary
         if file_type and phenotype and chromosome:
             # If trait_type wasn't extracted, try to find it in phenotype
             if not trait_type:
                 parts = phenotype.split('.')
-                for part in parts:
-                    if part in ['continuous', 'binary']:
-                        trait_type = part
+                for i in range(len(parts)):
+                    if parts[i] == "continuous":
+                        trait_type = "continuous"
+                        break
+                    elif parts[i] == "binary":
+                        trait_type = "binary"
+                        break
+                    elif parts[i] == "binary_0":
+                        trait_type = ".".join(parts[i:i+2])           
                         break
             
             if trait_type:
@@ -305,19 +325,19 @@ def prepare_meta_task(args):
     """
     phenotype, trait_type, chromosome, analysis_variant, pop_files, output_dir, analysis_type = args
     
-    pheno_out_dir = os.path.join(output_dir, f"{phenotype}.{trait_type}")
+    pheno_out_dir = os.path.join(output_dir, f"{phenotype}")
     
     # Build output filename incorporating the analysis variant
     if analysis_variant == 'standard' or analysis_variant.startswith('standard_'):
         output_prefix = os.path.join(
             pheno_out_dir,
-            f"{phenotype}.{trait_type}.{chromosome}.{analysis_type}_meta"
+            f"{phenotype}.chr{chromosome}.{analysis_type}_meta"
         )
     else:
         # For matched or drop_causal variants, include them in the filename
         output_prefix = os.path.join(
             pheno_out_dir,
-            f"{phenotype}.{trait_type}.{chromosome}.{analysis_variant}.{analysis_type}_meta"
+            f"{phenotype}.chr{chromosome}.{analysis_variant}.{analysis_type}_meta"
         )
     
     input_list_file = f"{output_prefix}.input_files.txt"
