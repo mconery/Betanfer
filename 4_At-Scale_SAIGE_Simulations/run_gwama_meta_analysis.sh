@@ -2,7 +2,7 @@
 
 #SBATCH -A bif154
 #SBATCH -J gwama_meta_analysis
-#SBATCH -o gwama_meta_analysis_%j.log
+#SBATCH -o run_gwama_meta_analysis_%j.log
 #SBATCH -N 40
 #SBATCH -p batch
 #SBATCH -t 2:00:00
@@ -29,9 +29,6 @@ CMD_SCRIPT="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Ma
 # Number of nodes allocated by SLURM
 NNODES=${SLURM_NNODES}
 
-#Set analysis type
-analysis_type=random
-
 ##################################################################################################################
 ############################################## Load Modules and Setup ###########################################
 ##################################################################################################################
@@ -51,8 +48,7 @@ python ${CMD_SCRIPT} \
     --pop_names ${POP_NAMES} \
     --pop_dirs ${POP_DIRS} \
     --output_dir ${OUTPUT_DIR} \
-    --commands_file ${COMMANDS_FILE} \
-    --analysis_type $analysis_type
+    --commands_file ${COMMANDS_FILE}
 
 if [ ! -f ${COMMANDS_FILE} ] || [ ! -s ${COMMANDS_FILE} ]; then
     echo "Error: No commands generated or commands file is empty"
