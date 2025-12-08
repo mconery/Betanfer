@@ -64,49 +64,129 @@ def parse_arguments():
 
 def find_gwas_files(directory):
     """
-    Find all GWAS result files matching the pattern:
-    ...step2.txt
+    Find all GWAS result files matching the SAIGE step2 output patterns.
     
-    Categorizes files into three types:
-    1. Default: standard files (no matched_to or drop_causal)
-    2. Matched effects: files with 'matched_to_POP' in the name
-    3. Drop causal: files with 'drop_causal' in the name
+    File format categories:
+    1. Basic:        Pheno#.continuous/binary.chr#.step2.txt
+    2. Causal:       Pheno#.#_causal.heritability_#.continuous/binary.chr#.step2.txt
+    3. Drop causal:  Pheno#.#_causal.heritability_#.continuous/binary.chr#.drop_causal.step2.txt
+    4. Matched:      Pheno#.#_causal.heritability_#.continuous/binary.matched_to_POP.chr#.step2.txt
     
     Returns dictionary {(phenotype, trait_type, chromosome, file_type, modifier): filepath}
-    where file_type is 'default', 'matched_to', or 'drop_causal'
-    and modifier is None, target_pop, or source_pop respectively
+    where:
+    - file_type: 'default', 'causal', 'drop_causal', or 'matched_to'
+    - modifier: None for default/causal/drop_causal, target_pop for matched_to
     """
     files_dict = {}
     pattern = os.path.join(directory, "*.step2.txt")
     
     for filepath in glob.glob(pattern):
         filename = os.path.basename(filepath)
-        parts = filename.split('.')
         
-        if len(parts) >= 4 and parts[-2] == 'step2' and parts[-1] == 'txt':
-            chromosome = parts[-3]
-            trait_type = parts[-4]
-            phenotype_base = '.'.join(parts[:-4])
+        # All valid files must end with .step2.txt
+        if not filename.endswith('.step2.txt'):
+            continue
+        
+        # Remove the .step2.txt extension
+        base_name = filename[:-9]  # Remove '.step2.txt'
+        
+        # Determine file type and extract components
+        file_type = None
+        modifier = None
+        chromosome = None
+        trait_type = None
+        phenotype = None
+        
+        # Pattern 3: Drop causal (must check before pattern 4 since 4 also has matched_to)
+        if '.drop_causal.' in base_name:
+            # Format: Pheno#.#_causal.heritability_#.continuous/binary.chr#.drop_causal
+            # Split on .drop_causal to separate before and after
+            before_drop = base_name.split('.drop_causal.')[0]
+            after_drop = base_name.split('.drop_causal.')[1]
             
-            # Determine file type and extract modifier
-            if 'matched_to_' in phenotype_base:
-                # Extract the population being matched to
-                match_obj = re.search(r'matched_to_([A-Z]+)$', phenotype_base)
-                if match_obj:
-                    target_pop = match_obj.group(1)
-                    phenotype = phenotype_base.replace(f'.matched_to_{target_pop}', '')
-                    key = (phenotype, trait_type, chromosome, 'matched_to', target_pop)
-                    files_dict[key] = filepath
-                    
-            elif 'drop_causal' in phenotype_base:
-                # This file has causal variants dropped
-                phenotype = phenotype_base.replace('.drop_causal', '')
-                key = (phenotype, trait_type, chromosome, 'drop_causal', None)
-                files_dict[key] = filepath
+            # after_drop should be "chr#"
+            if after_drop.startswith('chr'):
+                chromosome = after_drop[3:]  # Extract chromosome number
+                file_type = 'drop_causal'
+                phenotype = before_drop
+        
+        # Pattern 4: Matched to population
+        elif '.matched_to_' in base_name:
+            # Format: Pheno#.#_causal.heritability_#.continuous/binary.matched_to_POP.chr#
+            # Split on .matched_to_ to extract population and chromosome
+            parts = base_name.split('.matched_to_')
+            if len(parts) == 2:
+                before_matched = parts[0]
+                after_matched = parts[1]
                 
-            else:
-                # Default file
-                key = (phenotype_base, trait_type, chromosome, 'default', None)
+                # after_matched is "POP.chr#"
+                matched_parts = after_matched.split('.')
+                if len(matched_parts) >= 2:
+                    modifier = matched_parts[0]  # Population name
+                    
+                    # Find chromosome part
+                    for part in matched_parts[1:]:
+                        if part.startswith('chr'):
+                            chromosome = part[3:]
+                            break
+                    
+                    if chromosome:
+                        file_type = 'matched_to'
+                        phenotype = before_matched
+        
+        # Pattern 2: Causal (with heritability)
+        elif '_causal.heritability_' in base_name:
+            # Format: Pheno#.#_causal.heritability_#.continuous/binary.chr#
+            # Split on .chr to separate phenotype info from chromosome
+            if '.chr' in base_name:
+                before_chr = base_name.split('.chr')[0]
+                chr_part = base_name.split('.chr')[1]
+                
+                # chr_part should be just the chromosome number
+                if chr_part and chr_part[0].isdigit():
+                    chromosome = chr_part
+                    file_type = 'causal'
+                    phenotype = before_chr
+                    
+                    # Extract trait type (last part before .chr)
+                    parts = before_chr.split('.')
+                    if parts:
+                        potential_trait = parts[-1]
+                        if potential_trait in ['continuous', 'binary']:
+                            trait_type = potential_trait
+        
+        # Pattern 1: Basic (no causal, no heritability)
+        else:
+            # Format: Pheno#.continuous/binary.chr#
+            if '.chr' in base_name:
+                before_chr = base_name.split('.chr')[0]
+                chr_part = base_name.split('.chr')[1]
+                
+                # chr_part should be just the chromosome number
+                if chr_part and chr_part[0].isdigit():
+                    chromosome = chr_part
+                    file_type = 'default'
+                    phenotype = before_chr
+                    
+                    # Extract trait type (last part before .chr)
+                    parts = before_chr.split('.')
+                    if parts:
+                        potential_trait = parts[-1]
+                        if potential_trait in ['continuous', 'binary']:
+                            trait_type = potential_trait
+        
+        # If we successfully parsed the file, add it to the dictionary
+        if file_type and phenotype and chromosome:
+            # If trait_type wasn't extracted, try to find it in phenotype
+            if not trait_type:
+                parts = phenotype.split('.')
+                for part in parts:
+                    if part in ['continuous', 'binary']:
+                        trait_type = part
+                        break
+            
+            if trait_type:
+                key = (phenotype, trait_type, chromosome, file_type, modifier)
                 files_dict[key] = filepath
     
     return files_dict
@@ -117,9 +197,9 @@ def find_common_traits_across_pops(pop_files_dict, pop_names_list):
     Given a dict mapping pop_name -> {(phenotype, trait_type, chromosome, file_type, modifier): filepath},
     identify meta-analysis pairs:
     
-    1. Standard pairs: (phenotype, trait_type, chromosome, 'default') from all populations
-    2. Matched pairs: matched_to_X file from population A paired with default file from population X
-    3. Drop causal pairs: drop_causal file from population A paired with default file from population B
+    1. Standard pairs: (phenotype, trait_type, chromosome, 'default'/'causal') from all populations
+    2. Matched pairs: matched_to_X file from population A paired with default/causal file from population X
+    3. Drop causal pairs: drop_causal file from population A paired with default/causal file from population B
     
     Returns list of tuples:
     (phenotype, trait_type, chromosome, analysis_variant, {pop_name: filepath, ...})
@@ -127,8 +207,8 @@ def find_common_traits_across_pops(pop_files_dict, pop_names_list):
     """
     meta_tasks = []
     
-    # First, extract all unique (phenotype, trait_type, chromosome) combinations from default files
-    default_files = {}  # {(pheno, trait, chr): {pop: filepath}}
+    # First, extract all unique (phenotype, trait_type, chromosome) combinations from default/causal files
+    standard_files = {}  # {(pheno, trait, chr, file_type): {pop: filepath}} for 'default' or 'causal'
     matched_files = {}  # {(pheno, trait, chr, target_pop): {pop: filepath}}
     drop_causal_files = {}  # {(pheno, trait, chr): {pop: filepath}}
     
@@ -139,11 +219,11 @@ def find_common_traits_across_pops(pop_files_dict, pop_names_list):
         pop_dict = pop_files_dict[pop_name]
         
         for (phenotype, trait_type, chromosome, file_type, modifier), filepath in pop_dict.items():
-            if file_type == 'default':
-                key = (phenotype, trait_type, chromosome)
-                if key not in default_files:
-                    default_files[key] = {}
-                default_files[key][pop_name] = filepath
+            if file_type in ['default', 'causal']:
+                key = (phenotype, trait_type, chromosome, file_type)
+                if key not in standard_files:
+                    standard_files[key] = {}
+                standard_files[key][pop_name] = filepath
                 
             elif file_type == 'matched_to':
                 key = (phenotype, trait_type, chromosome, modifier)  # modifier is target_pop
@@ -157,28 +237,34 @@ def find_common_traits_across_pops(pop_files_dict, pop_names_list):
                     drop_causal_files[key] = {}
                 drop_causal_files[key][pop_name] = filepath
     
-    # 1. Standard meta-analyses: all populations have default files
-    for (phenotype, trait_type, chromosome), pop_files in default_files.items():
+    # 1. Standard meta-analyses: all populations have the same file type for a given trait
+    for (phenotype, trait_type, chromosome, file_type), pop_files in standard_files.items():
         if len(pop_files) == len(pop_names_list):
-            meta_tasks.append((phenotype, trait_type, chromosome, 'standard', pop_files))
+            variant_name = 'standard' if file_type == 'default' else f'standard_{file_type}'
+            meta_tasks.append((phenotype, trait_type, chromosome, variant_name, pop_files))
     
     # 2. Matched effects meta-analyses
-    # For matched_to_X file from pop A, pair with default file from pop X
+    # For matched_to_X file from pop A, pair with standard (default/causal) file from pop X
     for (phenotype, trait_type, chromosome, target_pop), pop_files in matched_files.items():
         # pop_files has the population(s) that have matched_to_target_pop files
-        # We need to find default files from target_pop
+        # We need to find standard files from target_pop
         if target_pop in pop_files_dict:
             target_pop_dict = pop_files_dict[target_pop]
-            default_key = (phenotype, trait_type, chromosome, 'default', None)
-            if default_key in target_pop_dict:
-                target_default_file = target_pop_dict[default_key]
-                
+            
+            # Look for either default or causal file with same phenotype/trait/chromosome in target pop
+            standard_file = None
+            for (tp, tt, tc, ft, mod), fpath in target_pop_dict.items():
+                if tp == phenotype and tt == trait_type and tc == chromosome and ft in ['default', 'causal']:
+                    standard_file = fpath
+                    break
+            
+            if standard_file:
                 # For each population with matched_to_target_pop file
                 for source_pop, matched_file in pop_files.items():
                     if source_pop != target_pop:
                         paired_files = {
                             source_pop: matched_file,
-                            target_pop: target_default_file
+                            target_pop: standard_file
                         }
                         variant_name = f"matched_to_{target_pop}"
                         meta_tasks.append(
@@ -186,24 +272,24 @@ def find_common_traits_across_pops(pop_files_dict, pop_names_list):
                         )
     
     # 3. Drop causal meta-analyses
-    # For drop_causal file from pop A, pair with default file from pop B
+    # For drop_causal file from pop A, pair with standard file from pop B
     for (phenotype, trait_type, chromosome), pop_files in drop_causal_files.items():
         # pop_files has population(s) with drop_causal files
-        # Pair each with default files from other populations
+        # Pair each with standard files from other populations
         for source_pop, drop_file in pop_files.items():
-            # Find all populations that have default files for this trait
-            default_key = (phenotype, trait_type, chromosome)
-            if default_key in default_files:
-                for target_pop, default_file in default_files[default_key].items():
-                    if source_pop != target_pop:
-                        paired_files = {
-                            source_pop: drop_file,
-                            target_pop: default_file
-                        }
-                        variant_name = f"drop_causal_{source_pop}"
-                        meta_tasks.append(
-                            (phenotype, trait_type, chromosome, variant_name, paired_files)
-                        )
+            # Find all populations that have standard (default/causal) files for this trait
+            for (tp, tt, tc, ft), std_pop_files in standard_files.items():
+                if tp == phenotype and tt == trait_type and tc == chromosome and ft in ['default', 'causal']:
+                    for target_pop, standard_file in std_pop_files.items():
+                        if source_pop != target_pop:
+                            paired_files = {
+                                source_pop: drop_file,
+                                target_pop: standard_file
+                            }
+                            variant_name = f"drop_causal_{source_pop}"
+                            meta_tasks.append(
+                                (phenotype, trait_type, chromosome, variant_name, paired_files)
+                            )
     
     return meta_tasks
 
@@ -222,7 +308,7 @@ def prepare_meta_task(args):
     pheno_out_dir = os.path.join(output_dir, f"{phenotype}.{trait_type}")
     
     # Build output filename incorporating the analysis variant
-    if analysis_variant == 'standard':
+    if analysis_variant == 'standard' or analysis_variant.startswith('standard_'):
         output_prefix = os.path.join(
             pheno_out_dir,
             f"{phenotype}.{trait_type}.{chromosome}.{analysis_type}_meta"
