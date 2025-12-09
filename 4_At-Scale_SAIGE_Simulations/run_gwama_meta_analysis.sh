@@ -3,7 +3,7 @@
 #SBATCH -A bif154
 #SBATCH -J gwama_meta_analysis
 #SBATCH -o run_gwama_meta_analysis_%j.log
-#SBATCH -N 40
+#SBATCH -N 20
 #SBATCH -p batch
 #SBATCH -t 2:00:00
 
