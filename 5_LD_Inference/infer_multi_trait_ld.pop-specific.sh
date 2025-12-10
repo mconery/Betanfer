@@ -4,8 +4,8 @@
 #SBATCH -J infer_multi_trait_ld_pop-specific
 #SBATCH -o infer_multi_trait_ld.pop-specific.log
 #SBATCH -N 10
-#SBATCH -p extended
-#SBATCH -t 24:00:00
+#SBATCH -p batch
+#SBATCH -t 2:00:00
 
 ################################################################################################################
 ###################################### Load Modules and Environment ############################################
@@ -43,7 +43,7 @@ num_nodes=${SLURM_NNODES}
 
 # Define trait types and number of traits
 trait_types=("all" "continuous" "binary")
-num_traits_list=(50 100 200 300 400 500 750 1000)
+num_traits_list=(1250 1500 1750 2000)
 
 # Directory for all command files
 commands_dir="${base_ld_dir}/command_files"
