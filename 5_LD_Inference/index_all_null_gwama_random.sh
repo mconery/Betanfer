@@ -37,7 +37,7 @@ num_nodes=${SLURM_NNODES}
 ################################################################################################################
 
 #Prep commands file
-python $command_script --scratch_dir $scratch_dir --pattern $meta_dir/'*/Pheno*.meta.out' --commands_file $commands_file --filename_regex "^Pheno\\d+\\.(binary|continuous)\\.chr\\d+\\.random_meta\\.out$" --indexer_script $indexer_script
+python $command_script --scratch_dir $scratch_dir --pattern $meta_dir/'*/Pheno*.random_meta.out' --commands_file $commands_file --filename_regex "^Pheno\\d+\\.(binary|continuous)\\.chr\\d+\\.random_meta\\.out$" --indexer_script $indexer_script
 
 #Execute commands
 mapfile -t cmds < $commands_file
