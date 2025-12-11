@@ -4,7 +4,7 @@
 #SBATCH -o index_all_null_gwama.log
 #SBATCH -N 40
 #SBATCH -p batch
-#SBATCH -t 1:00:00                    
+#SBATCH -t 2:00:00                    
 
 ################################################################################################################
 ###################################### Load Modules and Environment ############################################
@@ -37,7 +37,7 @@ num_nodes=${SLURM_NNODES}
 ################################################################################################################
 
 #Prep commands file
-python $command_script --scratch_dir $scratch_dir --pattern $meta_dir/'*/Pheno*.meta.out' --commands_file $commands_file --filename_regex "^Pheno\\d+\\.(binary|continuous)\\.chr\\d+\\.meta\\.out$" --indexer_script $indexer_script
+python $command_script --scratch_dir $scratch_dir --pattern $meta_dir/'*/Pheno*.meta.out' --commands_file $commands_file --filename_regex "^Pheno\\d+\\.(binary|continuous)\\.chr\\d+\\.random_meta\\.out$" --indexer_script $indexer_script
 
 #Execute commands
 mapfile -t cmds < $commands_file
