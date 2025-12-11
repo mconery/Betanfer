@@ -25,7 +25,7 @@ command_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fin
 indexer_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/5_LD_Inference/index_single_gwama_file.py"
 
 #Set other file location
-scratch_dir="/lustre/orion/bif154/scratch/mconery/indexed_gwama_sumstats_testing"
+scratch_dir="/lustre/orion/bif154/scratch/mconery/indexed_gwama_sumstats_random"
 meta_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/meta_analysis_results"
 commands_file=$scratch_dir/gwama_index_commands.txt
 
