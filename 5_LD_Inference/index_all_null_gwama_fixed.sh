@@ -27,7 +27,7 @@ indexer_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fin
 #Set other file location
 scratch_dir="/lustre/orion/bif154/scratch/mconery/indexed_gwama_sumstats_fixed"
 meta_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/meta_analysis_results"
-commands_file=$scratch_dir/gwama_index_commands.txt
+commands_file=$scratch_dir/gwama_fixed_index_commands.txt
 
 #Set number of nodes
 num_nodes=${SLURM_NNODES}
