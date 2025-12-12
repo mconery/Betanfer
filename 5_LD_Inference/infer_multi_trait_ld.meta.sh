@@ -101,7 +101,7 @@ for meta_type in "${meta_types[@]}"; do
             echo "Generating commands for $n_traits traits, meta-type: $meta_type, trait-type: $trait_type"
 
             # Set output directory
-            output_dir="${base_ld_dir}/beta-inferred_${n_traits}_${meta_type}_${trait_type}"
+            output_dir="${base_ld_dir}/beta-inferred_${n_traits}_${meta_type}_${trait_type}/Meta"
             commands_file="${commands_dir}/${meta_type}_${n_traits}_${trait_type}_commands.txt"
 
             mkdir -p "$output_dir"
