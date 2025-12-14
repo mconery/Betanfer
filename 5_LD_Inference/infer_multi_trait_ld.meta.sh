@@ -1,8 +1,8 @@
 #!/bin/bash
 
 #SBATCH -A bif154
-#SBATCH -J infer_multi-trait_ld_meta
-#SBATCH -o infer_multi-trait_ld.meta.log
+#SBATCH -J infer_multi_trait_ld_meta
+#SBATCH -o infer_multi_trait_ld.meta.log
 #SBATCH -N 64
 #SBATCH -p extended
 #SBATCH -t 24:00:00
