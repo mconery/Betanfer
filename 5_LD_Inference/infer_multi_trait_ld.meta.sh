@@ -3,10 +3,9 @@
 #SBATCH -A bif154
 #SBATCH -J infer_multi-trait_ld_meta
 #SBATCH -o infer_multi-trait_ld.meta.log
-#SBATCH -N 200
-#SBATCH -p batch
-#SBATCH -q debug
-#SBATCH -t 2:00:00
+#SBATCH -N 64
+#SBATCH -p extended
+#SBATCH -t 24:00:00
 
 ################################################################################################################
 ###################################### Load Modules and Environment ############################################
