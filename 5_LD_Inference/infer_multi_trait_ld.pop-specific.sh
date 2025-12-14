@@ -4,8 +4,8 @@
 #SBATCH -J infer_multi_trait_ld_pop-specific
 #SBATCH -o infer_multi_trait_ld.pop-specific.log
 #SBATCH -N 20
-#SBATCH -p extended
-#SBATCH -t 24:00:00
+#SBATCH -p batch
+#SBATCH -t 2:00:00
 
 ################################################################################################################
 ###################################### Load Modules and Environment ############################################
@@ -42,8 +42,8 @@ afr_variant_dir="${base_ld_dir}/raw_in-sample/AFR"
 num_nodes=${SLURM_NNODES}
 
 # Define trait types and number of traits
-trait_types=("all" "continuous" "binary")
-num_traits_list=(1250 1500 1750 2000)
+trait_types=("all")
+num_traits_list=(2500 3000 3500 4000)
 
 # Directory for all command files
 commands_dir="${base_ld_dir}/command_files"
