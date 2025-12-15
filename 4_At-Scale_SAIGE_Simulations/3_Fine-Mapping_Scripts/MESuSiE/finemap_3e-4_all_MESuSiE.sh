@@ -32,7 +32,7 @@ map_enviro="/lustre/orion/bif154/proj-shared/mconery/tools/environments/carma"
 sumstats_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step2_results"
 matrix_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices"
 geno_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/simulated_genotypes"
-out_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/fine-mapping_results/fixed_homo_5e-5/mesusie_results"
+out_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/fine-mapping_results/fixed_homo_3e-4/mesusie_results"
 
 #Set command file
 command_file=$out_dir/"mesusie_commands.txt"
@@ -47,7 +47,7 @@ num_nodes=${SLURM_NNODES}
 ############################################## Prep Mapping Commands ###########################################
 ################################################################################################################
 
-python $command_script --wrapper-script $map_script --gwas-dir $sumstats_dir --ld-dir $matrix_dir --output-dir $out_dir --commands-file $command_file --matrix-types raw_in-sample,PC-corrected,beta-inferred_50_fixed_all,beta-inferred_100_fixed_all,beta-inferred_200_fixed_all,beta-inferred_300_fixed_all,beta-inferred_400_fixed_all,beta-inferred_500_fixed_all,beta-inferred_750_fixed_all,beta-inferred_1000_fixed_all,beta-inferred_1250_fixed_all,beta-inferred_1500_fixed_all,beta-inferred_1750_fixed_all,beta-inferred_2000_fixed_all --populations $populations --skip-existing --heritability 0.00005 
+python $command_script --wrapper-script $map_script --gwas-dir $sumstats_dir --ld-dir $matrix_dir --output-dir $out_dir --commands-file $command_file --matrix-types raw_in-sample,PC-corrected,beta-inferred_50_fixed_all,beta-inferred_100_fixed_all,beta-inferred_200_fixed_all,beta-inferred_300_fixed_all,beta-inferred_400_fixed_all,beta-inferred_500_fixed_all,beta-inferred_750_fixed_all,beta-inferred_1000_fixed_all,beta-inferred_1250_fixed_all,beta-inferred_1500_fixed_all,beta-inferred_1750_fixed_all,beta-inferred_2000_fixed_all --populations $populations --skip-existing --heritability 0.0003
 
 ################################################################################################################
 ################################## Execute Mapping Commands in Parallel ########################################
