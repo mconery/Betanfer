@@ -513,6 +513,10 @@ def create_susiex_commands(gwas_base_dir, ld_base_dir, geno_base_dir, output_bas
         return []
     
     causal_files = glob.glob(os.path.join(pop_gwas_dir, "*_causal*.step2.txt"))
+    # Filter out files with unwanted patterns
+    causal_files = [f for f in causal_files 
+                    if 'drop_causal' not in os.path.basename(f) 
+                    and 'matched_to_' not in os.path.basename(f)]
     print(f"Found {len(causal_files)} causal files")
     
     # Group files by phenotype pattern to avoid duplicates
