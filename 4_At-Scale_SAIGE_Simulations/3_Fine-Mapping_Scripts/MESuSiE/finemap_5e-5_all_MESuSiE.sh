@@ -35,7 +35,7 @@ geno_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulati
 out_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/fine-mapping_results/fixed_homo_5e-5/mesusie_results"
 
 #Set command file
-command_file=$out_dir/"mesusie_commands.txt"
+command_file=$out_dir/command_files/"mesusie_all_commands.txt"
 
 #Set populations
 populations="AFR,EUR"
