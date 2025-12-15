@@ -285,6 +285,9 @@ def generate_multisusie_commands(
     # Discover unique GWAS patterns using the *first* population folder
     first_pop_dir = os.path.join(gwas_dir, populations[0])
     example_files = glob.glob(os.path.join(first_pop_dir, "*_causal*.step2.txt"))
+    example_files = [f for f in example_files 
+                    if 'drop_causal' not in os.path.basename(f) 
+                    and 'matched_to_' not in os.path.basename(f)]
     patterns: set[str] = set()
     gwas_example_list: List[str] = []
     for f in example_files:
