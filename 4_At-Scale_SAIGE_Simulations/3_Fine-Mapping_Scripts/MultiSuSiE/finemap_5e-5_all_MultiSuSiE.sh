@@ -22,8 +22,8 @@ module load flux
 ################################################################################################################
 
 # Set script locations
-map_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/finemap_MultiSuSiE.py"
-command_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/generate_multisusie_commands.py"
+map_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/MultiSuSiE/finemap_MultiSuSiE.py"
+command_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/MultiSuSiE/generate_multisusie_commands.py"
 
 #Set environment location
 map_enviro="/lustre/orion/bif154/proj-shared/mconery/tools/environments/multisusie"
@@ -32,10 +32,10 @@ map_enviro="/lustre/orion/bif154/proj-shared/mconery/tools/environments/multisus
 sumstats_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step2_results"
 matrix_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices"
 pheno_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/simulated_phenotypes"
-out_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/fine-mapping_results/fixed_homo_3e-4/multisusie_results"
+out_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/fine-mapping_results/fixed_homo_5e-5/multisusie_results"
 
 #Set command file
-command_file=$out_dir/"multisusie_commands.txt"
+command_file=$out_dir/command_files/"multisusie_all_commands.txt"
 
 #Set populations
 populations="AFR,EUR"
@@ -47,7 +47,7 @@ num_nodes=${SLURM_NNODES}
 ############################################## Prep Mapping Commands ###########################################
 ################################################################################################################
 
-python $command_script --wrapper-script $map_script --gwas-dir $sumstats_dir --ld-dir $matrix_dir --pheno-dir $pheno_dir --output-dir $out_dir --commands-file $command_file --matrix-types raw_in-sample,PC-corrected,beta-inferred_2000_fixed --populations $populations --skip-existing --heritability 0.0003 
+python $command_script --wrapper-script $map_script --gwas-dir $sumstats_dir --ld-dir $matrix_dir --pheno-dir $pheno_dir --output-dir $out_dir --commands-file $command_file --matrix-types raw_in-sample,PC-corrected,beta-inferred_50_fixed_all,beta-inferred_100_fixed_all,beta-inferred_200_fixed_all,beta-inferred_300_fixed_all,beta-inferred_400_fixed_all,beta-inferred_500_fixed_all,beta-inferred_750_fixed_all,beta-inferred_1000_fixed_all,beta-inferred_1250_fixed_all,beta-inferred_1500_fixed_all,beta-inferred_1750_fixed_all,beta-inferred_2000_fixed_all --populations $populations --skip-existing --heritability 0.00005 
 
 ################################################################################################################
 ################################## Execute Mapping Commands in Parallel ########################################
