@@ -446,7 +446,7 @@ def create_mesusie_commands(gwas_base_dir, ld_base_dir, output_base_dir, wrapper
     """
     Generate MESuSiE multi-population fine-mapping commands for all loci using parallel processing.
     
-    Parameters:
+    Parameters:ls 
     - gwas_base_dir: Base directory containing GWAS summary statistics (with population subdirs)
     - ld_base_dir: Base directory containing LD matrices
     - output_base_dir: Base directory for fine-mapping results
@@ -659,7 +659,7 @@ def main():
     # Parse populations
     populations = parse_populations(args.populations)
     print(f"Populations: {populations}")
-
+    
     # Handle list-matrices option
     if args.list_matrices:
         print(f"Scanning for matrix subdirectories in: {args.ld_dir}")
@@ -709,12 +709,12 @@ def main():
     if not os.path.exists(args.wrapper_script):
         print(f"Error: Wrapper script does not exist: {args.wrapper_script}")
         return 1
-
+    
     # Parse matrix filter
     matrix_filter = parse_matrix_filter(args.matrix_types)
     if matrix_filter:
         print(f"Matrix filter applied: {matrix_filter}")
-
+    
     # Validate number of processes
     if args.processes is not None and args.processes < 1:
         print(f"Error: Number of processes must be >= 1, got {args.processes}")
