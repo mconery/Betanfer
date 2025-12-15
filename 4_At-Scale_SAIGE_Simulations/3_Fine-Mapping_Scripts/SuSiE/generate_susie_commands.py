@@ -610,37 +610,6 @@ def main():
 
     args = parser.parse_args()
 
-    # Handle list-matrices option
-    if args.list_matrices:
-        print(f"Scanning for matrix subdirectories in: {args.ld_dir}")
-        if not os.path.exists(args.ld_dir):
-            print(f"Error: LD directory does not exist: {args.ld_dir}")
-            return 1
-
-        matrix_configs = detect_matrix_subdirs(args.ld_dir)
-        if matrix_configs:
-            print("\nAvailable matrix types:")
-            for matrix_type, subfolder in matrix_configs.items():
-                print(f"  {matrix_type} ({subfolder})")
-
-                # Show sample matrix files for this type
-                search_dir = os.path.join(args.ld_dir, matrix_type, subfolder)
-                if os.path.exists(search_dir):
-                    sample_files = glob.glob(os.path.join(search_dir, "*.vcor1"))[:3]
-                    if sample_files:
-                        print(f"    Sample files:")
-                        for f in sample_files:
-                            print(f"      {os.path.basename(f)}")
-                        if len(glob.glob(os.path.join(search_dir, "*.vcor1"))) > 3:
-                            print(f"      ... and more")
-
-            print("\nExample usage:")
-            print(f"  --matrix-types \"raw_in-sample,PC-corrected\"")
-            print(f"  --matrix-types \"{','.join(matrix_configs.keys())}\"")
-        else:
-            print("No valid matrix configurations found.")
-        return 0
-
     # Check if directories exist
     for dir_path, name in [(args.gwas_dir, 'GWAS'), (args.ld_dir, 'LD matrices')]:
         if not os.path.exists(dir_path):
