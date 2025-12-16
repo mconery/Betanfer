@@ -4,6 +4,7 @@
 #SBATCH -o merge_ld_matrices.log
 #SBATCH -N 20
 #SBATCH -p batch
+#SBATCH -q debug
 #SBATCH -t 2:00:00
 
 ################################################################################################################
@@ -27,6 +28,17 @@ matrix_combiner_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/
 input_dirs=(
     "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/PC-corrected"
     "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/raw_in-sample"
+    "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_50_random_all"
+    "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_100_random_all"
+    "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_200_random_all"
+    "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_300_random_all"
+    "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_400_random_all"
+    "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_500_random_all"
+    "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_750_random_all"
+    "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_1000_random_all"
+    "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_1250_random_all"
+    "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_1500_random_all"
+    "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_1750_random_all"
     "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_2000_random_all"
 )
 
@@ -76,7 +88,7 @@ python "${command_generator_script}" \
     --output-commands "${commands_file}" \
     --afr-sample-size ${afr_sample_size} \
     --eur-sample-size ${eur_sample_size} \
-    --combiner-script "${matrix_combiner_script}" \
+    --combiner-script "${matrix_combiner_script}"
 
 # Check if command generation was successful
 if [ ! -f "${commands_file}" ]; then
