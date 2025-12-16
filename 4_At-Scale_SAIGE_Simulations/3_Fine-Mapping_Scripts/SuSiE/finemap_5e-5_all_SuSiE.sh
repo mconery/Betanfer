@@ -22,8 +22,8 @@ module load flux
 ################################################################################################################
 
 # Set script locations
-map_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/finemap_SuSiE.R"
-command_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/generate_susie_commands.py"
+map_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/SuSiE/finemap_SuSiE.R"
+command_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/SuSiE/generate_susie_commands.py"
 
 #Set environment location
 map_enviro="/lustre/orion/bif154/proj-shared/mconery/tools/environments/susie"
@@ -34,7 +34,7 @@ matrix_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simula
 out_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/fine-mapping_results/fixed_homo_5e-5/susie_results"
 
 #Set command file
-command_file=$out_dir/"susie_commands.txt"
+command_file=$out_dir/command_files/"susie_all_commands.txt"
 
 # Set number of nodes
 num_nodes=${SLURM_NNODES}
@@ -43,7 +43,7 @@ num_nodes=${SLURM_NNODES}
 ############################################## Prep Mapping Commands ###########################################
 ################################################################################################################
 
-python $command_script --wrapper-script $map_script --gwas-dir $sumstats_dir --ld-dir $matrix_dir --output-dir $out_dir --commands-file $command_file --matrix-types raw_in-sample,PC-corrected,beta-inferred_2000_fixed --skip-existing --heritability 0.00005 --analysis-type fixed
+python $command_script --wrapper-script $map_script --gwas-dir $sumstats_dir --ld-dir $matrix_dir --output-dir $out_dir --commands-file $command_file --matrix-types raw_in-sample,PC-corrected,beta-inferred_50_fixed_all,beta-inferred_100_fixed_all,beta-inferred_200_fixed_all,beta-inferred_300_fixed_all,beta-inferred_400_fixed_all,beta-inferred_500_fixed_all,beta-inferred_750_fixed_all,beta-inferred_1000_fixed_all,beta-inferred_1250_fixed_all,beta-inferred_1500_fixed_all,beta-inferred_1750_fixed_all,beta-inferred_2000_fixed_all --skip-existing --heritability 0.00005 --analysis-type fixed
 
 ################################################################################################################
 ################################## Execute Mapping Commands in Parallel ########################################
