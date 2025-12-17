@@ -26,6 +26,7 @@ source activate /lustre/orion/bif154/proj-shared/mconery/tools/environments/infe
 # Set script locations
 matrix_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/5_LD_Inference/infer_matrix_from_null_traits.py"
 command_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/5_LD_Inference/create_beta_inference_commands.py"
+python_splitter="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/5_LD_Inference/split_commands_parallel.py"
 
 # Base directories
 base_ld_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices"
@@ -50,7 +51,7 @@ commands_dir="${base_ld_dir}/command_files"
 mkdir -p "$commands_dir"
 
 # Batch configuration
-commands_per_batch=150
+commands_per_batch=5
 
 # Master commands file
 master_commands_file="${commands_dir}/master_meta_commands.txt"
@@ -167,27 +168,27 @@ fi
 ################################################################################################################
 
 echo ""
-echo "Creating batched command files for execution..."
-
-# Calculate number of batches
-num_commands=$(wc -l < "$master_commands_file")
-num_batches=$(( (num_commands + commands_per_batch - 1) / commands_per_batch ))
-echo "Creating ${num_batches} batches with ${commands_per_batch} commands each"
+echo "Creating batched command files using parallel Python splitter..."
 
 # Clean up any existing meta_infer batch files
 rm -f "${commands_dir}"/meta_infer_batch_*.sh
 
-# Split master commands into batch files
-split -l ${commands_per_batch} -d --additional-suffix=.sh "$master_commands_file" "${commands_dir}/meta_infer_batch_"
+# Use Python splitter for fast parallel batch creation
+python "${python_splitter}" \
+    -i "${master_commands_file}" \
+    -o "${commands_dir}" \
+    -b ${commands_per_batch} \
+    -p "meta_infer_batch_" \
+    -s ".sh" 
 
-# Verify batch creation
-num_batch_files=$(ls -1 "${commands_dir}"/meta_infer_batch_*.sh 2>/dev/null | wc -l)
-echo "Created ${num_batch_files} batch files in ${commands_dir}"
-
-if [ ${num_batch_files} -eq 0 ]; then
-    echo "ERROR: No batch files were created"
+if [ $? -ne 0 ]; then
+    echo "ERROR: Python batch splitter failed"
     exit 1
 fi
+
+# Verify batch creation
+num_batch_files=$(ls "${commands_dir}" | grep -c "meta_infer_batch")
+echo "Verified: Created ${num_batch_files} batch files in ${commands_dir}"
 
 ################################################################################################################
 ####################################### Execute Commands in Parallel #########################################
