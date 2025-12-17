@@ -2,10 +2,10 @@
 #SBATCH -A bif154
 #SBATCH -J merge_ld_matrices
 #SBATCH -o merge_ld_matrices.log
-#SBATCH -N 40
+#SBATCH -N 5
 #SBATCH -p batch
 #SBATCH -q debug
-#SBATCH -t 2:00:00
+#SBATCH -t 1:00:00
 
 ################################################################################################################
 ###################################### Load Modules and Environment ############################################
@@ -130,12 +130,77 @@ if [ ${num_commands} -eq 0 ]; then
 fi
 
 ################################################################################################################
+################################## Create batched command files ################################################
+################################################################################################################
+
+echo ""
+echo "Creating batched command files..."
+
+# Create batch directory
+mkdir -p "${batch_dir}"
+
+# Clean up any existing batch files
+rm -f "${batch_dir}"/batch_*.sh
+
+# Split commands into batch files (skip comments and empty lines)
+grep -v '^#' "${commands_file}" | grep -v '^$' | \
+    split -l ${commands_per_batch} -d --additional-suffix=.sh - "${batch_dir}/batch_"
+
+# Verify batch creation
+num_batch_files=$(ls -1 "${batch_dir}"/batch_*.sh 2>/dev/null | wc -l)
+echo "Created ${num_batch_files} batch files in ${batch_dir}"
+
+if [ ${num_batch_files} -eq 0 ]; then
+    echo "ERROR: No batch files were created"
+    exit 1
+fi
+
+################################################################################################################
 ################################## Execute merge commands using Flux #########################################
 ################################################################################################################
 
-echo "Starting flux-based execution of merge commands at $(date)"
+echo ""
+echo "Starting flux-based execution of batched merge commands at $(date)"
 
-# Read commands into array (skip comments and empty lines)
-mapfile -t cmds < ${commands_file}
-srun -N ${num_nodes} -n ${num_nodes} -c 56 flux start "flux resource list; mapfile -t cmds < ${commands_file}; for ((i=0; i<\${#cmds[@]}; i++)); do flux submit -N1 -n1 -c56 --output=flux_output/merge_in-sample_\$i.txt \${cmds[\$i]}; done; flux queue drain;"
+# Create flux output directory
+mkdir -p "${output_dir}/flux_output"
 
+# Start Flux and submit batch jobs
+srun -N ${num_nodes} -n ${num_nodes} -c 56 flux start bash -c "
+    # Display Flux resource allocation
+    echo \"Flux instance started at \$(date)\"
+    echo \"Available resources:\"
+    flux resource list
+    echo \"\"
+    
+    # Submit all batch files to Flux
+    echo \"Submitting ${num_batch_files} batches to Flux queue...\"
+    batch_count=0
+    for batch in ${batch_dir}/batch_*.sh; do
+        batch_name=\$(basename \${batch} .sh)
+        flux submit -N1 -n1 -c56 \
+            --output=${output_dir}/flux_output/\${batch_name}.log \
+            bash \${batch}
+        
+        ((batch_count++))
+        
+        # Print progress every 10 batches
+        if [ \$((batch_count % 10)) -eq 0 ]; then
+            echo \"  Submitted \${batch_count}/${num_batch_files} batches\"
+        fi
+    done
+    
+    echo \"All ${num_batch_files} batches submitted to Flux queue at \$(date)\"
+    echo \"\"
+    
+    # Wait for all jobs to complete
+    echo \"Waiting for all batches to complete...\"
+    flux queue drain
+    
+    echo \"\"
+    echo \"All batches completed at \$(date)\"
+    
+    # Display final resource status
+    echo \"Final Flux resource status:\"
+    flux resource list
+"
