@@ -2,10 +2,9 @@
 #SBATCH -A bif154
 #SBATCH -J merge_ld_matrices
 #SBATCH -o merge_ld_matrices.log
-#SBATCH -N 5
+#SBATCH -N 1882
 #SBATCH -p batch
-#SBATCH -q debug
-#SBATCH -t 1:00:00
+#SBATCH -t 40:00
 
 ################################################################################################################
 ###################################### Load Modules and Environment ############################################
@@ -85,71 +84,71 @@ num_nodes=${SLURM_NNODES}
 ################################## Create output directories and prep commands ##################################
 ################################################################################################################
 
-echo "Starting LD matrix merge workflow at $(date)"
-echo "Input directories: ${input_dirs[@]}"
-echo "Output directory: ${output_dir}"
-echo "Using ${num_nodes} nodes"
-
-# Ensure weighted subdirectories exist in input directories
-for input_dir in "${input_dirs[@]}"; do
-    if [ -d "${input_dir}" ]; then
-        echo "Checking directory: ${input_dir}"
-        mkdir -p "${input_dir}/weighted"
-
-        # List contents for verification
-        echo "  AFR matrices: $(find ${input_dir}/AFR -name '*.unphased.vcor1' 2>/dev/null | wc -l)"
-        echo "  EUR matrices: $(find ${input_dir}/EUR -name '*.unphased.vcor1' 2>/dev/null | wc -l)"
-    else
-        echo "WARNING: Input directory does not exist: ${input_dir}"
-    fi
-done
-
-echo ""
+#echo "Starting LD matrix merge workflow at $(date)"
+#echo "Input directories: ${input_dirs[@]}"
+#echo "Output directory: ${output_dir}"
+#echo "Using ${num_nodes} nodes"
+#
+## Ensure weighted subdirectories exist in input directories
+#for input_dir in "${input_dirs[@]}"; do
+#    if [ -d "${input_dir}" ]; then
+#        echo "Checking directory: ${input_dir}"
+#        mkdir -p "${input_dir}/weighted"
+#
+#        # List contents for verification
+#        echo "  AFR matrices: $(find ${input_dir}/AFR -name '*.unphased.vcor1' 2>/dev/null | wc -l)"
+#        echo "  EUR matrices: $(find ${input_dir}/EUR -name '*.unphased.vcor1' 2>/dev/null | wc -l)"
+#    else
+#        echo "WARNING: Input directory does not exist: ${input_dir}"
+#    fi
+#done
+#
+#echo ""
 
 ################################################################################################################
 ################################## Generate merge commands ###################################################
 ################################################################################################################
 
-echo "Generating merge commands..."
-python "${command_generator_script}" \
-    --input-dirs "${input_dirs[@]}" \
-    --output-commands "${commands_file}" \
-    --afr-sample-size ${afr_sample_size} \
-    --eur-sample-size ${eur_sample_size} \
-    --combiner-script "${matrix_combiner_script}"
-
-# Check if command generation was successful
-if [ ! -f "${commands_file}" ]; then
-    echo "ERROR: Command generation failed. Commands file not found: ${commands_file}"
-    exit 1
-fi
-
-# Count the number of commands
-num_commands=$(grep -v '^#' "${commands_file}" | grep -v '^$' | wc -l)
-echo "Generated ${num_commands} merge commands"
-
-if [ ${num_commands} -eq 0 ]; then
-    echo "WARNING: No commands were generated. Check input directories and file structure."
-    exit 1
-fi
+#echo "Generating merge commands..."
+#python "${command_generator_script}" \
+#    --input-dirs "${input_dirs[@]}" \
+#    --output-commands "${commands_file}" \
+#    --afr-sample-size ${afr_sample_size} \
+#    --eur-sample-size ${eur_sample_size} \
+#    --combiner-script "${matrix_combiner_script}"
+#
+## Check if command generation was successful
+#if [ ! -f "${commands_file}" ]; then
+#    echo "ERROR: Command generation failed. Commands file not found: ${commands_file}"
+#    exit 1
+#fi
+#
+## Count the number of commands
+#num_commands=$(grep -v '^#' "${commands_file}" | grep -v '^$' | wc -l)
+#echo "Generated ${num_commands} merge commands"
+#
+#if [ ${num_commands} -eq 0 ]; then
+#    echo "WARNING: No commands were generated. Check input directories and file structure."
+#    exit 1
+#fi
 
 ################################################################################################################
 ################################## Create batched command files ################################################
 ################################################################################################################
 
-echo ""
-echo "Creating batched command files..."
-
-# Create batch directory
-mkdir -p "${batch_dir}"
-
-# Clean up any existing batch files
-rm -f "${batch_dir}"/batch_*.sh
-
-# Split commands into batch files (skip comments and empty lines)
-grep -v '^#' "${commands_file}" | grep -v '^$' | \
-    split -l ${commands_per_batch} -d --additional-suffix=.sh - "${batch_dir}/batch_"
-
+#echo ""
+#echo "Creating batched command files..."
+#
+## Create batch directory
+#mkdir -p "${batch_dir}"
+#
+## Clean up any existing batch files
+#rm -f "${batch_dir}"/batch_*.sh
+#
+## Split commands into batch files (skip comments and empty lines)
+#grep -v '^#' "${commands_file}" | grep -v '^$' | \
+#    split -l ${commands_per_batch} -d --additional-suffix=.sh - "${batch_dir}/batch_"
+#
 # Verify batch creation
 num_batch_files=$(ls -1 "${batch_dir}"/batch_*.sh 2>/dev/null | wc -l)
 echo "Created ${num_batch_files} batch files in ${batch_dir}"
