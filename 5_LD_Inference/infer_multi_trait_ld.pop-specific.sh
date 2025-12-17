@@ -5,7 +5,7 @@
 #SBATCH -o infer_multi_trait_ld.pop-specific.log
 #SBATCH -N 1882
 #SBATCH -p batch
-#SBATCH -t 45:00
+#SBATCH -t 2:00:00
 
 ################################################################################################################
 ###################################### Load Modules and Environment ############################################
@@ -64,123 +64,123 @@ total_command_files=0
 ################################## Generate Commands for All Combinations ####################################
 ################################################################################################################
 
-echo "================================================"
-echo "STARTING MULTI-TRAIT LD MATRIX INFERENCE PIPELINE"
-echo "================================================"
-echo "Start time: $(date)"
-echo "Trait types: ${trait_types[@]}"
-echo "Number of traits: ${num_traits_list[@]}"
-echo "Command files will be written to: $commands_dir"
-echo "Master commands file: $master_commands_file"
-echo "================================================"
-
-# Loop over trait types
-for trait_type in "${trait_types[@]}"; do
-    echo ""
-    echo "===================================="
-    echo "Processing trait type: $trait_type"
-    echo "===================================="
-
-    # Loop over number of traits
-    for n_traits in "${num_traits_list[@]}"; do
-        echo ""
-        echo "Generating commands for $n_traits traits, type: $trait_type"
-
-        # EUR population
-        echo "  → EUR population..."
-        eur_output_dir="${base_ld_dir}/beta-inferred_${n_traits}_random_${trait_type}/EUR"
-        eur_commands_file="${commands_dir}/eur_${n_traits}_${trait_type}_commands.txt"
-
-        mkdir -p "$eur_output_dir"
-
-        python "$command_script"             --variant_dir "$eur_variant_dir"             --output_dir "$eur_output_dir"             --commands_file "$eur_commands_file"             --matrix_script "$matrix_script"             --indexed_dir "$eur_scratch_dir"             --n_traits "$n_traits"             --trait_type "$trait_type"             --variant_col MarkerID             --beta_col BETA             --device cuda
-
-        if [[ $? -ne 0 ]]; then
-            echo "ERROR: Failed to generate EUR commands for $n_traits traits, type: $trait_type"
-            exit 1
-        fi
-
-        if [[ ! -f "$eur_commands_file" ]] || [[ ! -s "$eur_commands_file" ]]; then
-            echo "ERROR: EUR commands file is missing or empty: $eur_commands_file"
-            exit 1
-        fi
-
-        eur_num_commands=$(wc -l < "$eur_commands_file")
-        echo "    Generated $eur_num_commands EUR commands"
-        ((total_commands += eur_num_commands))
-        ((total_command_files++))
-
-        # Append to master commands file
-        grep -v "^#" "$eur_commands_file" >> "$master_commands_file"
-
-        # AFR population
-        echo "  → AFR population..."
-        afr_output_dir="${base_ld_dir}/beta-inferred_${n_traits}_random_${trait_type}/AFR"
-        afr_commands_file="${commands_dir}/afr_${n_traits}_${trait_type}_commands.txt"
-
-        mkdir -p "$afr_output_dir"
-
-        python "$command_script"             --variant_dir "$afr_variant_dir"             --output_dir "$afr_output_dir"             --commands_file "$afr_commands_file"             --matrix_script "$matrix_script"             --indexed_dir "$afr_scratch_dir"             --n_traits "$n_traits"             --trait_type "$trait_type"             --variant_col MarkerID             --beta_col BETA             --device cuda
-
-        if [[ $? -ne 0 ]]; then
-            echo "ERROR: Failed to generate AFR commands for $n_traits traits, type: $trait_type"
-            exit 1
-        fi
-
-        if [[ ! -f "$afr_commands_file" ]] || [[ ! -s "$afr_commands_file" ]]; then
-            echo "ERROR: AFR commands file is missing or empty: $afr_commands_file"
-            exit 1
-        fi
-
-        afr_num_commands=$(wc -l < "$afr_commands_file")
-        echo "    Generated $afr_num_commands AFR commands"
-        ((total_commands += afr_num_commands))
-        ((total_command_files++))
-
-        # Append to master commands file
-        grep -v "^#" "$afr_commands_file" >> "$master_commands_file"
-
-    done
-done
+#echo "================================================"
+#echo "STARTING MULTI-TRAIT LD MATRIX INFERENCE PIPELINE"
+#echo "================================================"
+#echo "Start time: $(date)"
+#echo "Trait types: ${trait_types[@]}"
+#echo "Number of traits: ${num_traits_list[@]}"
+#echo "Command files will be written to: $commands_dir"
+#echo "Master commands file: $master_commands_file"
+#echo "================================================"
+#
+## Loop over trait types
+#for trait_type in "${trait_types[@]}"; do
+#    echo ""
+#    echo "===================================="
+#    echo "Processing trait type: $trait_type"
+#    echo "===================================="
+#
+#    # Loop over number of traits
+#    for n_traits in "${num_traits_list[@]}"; do
+#        echo ""
+#        echo "Generating commands for $n_traits traits, type: $trait_type"
+#
+#        # EUR population
+#        echo "  → EUR population..."
+#        eur_output_dir="${base_ld_dir}/beta-inferred_${n_traits}_random_${trait_type}/EUR"
+#        eur_commands_file="${commands_dir}/eur_${n_traits}_${trait_type}_commands.txt"
+#
+#        mkdir -p "$eur_output_dir"
+#
+#        python "$command_script"             --variant_dir "$eur_variant_dir"             --output_dir "$eur_output_dir"             --commands_file "$eur_commands_file"             --matrix_script "$matrix_script"             --indexed_dir "$eur_scratch_dir"             --n_traits "$n_traits"             --trait_type "$trait_type"             --variant_col MarkerID             --beta_col BETA             --device cuda
+#
+#        if [[ $? -ne 0 ]]; then
+#            echo "ERROR: Failed to generate EUR commands for $n_traits traits, type: $trait_type"
+#            exit 1
+#        fi
+#
+#        if [[ ! -f "$eur_commands_file" ]] || [[ ! -s "$eur_commands_file" ]]; then
+#            echo "ERROR: EUR commands file is missing or empty: $eur_commands_file"
+#            exit 1
+#        fi
+#
+#        eur_num_commands=$(wc -l < "$eur_commands_file")
+#        echo "    Generated $eur_num_commands EUR commands"
+#        ((total_commands += eur_num_commands))
+#        ((total_command_files++))
+#
+#        # Append to master commands file
+#        grep -v "^#" "$eur_commands_file" >> "$master_commands_file"
+#
+#        # AFR population
+#        echo "  → AFR population..."
+#        afr_output_dir="${base_ld_dir}/beta-inferred_${n_traits}_random_${trait_type}/AFR"
+#        afr_commands_file="${commands_dir}/afr_${n_traits}_${trait_type}_commands.txt"
+#
+#        mkdir -p "$afr_output_dir"
+#
+#        python "$command_script"             --variant_dir "$afr_variant_dir"             --output_dir "$afr_output_dir"             --commands_file "$afr_commands_file"             --matrix_script "$matrix_script"             --indexed_dir "$afr_scratch_dir"             --n_traits "$n_traits"             --trait_type "$trait_type"             --variant_col MarkerID             --beta_col BETA             --device cuda
+#
+#        if [[ $? -ne 0 ]]; then
+#            echo "ERROR: Failed to generate AFR commands for $n_traits traits, type: $trait_type"
+#            exit 1
+#        fi
+#
+#        if [[ ! -f "$afr_commands_file" ]] || [[ ! -s "$afr_commands_file" ]]; then
+#            echo "ERROR: AFR commands file is missing or empty: $afr_commands_file"
+#            exit 1
+#        fi
+#
+#        afr_num_commands=$(wc -l < "$afr_commands_file")
+#        echo "    Generated $afr_num_commands AFR commands"
+#        ((total_commands += afr_num_commands))
+#        ((total_command_files++))
+#
+#        # Append to master commands file
+#        grep -v "^#" "$afr_commands_file" >> "$master_commands_file"
+#
+#    done
+#done
 
 ################################################################################################################
 ################################## Summary and Final Status ###################################################
 ################################################################################################################
 
-echo ""
-echo "================================================"
-echo "COMMAND FILE GENERATION COMPLETE"
-echo "================================================"
-echo "End time: $(date)"
-echo "Total command files generated: $total_command_files"
-echo "Total commands in master file: $(wc -l < "$master_commands_file")"
-echo "Master commands file: $master_commands_file"
-echo "Command directory: $commands_dir"
-echo "================================================"
-
-# Verify master commands file
-if [[ ! -f "$master_commands_file" ]] || [[ ! -s "$master_commands_file" ]]; then
-    echo "ERROR: Master commands file is missing or empty!"
-    exit 1
-fi
+#echo ""
+#echo "================================================"
+#echo "COMMAND FILE GENERATION COMPLETE"
+#echo "================================================"
+#echo "End time: $(date)"
+#echo "Total command files generated: $total_command_files"
+#echo "Total commands in master file: $(wc -l < "$master_commands_file")"
+#echo "Master commands file: $master_commands_file"
+#echo "Command directory: $commands_dir"
+#echo "================================================"
+#
+## Verify master commands file
+#if [[ ! -f "$master_commands_file" ]] || [[ ! -s "$master_commands_file" ]]; then
+#    echo "ERROR: Master commands file is missing or empty!"
+#    exit 1
+#fi
 
 ################################################################################################################
 ################################## Create batched command files ################################################
 ################################################################################################################
 
-echo ""
-echo "Creating batched command files for execution..."
-
-# Calculate number of batches
-num_commands=$(wc -l < "$master_commands_file")
-num_batches=$(( (num_commands + commands_per_batch - 1) / commands_per_batch ))
-echo "Creating ${num_batches} batches with ${commands_per_batch} commands each"
-
-# Clean up any existing pop_infer batch files
-rm -f "${commands_dir}"/pop_infer_batch_*.sh
-
+#echo ""
+#echo "Creating batched command files for execution..."
+#
+## Calculate number of batches
+#num_commands=$(wc -l < "$master_commands_file")
+#num_batches=$(( (num_commands + commands_per_batch - 1) / commands_per_batch ))
+#echo "Creating ${num_batches} batches with ${commands_per_batch} commands each"
+#
+## Clean up any existing pop_infer batch files
+#rm -f "${commands_dir}"/pop_infer_batch_*.sh
+#
 # Split master commands into batch files
-split -l ${commands_per_batch} -d --additional-suffix=.sh "$master_commands_file" "${commands_dir}/pop_infer_batch_"  
+#split -l ${commands_per_batch} -d --additional-suffix=.sh "$master_commands_file" "${commands_dir}/pop_infer_batch_"  
 
 # Verify batch creation
 num_batch_files=$(ls -1 "${commands_dir}"/pop_infer_batch_*.sh 2>/dev/null | wc -l)
@@ -214,7 +214,7 @@ srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start bash -c 
     batch_count=0
     for batch in ${commands_dir}/pop_infer_batch_*.sh; do
         batch_name=\$(basename \${batch} .sh)
-        flux submit -N1 -n1 -c7 --gpus-per-task=1 \
+        flux submit -N1 -n1 -c56 --gpus-per-task=1 \
             --output=${base_ld_dir}/flux_output/\${batch_name}.log \
             bash \${batch}
         
