@@ -3,9 +3,9 @@
 #SBATCH -A bif154
 #SBATCH -J infer_multi_trait_ld_pop-specific
 #SBATCH -o infer_multi_trait_ld.pop-specific.log
-#SBATCH -N 40
+#SBATCH -N 5
 #SBATCH -p batch
-#SBATCH -t 2:00:00
+#SBATCH -t 30:00
 
 ################################################################################################################
 ###################################### Load Modules and Environment ############################################
@@ -49,9 +49,12 @@ num_traits_list=(2500 3000 3500 4000)
 commands_dir="${base_ld_dir}/command_files"
 mkdir -p "$commands_dir"
 
+# Batch configuration
+commands_per_batch=10
+
 # Master commands file
 master_commands_file="${commands_dir}/master_commands.txt"
-> "$master_commands_file"  # Clear the file if it exists
+> "$master_commands_file" # Clear the file if it exists
 
 # Track total commands generated
 total_commands=0
@@ -162,16 +165,99 @@ if [[ ! -f "$master_commands_file" ]] || [[ ! -s "$master_commands_file" ]]; the
 fi
 
 ################################################################################################################
-####################################### Execute Commands in Parallel ########################################
+################################## Create batched command files ################################################
 ################################################################################################################
 
-echo "Starting AFR parallel execution..."
+echo ""
+echo "Creating batched command files for execution..."
 
-# Read AFR commands into array
-mapfile -t master_cmds < "$master_commands_file"
+# Calculate number of batches
+num_commands=$(wc -l < "$master_commands_file")
+num_batches=$(( (num_commands + commands_per_batch - 1) / commands_per_batch ))
+echo "Creating ${num_batches} batches with ${commands_per_batch} commands each"
 
-# Launch flux and execute all commands in parallel
-echo "Launching flux with $num_nodes nodes..."
-srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start "flux resource list; mapfile -t master_cmds < ${master_commands_file}; for ((i=0; i<\${#master_cmds[@]}; i++)); do flux submit -N1 -n1 -c7 --gpus-per-task=1 --output=flux_output/beta-infer_\$i.txt \${master_cmds[\$i]}; done; flux queue drain;"
+# Clean up any existing pop_infer batch files
+rm -f "${commands_dir}"/pop_infer_batch_*.sh
 
-echo "All LD matrix inference jobs submitted and completed."
+# Split master commands into batch files
+split -l ${commands_per_batch} -d --additional-suffix=.sh "$master_commands_file" "${commands_dir}/pop_infer_batch_"  
+
+# Verify batch creation
+num_batch_files=$(ls -1 "${commands_dir}"/pop_infer_batch_*.sh 2>/dev/null | wc -l)
+echo "Created ${num_batch_files} batch files in ${commands_dir}"
+
+if [ ${num_batch_files} -eq 0 ]; then
+    echo "ERROR: No batch files were created"
+    exit 1
+fi
+
+################################################################################################################
+####################################### Execute Commands in Parallel #########################################
+################################################################################################################
+
+echo ""
+echo "Starting flux-based execution of batched population-specific commands at $(date)"
+
+# Create flux output directory
+mkdir -p "${base_ld_dir}/flux_output"
+
+# Start Flux and submit batch jobs
+srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start bash -c "
+    # Display Flux resource allocation
+    echo \"Flux instance started at \$(date)\"
+    echo \"Available resources:\"
+    flux resource list
+    echo \"\"
+    
+    # Submit all batch files to Flux
+    echo \"Submitting ${num_batch_files} batches to Flux queue...\"
+    batch_count=0
+    for batch in ${commands_dir}/pop_infer_batch_*.sh; do
+        batch_name=\$(basename \${batch} .sh)
+        flux submit -N1 -n1 -c7 --gpus-per-task=1 \
+            --output=${base_ld_dir}/flux_output/\${batch_name}.log \
+            bash \${batch}
+        
+        ((batch_count++))
+        
+        # Print progress every 10 batches
+        if [ \$((batch_count % 10)) -eq 0 ]; then
+            echo \"  Submitted \${batch_count}/${num_batch_files} batches\"
+        fi
+    done
+    
+    echo \"All ${num_batch_files} batches submitted to Flux queue at \$(date)\"
+    echo \"\"
+    
+    # Wait for all jobs to complete
+    echo \"Waiting for all batches to complete...\"
+    flux queue drain
+    
+    echo \"\"
+    echo \"All batches completed at \$(date)\"
+    
+    # Display final resource status
+    echo \"Final Flux resource status:\"
+    flux resource list
+"
+
+################################################################################################################
+################################## Post-processing and cleanup ##################################################
+################################################################################################################
+
+echo ""
+echo "Post-processing results..."
+
+# Count successful batch completions by checking for output files
+successful_batches=$(ls -1 "${base_ld_dir}"/flux_output/pop_infer_batch_*.log 2>/dev/null | wc -l)
+echo "Successfully completed batches: ${successful_batches}/${num_batch_files}"
+
+# Check for any failed batches (optional - you can add error checking logic here)
+if [ ${successful_batches} -ne ${num_batch_files} ]; then
+    echo "WARNING: Some batches may have failed. Check logs in ${base_ld_dir}/flux_output/"
+fi
+
+echo ""
+echo "Population-specific LD matrix inference workflow completed at $(date)"
+echo "Batch files retained in: ${commands_dir}"
+echo "Flux logs available in: ${base_ld_dir}/flux_output"
