@@ -182,7 +182,13 @@ def main():
         sys.exit(1)
 
     print(f"Found {len(variant_files)} variant files")
-
+    
+    #Check variant col
+    if args.variant_col[0] == '#':
+        true_variant_col = "\"" + args.variant_col + "\""
+    else:
+        true_variant_col = args.variant_col
+    
     # Generate commands
     print("Generating commands...")
     commands = []
@@ -202,7 +208,7 @@ def main():
                 output_file=output_file,
                 n_traits=args.n_traits,
                 trait_type=args.trait_type,
-                variant_col=args.variant_col,
+                variant_col=true_variant_col,
                 beta_col=args.beta_col,
                 device=args.device
             )
