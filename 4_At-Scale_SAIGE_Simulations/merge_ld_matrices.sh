@@ -70,6 +70,10 @@ input_dirs=(
 output_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices"
 commands_file="${output_dir}/ld_merge_commands.txt"
 
+# Batch configuration
+batch_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/command_files"
+commands_per_batch=25
+
 # Sample sizes (both AFR and EUR = 400,000)
 afr_sample_size=400000
 eur_sample_size=400000
