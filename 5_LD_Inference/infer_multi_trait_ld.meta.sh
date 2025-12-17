@@ -3,7 +3,7 @@
 #SBATCH -A bif154
 #SBATCH -J infer_multi_trait_ld_meta
 #SBATCH -o infer_multi_trait_ld.meta.log
-#SBATCH -N 5
+#SBATCH -N 1882
 #SBATCH -p batch
 #SBATCH -t 2:00:00
 
