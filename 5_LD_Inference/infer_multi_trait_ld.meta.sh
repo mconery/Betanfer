@@ -3,9 +3,9 @@
 #SBATCH -A bif154
 #SBATCH -J infer_multi_trait_ld_meta
 #SBATCH -o infer_multi_trait_ld.meta.log
-#SBATCH -N 64
-#SBATCH -p extended
-#SBATCH -t 24:00:00
+#SBATCH -N 5
+#SBATCH -p batch
+#SBATCH -t 2:00:00
 
 ################################################################################################################
 ###################################### Load Modules and Environment ############################################
@@ -49,8 +49,11 @@ num_traits_list=(50 100 200 300 400 500 750 1000 1250 1500 1750 2000)
 commands_dir="${base_ld_dir}/command_files"
 mkdir -p "$commands_dir"
 
+# Batch configuration
+commands_per_batch=150
+
 # Master commands file
-master_commands_file="${commands_dir}/master_commands.txt"
+master_commands_file="${commands_dir}/master_meta_commands.txt"
 > "$master_commands_file" # Clear the file if it exists
 
 # Track total commands generated
@@ -70,11 +73,11 @@ echo "Trait types: ${trait_types[@]}"
 echo "Number of traits: ${num_traits_list[@]}"
 echo "Command files will be written to: $commands_dir"
 echo "Master commands file: $master_commands_file"
+echo "Batch size: ${commands_per_batch} commands per batch"
 echo "================================================"
 
 # Loop over meta-analysis types
 for meta_type in "${meta_types[@]}"; do
-
     echo ""
     echo "====================================="
     echo "Processing meta-analysis type: $meta_type"
@@ -89,20 +92,17 @@ for meta_type in "${meta_types[@]}"; do
 
     # Loop over trait types
     for trait_type in "${trait_types[@]}"; do
-
         echo ""
         echo "Processing trait type: $trait_type"
 
         # Loop over number of traits
         for n_traits in "${num_traits_list[@]}"; do
-
             echo ""
             echo "Generating commands for $n_traits traits, meta-type: $meta_type, trait-type: $trait_type"
 
             # Set output directory
             output_dir="${base_ld_dir}/beta-inferred_${n_traits}_${meta_type}_${trait_type}/Meta"
-            commands_file="${commands_dir}/${meta_type}_${n_traits}_${trait_type}_commands.txt"
-
+            commands_file="${commands_dir}/${meta_type}_${n_traits}_${trait_type}_meta_commands.txt"
             mkdir -p "$output_dir"
 
             # Generate commands for this configuration
@@ -114,7 +114,7 @@ for meta_type in "${meta_types[@]}"; do
                 --indexed_dir "$indexed_dir" \
                 --n_traits "$n_traits" \
                 --trait_type "$trait_type" \
-                --variant_col '#rs_number' \
+                --variant_col '"#rs_number"' \
                 --beta_col beta \
                 --device cuda
 
@@ -138,9 +138,7 @@ for meta_type in "${meta_types[@]}"; do
             grep -v "^#" "$commands_file" >> "$master_commands_file"
 
         done
-
     done
-
 done
 
 ################################################################################################################
@@ -165,17 +163,99 @@ if [[ ! -f "$master_commands_file" ]] || [[ ! -s "$master_commands_file" ]]; the
 fi
 
 ################################################################################################################
-####################################### Execute Commands in Parallel ########################################
+################################## Create batched command files ################################################
 ################################################################################################################
 
-echo "Starting parallel execution..."
+echo ""
+echo "Creating batched command files for execution..."
 
-# Read commands into array
-mapfile -t master_cmds < "$master_commands_file"
+# Calculate number of batches
+num_commands=$(wc -l < "$master_commands_file")
+num_batches=$(( (num_commands + commands_per_batch - 1) / commands_per_batch ))
+echo "Creating ${num_batches} batches with ${commands_per_batch} commands each"
 
-# Launch flux and execute all commands in parallel
-echo "Launching flux with $num_nodes nodes..."
+# Clean up any existing meta_infer batch files
+rm -f "${commands_dir}"/meta_infer_batch_*.sh
 
-srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start "flux resource list; mapfile -t master_cmds < ${master_commands_file}; for ((i=0; i<\${#master_cmds[@]}; i++)); do flux submit -N1 -n1 -c7 --gpus-per-task=1 --output=flux_output/beta-infer_meta_\$i.txt \${master_cmds[\$i]}; done; flux queue drain;"
+# Split master commands into batch files
+split -l ${commands_per_batch} -d --additional-suffix=.sh "$master_commands_file" "${commands_dir}/meta_infer_batch_"
 
-echo "All LD matrix inference jobs submitted and completed."
+# Verify batch creation
+num_batch_files=$(ls -1 "${commands_dir}"/meta_infer_batch_*.sh 2>/dev/null | wc -l)
+echo "Created ${num_batch_files} batch files in ${commands_dir}"
+
+if [ ${num_batch_files} -eq 0 ]; then
+    echo "ERROR: No batch files were created"
+    exit 1
+fi
+
+################################################################################################################
+####################################### Execute Commands in Parallel #########################################
+################################################################################################################
+
+echo ""
+echo "Starting flux-based execution of batched meta-analysis commands at $(date)"
+
+# Create flux output directory
+mkdir -p "${base_ld_dir}/flux_output"
+
+# Start Flux and submit batch jobs
+srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start bash -c "
+    # Display Flux resource allocation
+    echo \"Flux instance started at \$(date)\"
+    echo \"Available resources:\"
+    flux resource list
+    echo \"\"
+    
+    # Submit all batch files to Flux
+    echo \"Submitting ${num_batch_files} batches to Flux queue...\"
+    batch_count=0
+    for batch in ${commands_dir}/meta_infer_batch_*.sh; do
+        batch_name=\$(basename \${batch} .sh)
+        flux submit -N1 -n1 -c7 --gpus-per-task=1 \
+            --output=${base_ld_dir}/flux_output/\${batch_name}.log \
+            bash \${batch}
+        
+        ((batch_count++))
+        
+        # Print progress every 10 batches
+        if [ \$((batch_count % 10)) -eq 0 ]; then
+            echo \"  Submitted \${batch_count}/${num_batch_files} batches\"
+        fi
+    done
+    
+    echo \"All ${num_batch_files} batches submitted to Flux queue at \$(date)\"
+    echo \"\"
+    
+    # Wait for all jobs to complete
+    echo \"Waiting for all batches to complete...\"
+    flux queue drain
+    
+    echo \"\"
+    echo \"All batches completed at \$(date)\"
+    
+    # Display final resource status
+    echo \"Final Flux resource status:\"
+    flux resource list
+"
+
+################################################################################################################
+################################## Post-processing and cleanup ##################################################
+################################################################################################################
+
+echo ""
+echo "Post-processing results..."
+
+# Count successful batch completions by checking for output files
+successful_batches=$(ls -1 "${base_ld_dir}"/flux_output/meta_infer_batch_*.log 2>/dev/null | wc -l)
+echo "Successfully completed batches: ${successful_batches}/${num_batch_files}"
+
+# Check for any failed batches (optional - you can add error checking logic here)
+if [ ${successful_batches} -ne ${num_batch_files} ]; then
+    echo "WARNING: Some batches may have failed. Check logs in ${base_ld_dir}/flux_output/"
+fi
+
+echo ""
+echo "Meta-analysis LD matrix inference workflow completed at $(date)"
+echo "Batch files retained in: ${commands_dir}"
+echo "Flux logs available in: ${base_ld_dir}/flux_output"
