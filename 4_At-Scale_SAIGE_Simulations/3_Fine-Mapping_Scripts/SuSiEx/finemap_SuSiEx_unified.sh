@@ -3,7 +3,7 @@
 #SBATCH -A bif154
 #SBATCH -J SuSiEx_finemap_all
 #SBATCH -o finemap_SuSiEx_all.log
-#SBATCH -N 53
+#SBATCH -N 1
 #SBATCH -p batch
 #SBATCH -t 2:00:00
 
@@ -40,7 +40,7 @@ command_files_dir="${base_finemap_dir}/command_files"
 mkdir -p "$command_files_dir"
 
 # Batch configuration
-commands_per_batch=200
+commands_per_batch=64
 
 # Master commands file
 master_commands_file="${command_files_dir}/master_susiex_commands.txt"
@@ -130,8 +130,8 @@ for i in "${!heritabilities[@]}"; do
             exit 1
         fi
 
-        if [[ ! -f "$command_file" ]] || [[ ! -s "$command_file" ]]; then
-            echo "ERROR: Commands file is missing or empty: $command_file"
+        if [[ ! -f "$command_file" ]]; then
+            echo "ERROR: Commands file is missing: $command_file"
             exit 1
         fi
 
