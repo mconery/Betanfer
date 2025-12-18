@@ -3,7 +3,7 @@
 #SBATCH -A bif154
 #SBATCH -J MultiSuSiE_finemap_all
 #SBATCH -o finemap_MultiSuSiE_all.log
-#SBATCH -N 52
+#SBATCH -N 9
 #SBATCH -p batch
 #SBATCH -t 2:00:00
 
@@ -42,7 +42,7 @@ command_files_dir="${base_finemap_dir}/command_files"
 mkdir -p "$command_files_dir"
 
 # Batch configuration
-commands_per_batch=200
+commands_per_batch=120
 
 # Master commands file
 master_commands_file="${command_files_dir}/master_multisusie_commands.txt"
@@ -94,11 +94,11 @@ for i in "${!heritabilities[@]}"; do
 
         # Define matrix types for this configuration
         if [[ $trait_type == "all" ]]; then
-            matrix_types="raw_in-sample,PC-corrected,beta-inferred_50_fixed_all,beta-inferred_100_fixed_all,beta-inferred_200_fixed_all,beta-inferred_300_fixed_all,beta-inferred_400_fixed_all,beta-inferred_500_fixed_all,beta-inferred_750_fixed_all,beta-inferred_1000_fixed_all,beta-inferred_1250_fixed_all,beta-inferred_1500_fixed_all,beta-inferred_1750_fixed_all,beta-inferred_2000_fixed_all"
+            matrix_types="beta-inferred_2500_fixed_all,beta-inferred_3000_fixed_all,beta-inferred_3500_fixed_all,beta-inferred_4000_fixed_all"
         elif [[ $trait_type == "continuous" ]]; then
-            matrix_types="raw_in-sample,PC-corrected,beta-inferred_50_fixed_continuous,beta-inferred_100_fixed_continuous,beta-inferred_200_fixed_continuous,beta-inferred_300_fixed_continuous,beta-inferred_400_fixed_continuous,beta-inferred_500_fixed_continuous,beta-inferred_750_fixed_continuous,beta-inferred_1000_fixed_continuous,beta-inferred_1250_fixed_continuous,beta-inferred_1500_fixed_continuous,beta-inferred_1750_fixed_continuous,beta-inferred_2000_fixed_continuous"
+            matrix_types="beta-inferred_2500_fixed_continuous,beta-inferred_3000_fixed_continuous,beta-inferred_3500_fixed_continuous,beta-inferred_4000_fixed_continuous"
         else  # binary
-            matrix_types="raw_in-sample,PC-corrected,beta-inferred_50_fixed_binary,beta-inferred_100_fixed_binary,beta-inferred_200_fixed_binary,beta-inferred_300_fixed_binary,beta-inferred_400_fixed_binary,beta-inferred_500_fixed_binary,beta-inferred_750_fixed_binary,beta-inferred_1000_fixed_binary,beta-inferred_1250_fixed_binary,beta-inferred_1500_fixed_binary,beta-inferred_1750_fixed_binary,beta-inferred_2000_fixed_binary"
+            matrix_types="beta-inferred_2500_fixed_binary,beta-inferred_3000_fixed_binary,beta-inferred_3500_fixed_binary,beta-inferred_4000_fixed_binary"
         fi
 
         # Define output directory and command file
@@ -132,7 +132,7 @@ for i in "${!heritabilities[@]}"; do
             exit 1
         fi
 
-        if [[ ! -f "$command_file" ]] || [[ ! -s "$command_file" ]]; then
+        if [[ ! -f "$command_file" ]]; then
             echo "ERROR: Commands file is missing or empty: $command_file"
             exit 1
         fi
