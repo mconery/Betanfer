@@ -3,9 +3,9 @@
 #SBATCH -A bif154
 #SBATCH -J SuSiEx_finemap_all
 #SBATCH -o finemap_SuSiEx_all.log
-#SBATCH -N 1882
+#SBATCH -N 53
 #SBATCH -p batch
-#SBATCH -t 45:00
+#SBATCH -t 2:00:00
 
 ################################################################################################################
 ################################################### Load Modules ###############################################
@@ -25,6 +25,7 @@ module load flux
 # Set script locations
 map_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/SuSiEx/finemap_SuSiEx.py"
 command_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/SuSiEx/generate_susiex_commands.py"
+python_splitter="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/5_LD_Inference/split_commands_parallel.py"
 
 # Set directories
 sumstats_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step2_results"
@@ -39,7 +40,7 @@ command_files_dir="${base_finemap_dir}/command_files"
 mkdir -p "$command_files_dir"
 
 # Batch configuration
-commands_per_batch=150
+commands_per_batch=200
 
 # Master commands file
 master_commands_file="${command_files_dir}/master_susiex_commands.txt"
@@ -172,22 +173,27 @@ fi
 ################################################################################################################
 
 echo ""
-echo "Creating batched command files for execution..."
-
-# Calculate number of batches
-num_commands=$(wc -l < "$master_commands_file")
-num_batches=$(( (num_commands + commands_per_batch - 1) / commands_per_batch ))
-echo "Creating ${num_batches} batches with ${commands_per_batch} commands each"
+echo "Creating batched command files using parallel Python splitter..."
 
 # Clean up any existing susiex batch files
 rm -f "${command_files_dir}"/susiex_finemap_batch_*.sh
 
-# Split master commands into batch files
-split -l ${commands_per_batch} -d --additional-suffix=.sh - "${command_files_dir}/susiex_finemap_batch_" < "$master_commands_file"
+# Use Python splitter for fast parallel batch creation
+python "${python_splitter}" \
+    -i "${master_commands_file}" \
+    -o "${command_files_dir}" \
+    -b ${commands_per_batch} \
+    -p "susiex_finemap_batch_" \
+    -s ".sh"
+
+if [ $? -ne 0 ]; then
+    echo "ERROR: Python batch splitter failed"
+    exit 1
+fi
 
 # Verify batch creation
-num_batch_files=$(ls -1 "${command_files_dir}"/susiex_finemap_batch_*.sh 2>/dev/null | wc -l)
-echo "Created ${num_batch_files} batch files in ${command_files_dir}"
+num_batch_files=$(ls "${command_files_dir}" | grep -c "susiex_finemap_batch_")
+echo "Verified: Created ${num_batch_files} batch files in ${command_files_dir}"
 
 if [ ${num_batch_files} -eq 0 ]; then
     echo "ERROR: No batch files were created"
