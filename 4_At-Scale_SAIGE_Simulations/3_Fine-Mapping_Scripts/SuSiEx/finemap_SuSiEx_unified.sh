@@ -3,7 +3,7 @@
 #SBATCH -A bif154
 #SBATCH -J SuSiEx_finemap_all
 #SBATCH -o finemap_SuSiEx_all.log
-#SBATCH -N 1
+#SBATCH -N 20
 #SBATCH -p batch
 #SBATCH -t 2:00:00
 
@@ -40,7 +40,7 @@ command_files_dir="${base_finemap_dir}/command_files"
 mkdir -p "$command_files_dir"
 
 # Batch configuration
-commands_per_batch=64
+commands_per_batch=57
 
 # Master commands file
 master_commands_file="${command_files_dir}/master_susiex_commands.txt"
@@ -55,7 +55,7 @@ num_nodes=${SLURM_NNODES}
 # Define heritabilities and trait types
 heritabilities=("5e-5" "3e-4")
 heritability_values=(0.00005 0.0003)
-trait_types=("all" "continuous" "binary")
+trait_types=("all")
 
 ################################################################################################################
 ################################## Generate Commands for All Combinations ####################################
