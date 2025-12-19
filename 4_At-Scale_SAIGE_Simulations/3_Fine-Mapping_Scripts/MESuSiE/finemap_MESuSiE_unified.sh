@@ -226,7 +226,7 @@ srun -N ${num_nodes} -n ${num_nodes} -c 56 flux start bash -c "
     # Submit all batch files to Flux
     echo \"Submitting ${num_batch_files} batches to Flux queue...\"
     batch_count=0
-    for batch in ${command_files_dir}/mesusie_finemap_batch_0000.sh; do
+    for batch in ${command_files_dir}/mesusie_finemap_batch_*.sh; do
         batch_name=\$(basename \${batch} .sh)
         flux submit -N1 -n1 -c2 \
             --output=${flux_output_dir}/\${batch_name}.log \
