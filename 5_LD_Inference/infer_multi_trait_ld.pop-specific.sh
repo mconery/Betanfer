@@ -3,7 +3,7 @@
 #SBATCH -A bif154
 #SBATCH -J infer_multi_trait_ld_pop-specific
 #SBATCH -o infer_multi_trait_ld.pop-specific.log
-#SBATCH -N 2045
+#SBATCH -N 2677
 #SBATCH -p batch
 #SBATCH -t 2:00:00
 
@@ -44,14 +44,14 @@ num_nodes=${SLURM_NNODES}
 
 # Define trait types and number of traits
 trait_types=("all")
-num_traits_list=(3500 4000)
+num_traits_list=(4000)
 
 # Directory for all command files
 commands_dir="${base_ld_dir}/command_files"
 mkdir -p "$commands_dir"
 
 # Batch configuration
-commands_per_batch=5
+commands_per_batch=2
 
 # Master commands file
 master_commands_file="${commands_dir}/master_commands.txt"
