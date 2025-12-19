@@ -49,14 +49,14 @@ def detect_matrix_subdirs(ld_base_dir, matrix_filter=None):
         # Check for 'weighted' or 'Meta' subdirectory
         weighted_path = os.path.join(matrix_dir, "weighted")
         meta_path = os.path.join(matrix_dir, "Meta")
-        
+        matrix_configs[item] = []
         if os.path.isdir(weighted_path):
-            matrix_configs[item] = "weighted"
+            matrix_configs[item].append("weighted")
             print(f"Found matrix type: {item} -> weighted")
-        elif os.path.isdir(meta_path):
-            matrix_configs[item] = "Meta"
+        if os.path.isdir(meta_path):
+            matrix_configs[item].append("Meta") 
             print(f"Found matrix type: {item} -> Meta")
-        else:
+        if len(matrix_configs[item]) == 0:
             print(f"Warning: No 'weighted' or 'Meta' subdirectory found in {matrix_dir}")
     
     return matrix_configs
@@ -278,6 +278,10 @@ def process_causal_dir(args_tuple):
     
     # Find the meta analysis output file in this directory
     meta_files = glob.glob(os.path.join(causal_dir, file_pattern))
+    # Filter out files with unwanted patterns
+    meta_files = [f for f in meta_files 
+                    if 'drop_causal' not in os.path.basename(f) 
+                    and 'matched_to_' not in os.path.basename(f)]
     
     if len(meta_files) != 1:
         warning = f"Expected 1 {file_pattern} file in {causal_dir}, found {len(meta_files)}"
@@ -308,37 +312,78 @@ def process_causal_dir(args_tuple):
     chromosome = parsed['chromosome']
     
     # For each detected matrix configuration
-    for matrix_type, subfolder in matrix_configs.items():
-        # Search for the actual matrix file that matches this phenotype
-        matrix_path = find_matrix_file(ld_base_dir, matrix_type, subfolder, pheno_causal)
-        
-        if matrix_path is None:
+    for matrix_type, subfolders in matrix_configs.items():
+        if len(subfolders) == 1:
+            subfolder=subfolders[0]
+            # Search for the actual matrix file that matches this phenotype
+            matrix_path = find_matrix_file(ld_base_dir, matrix_type, subfolder, pheno_causal)
+            
+            if matrix_path is None:
+                warnings.append(f"No matrix file found for {pheno_causal} in {matrix_type}/{subfolder}")
+                continue
+            
+            # Construct output directory and file
+            output_dir = os.path.join(output_base_dir, matrix_type)
+            
+            # Output filename format: Pheno#.#_causal.continuous/binary_0.25.weighted/Meta.txt
+            output_filename = f"{pheno_causal}.{trait_type}.{subfolder}.txt"
+            output_path = os.path.join(output_dir, output_filename)
+            
+            # Check if output file already exists and is complete
+            if skip_existing and check_output_completeness(output_path):
+                skipped_info.append({
+                    'pheno_causal': pheno_causal,
+                    'matrix_type': matrix_type,
+                    'trait_type': trait_type,
+                    'chromosome': chromosome,
+                    'heritability': heritability,
+                    'output_path': output_path,
+                    'matrix_file': os.path.basename(matrix_path)
+                })
+                continue
+            
+            # Create the CARMA command
+            # Usage: Rscript finemap_CARMA.R summary_stats_file ld_file out_file [optional_params]
+            carma_cmd = f"Rscript {wrapper_script} {meta_file} {matrix_path} {output_path}"
+            
+            commands.append((carma_cmd, output_dir, matrix_type, pheno_causal, trait_type, chromosome, heritability, os.path.basename(matrix_path), output_filename))
+        elif len(subfolders) < 1:
             warnings.append(f"No matrix file found for {pheno_causal} in {matrix_type}/{subfolder}")
             continue
-        
-        # Construct output directory and file
-        output_dir = os.path.join(output_base_dir, matrix_type)
-        
-        # Output filename format: Pheno#.#_causal.continuous/binary_0.25.weighted/Meta.txt
-        output_filename = f"{pheno_causal}.{trait_type}.{subfolder}.txt"
-        output_path = os.path.join(output_dir, output_filename)
-        
-        # Check if output file already exists and is complete
-        if skip_existing and check_output_completeness(output_path):
-            skipped_info.append({
-                'pheno_causal': pheno_causal,
-                'matrix_type': matrix_type,
-                'trait_type': trait_type,
-                'chromosome': chromosome,
-                'heritability': heritability,
-                'output_path': output_path,
-                'matrix_file': os.path.basename(matrix_path)
-            })
-            continue
-        
-        # Create the CARMA command
-        # Usage: Rscript finemap_CARMA.R summary_stats_file ld_file out_file [optional_params]
-        carma_cmd = f"Rscript {wrapper_script} {meta_file} {matrix_path} {output_path}"
+        else:
+            for subfolder in subfolders:
+                # Search for the actual matrix file that matches this phenotype
+                matrix_path = find_matrix_file(ld_base_dir, matrix_type, subfolder, pheno_causal)
+                
+                if matrix_path is None:
+                    warnings.append(f"No matrix file found for {pheno_causal} in {matrix_type}/{subfolder}")
+                    continue
+                
+                # Construct output directory and file
+                output_dir = os.path.join(output_base_dir, matrix_type + '.' + subfolder)
+                
+                # Output filename format: Pheno#.#_causal.continuous/binary_0.25.weighted/Meta.txt
+                output_filename = f"{pheno_causal}.{trait_type}.{subfolder}.txt"
+                output_path = os.path.join(output_dir, output_filename)
+                
+                # Check if output file already exists and is complete
+                if skip_existing and check_output_completeness(output_path):
+                    skipped_info.append({
+                        'pheno_causal': pheno_causal,
+                        'matrix_type': matrix_type,
+                        'trait_type': trait_type,
+                        'chromosome': chromosome,
+                        'heritability': heritability,
+                        'output_path': output_path,
+                        'matrix_file': os.path.basename(matrix_path)
+                    })
+                    continue
+                
+                # Create the CARMA command
+                # Usage: Rscript finemap_CARMA.R summary_stats_file ld_file out_file [optional_params]
+                carma_cmd = f"Rscript {wrapper_script} {meta_file} {matrix_path} {output_path}"
+                
+                commands.append((carma_cmd, output_dir, matrix_type, pheno_causal, trait_type, chromosome, heritability, os.path.basename(matrix_path), output_filename))
         
         commands.append((carma_cmd, output_dir, matrix_type, pheno_causal, trait_type, chromosome, heritability, os.path.basename(matrix_path), output_filename))
     
@@ -421,10 +466,17 @@ def create_carma_commands(gwas_dir, ld_base_dir, output_base_dir, wrapper_script
     # Create output directories now
     print(f"\nCreating output directories...")
     for matrix_type in matrix_configs.keys():
-        output_dir = os.path.join(output_base_dir, matrix_type)
-        os.makedirs(output_dir, exist_ok=True)
-        os.makedirs(os.path.join(output_dir, "timing"), exist_ok=True)
-        print(f"  Created: {output_dir}")
+        if len(matrix_configs[matrix_type]) > 1:
+            for sub_type in matrix_configs[matrix_type]:
+                output_dir = os.path.join(output_base_dir, '.'.join([matrix_type, sub_type]))
+                os.makedirs(output_dir, exist_ok=True)
+                os.makedirs(os.path.join(output_dir, "timing"), exist_ok=True)
+                print(f"  Created: {output_dir}")
+        else:
+            output_dir = os.path.join(output_base_dir, matrix_type)
+            os.makedirs(output_dir, exist_ok=True)
+            os.makedirs(os.path.join(output_dir, "timing"), exist_ok=True)
+            print(f"  Created: {output_dir}")
     
     # Find all directories with "_causal" in the name
     print(f"\nSearching for causal directories in: {gwas_dir}")
