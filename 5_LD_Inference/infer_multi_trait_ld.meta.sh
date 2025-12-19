@@ -213,7 +213,7 @@ srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start bash -c 
     batch_count=0
     for batch in ${commands_dir}/meta_infer_batch_*.sh; do
         batch_name=\$(basename \${batch} .sh)
-        flux submit -N1 -n1 -c7 --gpus-per-task=1 \
+        flux submit -N1 -n1 -c56 --gpus-per-task=8 \
             --output=${base_ld_dir}/flux_output/\${batch_name}.log \
             bash \${batch}
         
