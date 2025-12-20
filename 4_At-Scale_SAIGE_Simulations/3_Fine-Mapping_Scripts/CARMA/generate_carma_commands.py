@@ -354,7 +354,6 @@ def process_causal_dir(args_tuple):
             for subfolder in subfolders:
                 # Search for the actual matrix file that matches this phenotype
                 matrix_path = find_matrix_file(ld_base_dir, matrix_type, subfolder, pheno_causal)
-                
                 if matrix_path is None:
                     warnings.append(f"No matrix file found for {pheno_causal} in {matrix_type}/{subfolder}")
                     continue
@@ -364,8 +363,6 @@ def process_causal_dir(args_tuple):
                 
                 # Output filename format: Pheno#.#_causal.continuous/binary_0.25.weighted/Meta.txt
                 output_filename = f"{pheno_causal}.{trait_type}.{subfolder}.txt"
-                print(f"{output_dir}")
-                print(f"{output_filename}")
                 output_path = os.path.join(output_dir, output_filename)
                 
                 # Check if output file already exists and is complete
@@ -386,8 +383,6 @@ def process_causal_dir(args_tuple):
                 carma_cmd = f"Rscript {wrapper_script} {meta_file} {matrix_path} {output_path}"
                 
                 commands.append((carma_cmd, output_dir, matrix_type, pheno_causal, trait_type, chromosome, heritability, os.path.basename(matrix_path), output_filename))
-        
-        commands.append((carma_cmd, output_dir, matrix_type, pheno_causal, trait_type, chromosome, heritability, os.path.basename(matrix_path), output_filename))
     
     return commands, warnings, skipped_info
 
