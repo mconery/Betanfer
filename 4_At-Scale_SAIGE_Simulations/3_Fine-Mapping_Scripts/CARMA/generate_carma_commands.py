@@ -359,7 +359,7 @@ def process_causal_dir(args_tuple):
                     continue
                 
                 # Construct output directory and file
-                output_dir = os.path.join(output_base_dir, matrix_type)
+                output_dir = os.path.join(output_base_dir, matrix_type + '.' + subfolder)
                 
                 # Output filename format: Pheno#.#_causal.continuous/binary_0.25.weighted/Meta.txt
                 output_filename = f"{pheno_causal}.{trait_type}.{subfolder}.txt"
