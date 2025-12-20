@@ -3,9 +3,9 @@
 #SBATCH -A bif154
 #SBATCH -J infer_multi_trait_ld_pop-specific
 #SBATCH -o infer_multi_trait_ld.pop-specific.log
-#SBATCH -N 8
-#SBATCH -p batch
-#SBATCH -t 2:00:00
+#SBATCH -N 9
+#SBATCH -p extended
+#SBATCH -t 6:00:00
 
 ################################################################################################################
 ###################################### Load Modules and Environment ############################################
@@ -51,7 +51,7 @@ commands_dir="${base_ld_dir}/command_files"
 mkdir -p "$commands_dir"
 
 # Batch configuration
-commands_per_batch=2
+commands_per_batch=1
 
 # Master commands file
 master_commands_file="${commands_dir}/master_commands.txt"
