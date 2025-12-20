@@ -3,7 +3,7 @@
 #SBATCH -A bif154
 #SBATCH -J CARMA_finemap_all
 #SBATCH -o finemap_CARMA_all.log
-#SBATCH -N 20
+#SBATCH -N 2118
 #SBATCH -p batch
 #SBATCH -t 2:00:00
 
@@ -41,7 +41,7 @@ command_files_dir="${base_finemap_dir}/command_files"
 mkdir -p "$command_files_dir"
 
 # Batch configuration
-commands_per_batch=120
+commands_per_batch=15
 
 # Master commands file
 master_commands_file="${command_files_dir}/master_carma_commands.txt"
