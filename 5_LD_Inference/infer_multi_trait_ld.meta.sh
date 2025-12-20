@@ -3,9 +3,9 @@
 #SBATCH -A bif154
 #SBATCH -J infer_multi_trait_ld_meta
 #SBATCH -o infer_multi_trait_ld.meta.log
-#SBATCH -N 1882
+#SBATCH -N 2671
 #SBATCH -p batch
-#SBATCH -t 2:00:00
+#SBATCH -t 4:00:00
 
 ################################################################################################################
 ###################################### Load Modules and Environment ############################################
@@ -51,7 +51,7 @@ commands_dir="${base_ld_dir}/command_files"
 mkdir -p "$commands_dir"
 
 # Batch configuration
-commands_per_batch=5
+commands_per_batch=4
 
 # Master commands file
 master_commands_file="${commands_dir}/master_meta_commands.txt"
