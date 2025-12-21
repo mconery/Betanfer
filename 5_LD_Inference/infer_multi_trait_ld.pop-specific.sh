@@ -3,7 +3,7 @@
 #SBATCH -A bif154
 #SBATCH -J infer_multi_trait_ld_pop-specific
 #SBATCH -o infer_multi_trait_ld.pop-specific.log
-#SBATCH -N 9
+#SBATCH -N 10
 #SBATCH -p extended
 #SBATCH -t 6:00:00
 
