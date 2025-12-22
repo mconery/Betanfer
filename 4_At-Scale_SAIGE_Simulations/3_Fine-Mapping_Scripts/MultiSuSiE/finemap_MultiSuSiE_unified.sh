@@ -3,7 +3,7 @@
 #SBATCH -A bif154
 #SBATCH -J MultiSuSiE_finemap_all
 #SBATCH -o finemap_MultiSuSiE_all.log
-#SBATCH -N 9
+#SBATCH -N 3
 #SBATCH -p batch
 #SBATCH -t 2:00:00
 
@@ -42,7 +42,7 @@ command_files_dir="${base_finemap_dir}/command_files"
 mkdir -p "$command_files_dir"
 
 # Batch configuration
-commands_per_batch=120
+commands_per_batch=125
 
 # Master commands file
 master_commands_file="${command_files_dir}/master_multisusie_commands.txt"
