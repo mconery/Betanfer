@@ -134,7 +134,7 @@ def main():
     parser.add_argument('--plink', required=True,
                         help='PLINK file prefix (without .bed/.bim/.fam extension)')
     parser.add_argument('--output', required=True,
-                        help='Output phenotype file path (or prefix if using --split-output)')
+                        help='Output phenotype file path')
     parser.add_argument('--variants', required=True,
                         help='File with causal variant IDs (one per line)')
     parser.add_argument('--n-phenotypes', type=int, default=2000,
@@ -267,21 +267,30 @@ def main():
     # Sort results by pheno_id
     sorted_pheno_ids = sorted(results.keys())
     
-    # Build output DataFrame
+    # Build output DataFrame with phenotypes
     pheno_array = np.column_stack([results[pid]['pheno'] for pid in sorted_pheno_ids])
+    pheno_cols = [f'PHENO_{i}' for i in range(args.n_phenotypes)]
+    df_pheno = pd.DataFrame(pheno_array, columns=pheno_cols)
     
-    df_out = pd.DataFrame(pheno_array, columns=[f'PHENO_{i}' for i in range(args.n_phenotypes)])
-    df_out.insert(0, '#FID', iids[:, 0])
-    df_out.insert(1, 'IID', iids[:, 1])
+    # Extract PC columns from df_pcs (columns 3 onwards, assuming format: #FID IID PC1 PC2 ... PC10)
+    pc_col_names = [col for col in df_pcs.columns if col.startswith('PC')]
     
-    # Merge with PCs
-    df_merge = pd.merge(df_out, df_pcs, on=['#FID', 'IID'])
+    # Build output with correct column order: #FID IID PC1 PC2 ... PC10 PHENO_0 PHENO_1 ...
+    df_out = pd.DataFrame({'#FID': iids[:, 0], 'IID': iids[:, 1]})
+    
+    # Add PC columns
+    for pc_col in pc_col_names:
+        df_out[pc_col] = df_pcs[pc_col].values
+    
+    # Add phenotype columns
+    for pheno_col in pheno_cols:
+        df_out[pheno_col] = df_pheno[pheno_col].values
     
     # Save
     if args.verbose:
         print(f"Writing output to {args.output}...")
     
-    df_merge.to_csv(args.output, sep='\t', index=False)
+    df_out.to_csv(args.output, sep='\t', index=False)
     
     # Compute and report statistics
     h2_totals = [results[pid]['h2_total'] for pid in sorted_pheno_ids]
@@ -301,7 +310,7 @@ def main():
     print(f"  Std:  {h2_std:.6f}")
     print(f"  Min:  {h2_min:.6f}")
     print(f"  Max:  {h2_max:.6f}")
-    print(f"Output dimensions: {df_merge.shape[0]} samples x {df_merge.shape[1]} columns")
+    print(f"Output dimensions: {df_out.shape[0]} samples x {df_out.shape[1]} columns")
     print(f"{'='*70}\n")
     
     # Optionally save metadata
