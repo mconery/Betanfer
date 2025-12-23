@@ -4,7 +4,7 @@
 #SBATCH -J prep_realistic_pheno
 #SBATCH -o prep_realistic_phenotypes_for_saige.log
 #SBATCH -N 2
-#SBATCH -p batch
+#SBATCH -p extended
 #SBATCH -t 4:00:00
 
 # Load plink tools and conda environment
