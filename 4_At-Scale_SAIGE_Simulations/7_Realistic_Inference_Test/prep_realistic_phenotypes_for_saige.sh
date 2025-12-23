@@ -4,7 +4,7 @@
 #SBATCH -J prep_realistic_pheno
 #SBATCH -o prep_realistic_phenotypes_for_saige.log
 #SBATCH -N 2
-#SBATCH -p extended
+#SBATCH -p batch
 #SBATCH -t 4:00:00
 
 # Load plink tools and conda environment
@@ -25,6 +25,9 @@ variant_file="$pheno_dir/causal_variants/master_variants_list.txt"
 # Set script location
 simulate_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/7_Realistic_Inference_Test/simulate_phenotypes_many_causal.py"
 
+# Set variant sets output location
+variant_sets_output="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/simulated_phenotypes/realistic_traits.variant_sets.txt"
+
 # Get number of nodes
 num_nodes="$SLURM_NNODES"
 
@@ -33,7 +36,7 @@ N_PHENOTYPES=2500
 N_CAUSAL=500
 H2_SNP_MIN=5e-5
 H2_SNP_MAX=1.5e-4
-SEED=5
+SEED=42
 
 ################################################################################################################
 ############################### Simulate Realistic Phenotypes ################################################
@@ -41,6 +44,7 @@ SEED=5
 
 echo "Starting phenotype simulations for AFR and EUR populations..."
 echo "Parameters: N_PHENOTYPES=$N_PHENOTYPES, N_CAUSAL=$N_CAUSAL, H2_SNP_MIN=$H2_SNP_MIN, H2_SNP_MAX=$H2_SNP_MAX"
+echo "Note: Causal variants are selected once using the seed and reused for both populations"
 
 # Create empty command array
 cmds=()
@@ -91,6 +95,22 @@ done
 wait
 
 echo "Phenotype simulations completed."
+
+################################################################################################################
+############################ Copy Variant Sets to Shared Location ############################################
+################################################################################################################
+
+echo "Copying variant sets to shared location..."
+
+# The variant sets file is identical for both populations since it's determined by the seed
+# Copy from AFR to the shared output location
+if [ -f "$pheno_dir/AFR/merged.realistic.continuous_variant_sets.txt" ]; then
+    cp "$pheno_dir/AFR/merged.realistic.continuous_variant_sets.txt" "$variant_sets_output"
+    echo "Variant sets copied to: $variant_sets_output"
+else
+    echo "ERROR: Variant sets file not found in AFR population!"
+    exit 1
+fi
 
 ################################################################################################################
 #################################### Split Phenotypes into Individual Files ##################################
@@ -204,13 +224,17 @@ for pop in AFR EUR; do
         echo "  First phenotype dimensions: $(wc -l < $first_file) samples"
         echo "  Sample columns: $(head -1 $first_file | cut -d$'\t' -f1-12)"
     fi
-    
-    # Check metadata
-    metadata_file="$pheno_dir/$pop/merged.realistic.continuous_metadata.txt"
-    if [ -f "$metadata_file" ]; then
-        echo "  Metadata file: $metadata_file"
-    fi
 done
+
+echo ""
+echo "Variant Sets File:"
+if [ -f "$variant_sets_output" ]; then
+    echo "  Location: $variant_sets_output"
+    echo "  Total phenotypes: $(wc -l < $variant_sets_output)"
+    echo "  First row: $(head -1 $variant_sets_output | cut -f1-3)..."
+else
+    echo "  ERROR: Variant sets file not found!"
+fi
 
 echo ""
 echo "=========================================="

@@ -23,7 +23,7 @@ import sys
 
 def simulate_single_phenotype(args_dict):
     """
-    Simulate a single phenotype with randomly sampled causal variants.
+    Simulate a single phenotype with pre-selected causal variants.
     
     Parameters
     ----------
@@ -33,12 +33,11 @@ def simulate_single_phenotype(args_dict):
     Returns
     -------
     tuple
-        (pheno_id, phenotypes_array, h2_total, n_causal, sampled_variants)
+        (pheno_id, phenotypes_array, h2_total, n_causal)
     """
     pheno_id = args_dict['pheno_id']
     plink_file = args_dict['plink_file']
-    all_causal_variants = args_dict['all_causal_variants']
-    n_causal = args_dict['n_causal']
+    sampled_variants_list = args_dict['sampled_variants_list']
     h2_snp_min = args_dict['h2_snp_min']
     h2_snp_max = args_dict['h2_snp_max']
     trait_type = args_dict['trait_type']
@@ -52,8 +51,8 @@ def simulate_single_phenotype(args_dict):
     bed = Bed(plink_file, count_A1=False)
     n_samples = bed.shape[0]
     
-    # Randomly sample causal variants for this phenotype (unique within phenotype)
-    sampled_variants = rng.choice(all_causal_variants, size=n_causal, replace=False)
+    # Get the pre-selected causal variants for this phenotype
+    sampled_variants = sampled_variants_list[pheno_id]
     
     # Identify indices of causal SNPs in PLINK data
     causal_indices = []
@@ -123,7 +122,7 @@ def simulate_single_phenotype(args_dict):
         thresh = np.percentile(L, 100.0 * (1.0 - prevalence))
         pheno = (L > thresh).astype(int)
     
-    return pheno_id, pheno, h2_total, M, sampled_variants
+    return pheno_id, pheno, h2_total, M
 
 
 def main():
@@ -173,9 +172,6 @@ def main():
     if args.n_causal <= 0:
         raise ValueError("n-causal must be > 0")
     
-    # Set seed
-    np.random.seed(args.seed)
-    
     # Load causal variant IDs
     if args.verbose:
         print(f"Loading causal variants from {args.variants}...")
@@ -199,41 +195,82 @@ def main():
     
     if args.verbose:
         print(f"Loaded {n_available} causal variant IDs")
-        print(f"Will simulate {args.n_phenotypes} phenotypes with {args.n_causal} causal variants each")
-        print(f"Per-SNP heritability sampled from U({args.h2_snp_min}, {args.h2_snp_max})")
+    
+    ################################################################################################################
+    #################### STEP 1: Select causal variants for all phenotypes ########################################
+    ################################################################################################################
+    
+    if args.verbose:
+        print(f"\nStep 1: Selecting causal variants for {args.n_phenotypes} phenotypes...")
+        print(f"  Each phenotype will have {args.n_causal} unique causal variants")
+    
+    # Set seed for variant selection
+    rng_variants = np.random.RandomState(args.seed)
+    
+    # Pre-select causal variants for all phenotypes
+    sampled_variants_list = []
+    for pheno_id in range(args.n_phenotypes):
+        sampled_variants = rng_variants.choice(causal_variants, size=args.n_causal, replace=False)
+        sampled_variants_list.append(sampled_variants)
+    
+    if args.verbose:
+        print(f"  Variant selection complete")
+    
+    ################################################################################################################
+    ############################ STEP 2: Save causal variant sets ##########################################
+    ################################################################################################################
+    
+    if args.verbose:
+        print(f"\nStep 2: Saving causal variant sets...")
+    
+    variant_sets_file = args.output.replace('.txt', '_variant_sets.txt')
+    with open(variant_sets_file, 'w') as f:
+        for pheno_id in range(args.n_phenotypes):
+            variants = sampled_variants_list[pheno_id]
+            # Write phenotype ID and all its causal variants
+            f.write(f"Pheno{pheno_id}\t" + "\t".join(variants) + "\n")
+    
+    if args.verbose:
+        print(f"  Variant sets saved to {variant_sets_file}")
+    
+    ################################################################################################################
+    ############################ STEP 3: Simulate phenotypes ##################################################
+    ################################################################################################################
+    
+    if args.verbose:
+        print(f"\nStep 3: Simulating phenotypes...")
     
     # Load PLINK data once to get sample IDs
     if args.verbose:
-        print(f"Loading PLINK data from {args.plink}...")
+        print(f"  Loading PLINK data from {args.plink}...")
     
     bed = Bed(args.plink, count_A1=False)
     iids = bed.iid
     n_samples = bed.shape[0]
     
     if args.verbose:
-        print(f"PLINK data has {n_samples} samples")
+        print(f"  PLINK data has {n_samples} samples")
     
     # Load PCs
     if args.verbose:
-        print(f"Loading PCs from {args.pc_file}...")
+        print(f"  Loading PCs from {args.pc_file}...")
     
     df_pcs = pd.read_csv(args.pc_file, sep='\t')
     
     # Prepare arguments for parallel processing
     if args.verbose:
-        print("Preparing simulation tasks...")
+        print("  Preparing simulation tasks...")
     
     n_jobs = args.n_jobs if args.n_jobs is not None else cpu_count()
     if args.verbose:
-        print(f"Using {n_jobs} parallel jobs")
+        print(f"  Using {n_jobs} parallel jobs")
     
     simulation_args = []
     for pheno_id in range(args.n_phenotypes):
         sim_args = {
             'pheno_id': pheno_id,
             'plink_file': args.plink,
-            'all_causal_variants': causal_variants,
-            'n_causal': args.n_causal,
+            'sampled_variants_list': sampled_variants_list,
             'h2_snp_min': args.h2_snp_min,
             'h2_snp_max': args.h2_snp_max,
             'trait_type': args.trait_type,
@@ -244,25 +281,24 @@ def main():
     
     # Run simulations in parallel
     if args.verbose:
-        print(f"Starting parallel simulation of {args.n_phenotypes} phenotypes...")
+        print(f"  Starting parallel simulation of {args.n_phenotypes} phenotypes...")
     
     results = {}
     with Pool(n_jobs) as pool:
-        for pheno_id, pheno_values, h2_total, n_causal_found, sampled_vars in pool.imap_unordered(
+        for pheno_id, pheno_values, h2_total, n_causal_found in pool.imap_unordered(
             simulate_single_phenotype, simulation_args
         ):
             results[pheno_id] = {
                 'pheno': pheno_values,
                 'h2_total': h2_total,
-                'n_causal': n_causal_found,
-                'variants': sampled_vars
+                'n_causal': n_causal_found
             }
             
             if args.verbose and (pheno_id + 1) % 100 == 0:
-                print(f"  Completed {pheno_id + 1}/{args.n_phenotypes} phenotypes")
+                print(f"    Completed {pheno_id + 1}/{args.n_phenotypes} phenotypes")
     
     if args.verbose:
-        print("Assembling output data...")
+        print("  Assembling output data...")
     
     # Sort results by pheno_id
     sorted_pheno_ids = sorted(results.keys())
@@ -288,7 +324,7 @@ def main():
     
     # Save
     if args.verbose:
-        print(f"Writing output to {args.output}...")
+        print(f"  Writing output to {args.output}...")
     
     df_out.to_csv(args.output, sep='\t', index=False)
     
@@ -303,6 +339,7 @@ def main():
     print(f"Simulation Complete!")
     print(f"{'='*70}")
     print(f"Output file: {args.output}")
+    print(f"Variant sets file: {variant_sets_file}")
     print(f"Phenotypes simulated: {args.n_phenotypes}")
     print(f"Causal variants per phenotype: {args.n_causal}")
     print(f"Total trait heritability (h2_total) statistics:")
@@ -312,24 +349,6 @@ def main():
     print(f"  Max:  {h2_max:.6f}")
     print(f"Output dimensions: {df_out.shape[0]} samples x {df_out.shape[1]} columns")
     print(f"{'='*70}\n")
-    
-    # Optionally save metadata
-    metadata_file = args.output.replace('.txt', '_metadata.txt')
-    with open(metadata_file, 'w') as f:
-        f.write("Phenotype Simulation Metadata\n")
-        f.write(f"Number of phenotypes: {args.n_phenotypes}\n")
-        f.write(f"Causal variants per phenotype: {args.n_causal}\n")
-        f.write(f"Trait type: {args.trait_type}\n")
-        f.write(f"Per-SNP heritability range: [{args.h2_snp_min}, {args.h2_snp_max}]\n")
-        f.write(f"h2_total mean: {h2_mean:.6f}\n")
-        f.write(f"h2_total std: {h2_std:.6f}\n")
-        f.write(f"h2_total min: {h2_min:.6f}\n")
-        f.write(f"h2_total max: {h2_max:.6f}\n")
-        f.write(f"Random seed: {args.seed}\n")
-        f.write(f"Prevalence (binary only): {args.prevalence}\n")
-    
-    if args.verbose:
-        print(f"Metadata saved to {metadata_file}")
 
 
 if __name__ == '__main__':
