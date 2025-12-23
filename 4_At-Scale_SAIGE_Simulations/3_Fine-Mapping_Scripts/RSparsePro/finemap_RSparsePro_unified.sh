@@ -165,9 +165,6 @@ echo ""
 echo "Executing command generation jobs in parallel using Flux..."
 echo "Start time: $(date)"
 
-# Activate environment
-source activate $map_enviro
-
 # Use Flux to parallelize command generation across nodes
 srun -N ${num_nodes} -n ${num_nodes} -c 56 flux start bash -c "
     echo \"Flux instance started for parallel command generation at \$(date)\"
@@ -268,6 +265,9 @@ echo "Starting flux-based execution of batched RSparsePro fine-mapping commands 
 # Create flux output directory
 flux_output_dir="${base_finemap_dir}/flux_output"
 mkdir -p "$flux_output_dir"
+
+# Activate environment
+source activate $map_enviro
 
 # Start Flux and submit batch jobs
 srun -N ${num_nodes} -n ${num_nodes} -c 56 flux start bash -c "
