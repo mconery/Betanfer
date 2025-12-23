@@ -3,8 +3,8 @@
 #SBATCH -A bif154
 #SBATCH -J prep_realistic_pheno
 #SBATCH -o prep_realistic_phenotypes_for_saige.log
-#SBATCH -N 1
-#SBATCH -p batch
+#SBATCH -N 2
+#SBATCH -p extended
 #SBATCH -t 4:00:00
 
 # Load plink tools and conda environment
@@ -33,7 +33,7 @@ N_PHENOTYPES=2500
 N_CAUSAL=500
 H2_SNP_MIN=5e-5
 H2_SNP_MAX=1.5e-4
-SEED=42
+SEED=5
 
 ################################################################################################################
 ############################### Simulate Realistic Phenotypes ################################################
