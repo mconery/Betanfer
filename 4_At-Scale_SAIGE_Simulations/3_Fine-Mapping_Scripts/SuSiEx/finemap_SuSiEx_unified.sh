@@ -3,7 +3,7 @@
 #SBATCH -A bif154
 #SBATCH -J SuSiEx_finemap_all
 #SBATCH -o finemap_SuSiEx_all.log
-#SBATCH -N 3
+#SBATCH -N 1
 #SBATCH -p batch
 #SBATCH -t 2:00:00
 
@@ -40,7 +40,7 @@ command_files_dir="${base_finemap_dir}/command_files"
 mkdir -p "$command_files_dir"
 
 # Batch configuration
-commands_per_batch=30
+commands_per_batch=15
 
 # Master commands file
 master_commands_file="${command_files_dir}/master_susiex_commands.txt"
