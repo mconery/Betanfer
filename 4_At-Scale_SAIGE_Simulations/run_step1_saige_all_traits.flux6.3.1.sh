@@ -4,7 +4,7 @@
 #SBATCH -o run_step1_saige_all_traits.flux6.3.1.log
 #SBATCH -N 2500
 #SBATCH -p batch
-#SBATCH -t 45:00
+#SBATCH -t 1:30:00
 #SBATCH -C nvme
 
 ##################################################################################################################
