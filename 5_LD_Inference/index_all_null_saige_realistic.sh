@@ -2,7 +2,7 @@
 
 #SBATCH -A bif154
 #SBATCH -J index_saige_mpi
-#SBATCH -o index_all_null_saige.log
+#SBATCH -o index_all_null_saige_realistic.log
 #SBATCH -N 20
 #SBATCH -p batch
 #SBATCH -t 2:00:00
