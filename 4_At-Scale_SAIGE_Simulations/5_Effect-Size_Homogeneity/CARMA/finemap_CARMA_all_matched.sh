@@ -3,9 +3,9 @@
 #SBATCH -A bif154
 #SBATCH -J CARMA_finemap_all
 #SBATCH -o finemap_CARMA_all.log
-#SBATCH -N 2860
+#SBATCH -N 10
 #SBATCH -p batch
-#SBATCH -t 3:00:00
+#SBATCH -t 2:00:00
 
 ################################################################################################################
 ################################################### Load Modules ###############################################
@@ -41,7 +41,7 @@ command_files_dir="${base_finemap_dir}/command_files"
 mkdir -p "$command_files_dir"
 
 # Batch configuration
-commands_per_batch=7
+commands_per_batch=60
 
 # Master commands file
 master_commands_file="${command_files_dir}/master_carma_commands.txt"
