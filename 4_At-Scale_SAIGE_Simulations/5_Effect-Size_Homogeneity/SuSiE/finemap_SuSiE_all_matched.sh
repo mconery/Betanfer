@@ -3,9 +3,9 @@
 #SBATCH -A bif154
 #SBATCH -J SuSiE_finemap_matched
 #SBATCH -o finemap_SuSiE_all_matched.log
-#SBATCH -N 5
+#SBATCH -N 10
 #SBATCH -p batch
-#SBATCH -t 2:00:00
+#SBATCH -t 1:30:00
 
 ################################################################################################################
 ################################################### Load Modules ###############################################
@@ -41,7 +41,7 @@ command_files_dir="${base_finemap_dir}/command_files"
 mkdir -p "$command_files_dir"
 
 # Batch configuration
-commands_per_batch=41
+commands_per_batch=60
 
 # Master commands file
 master_commands_file="${command_files_dir}/master_susie_matched_commands.txt"
@@ -102,9 +102,9 @@ for h_idx in "${!heritabilities[@]}"; do
             fi
 
             # Define output directory
-            h_dir="${analysis_type}_{match_type}_${h_label}"
+            h_dir="${analysis_type}_${match_type}_${h_label}"
             out_dir="${base_finemap_dir}/${h_dir}/susie_results"
-            command_file="${command_files_dir}/susie_${analysis_type}_${trait_type}_${h_label}_matched_commands.txt"
+            command_file="${command_files_dir}/susie_${analysis_type}_${trait_type}_${h_label}_${match_type}_commands.txt"
 
             # Create job script
             job_script="${jobs_dir}/job_${total_jobs}.sh"
