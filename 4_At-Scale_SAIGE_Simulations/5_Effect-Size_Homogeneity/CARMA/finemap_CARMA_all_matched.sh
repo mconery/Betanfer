@@ -2,8 +2,8 @@
 
 #SBATCH -A bif154
 #SBATCH -J CARMA_finemap_all
-#SBATCH -o finemap_CARMA_all.log
-#SBATCH -N 10
+#SBATCH -o finemap_CARMA_all_matched.log
+#SBATCH -N 2010
 #SBATCH -p batch
 #SBATCH -t 2:00:00
 
