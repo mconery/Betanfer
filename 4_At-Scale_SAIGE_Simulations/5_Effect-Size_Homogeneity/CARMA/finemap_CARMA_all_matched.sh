@@ -79,7 +79,7 @@ echo "=================================================="
 # Create jobs directory for parallel execution
 jobs_dir="${command_files_dir}/command_gen_jobs"
 mkdir -p "$jobs_dir"
-rm -f "$jobs_dir"/*.sh
+rm -f "$jobs_dir"/carma_job*.sh
 echo ""
 
 echo "Creating command generation jobs..."
@@ -250,7 +250,7 @@ echo ""
 echo "Creating batched command files using parallel Python splitter..."
 
 # Clean up any existing carma batch files
-rm -f "${command_files_dir}"/carma_finemap_batch_*.sh
+rm -f "${command_files_dir}"/carma_finemap_matched_batch_*.sh
 
 # Use Python splitter for fast parallel batch creation
 python "${python_splitter}" \
