@@ -3,7 +3,7 @@
 #SBATCH -A bif154
 #SBATCH -J SuSiE_finemap_matched
 #SBATCH -o finemap_SuSiE_all_matched.log
-#SBATCH -N 2019
+#SBATCH -N 40
 #SBATCH -p batch
 #SBATCH -t 2:00:00
 
