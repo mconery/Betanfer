@@ -90,7 +90,7 @@ echo "=================================================="
 # Create jobs directory for parallel execution
 jobs_dir="${command_files_dir}/command_gen_jobs"
 mkdir -p "$jobs_dir"
-rm -f "$jobs_dir"/*.sh
+rm -f "$jobs_dir"/susiex_job*.sh
 
 echo ""
 # Create individual job scripts for parallel execution
