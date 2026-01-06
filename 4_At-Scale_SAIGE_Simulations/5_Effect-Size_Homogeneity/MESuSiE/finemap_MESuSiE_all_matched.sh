@@ -344,7 +344,7 @@ echo ""
 echo "Post-processing results..."
 
 # Count successful batch completions by checking for output files
-successful_batches=$(ls -1 "${flux_output_dir}"/mesusie_finemap_batch_*.log 2>/dev/null | wc -l)
+successful_batches=$(ls -1 "${flux_output_dir}"/mesusie_finemap_matched_batch_*.log 2>/dev/null | wc -l)
 echo "Successfully completed batches: ${successful_batches}/${num_batch_files}"
 
 # Check for any failed batches
