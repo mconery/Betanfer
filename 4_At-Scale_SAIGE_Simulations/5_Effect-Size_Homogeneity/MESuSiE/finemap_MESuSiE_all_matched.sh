@@ -44,7 +44,7 @@ mkdir -p "$command_files_dir"
 commands_per_batch=100
 
 # Master commands file
-master_commands_file="${command_files_dir}/master_mesusie_commands.txt"
+master_commands_file="${command_files_dir}/master_mesusie_matched_commands.txt"
 > "$master_commands_file" # Clear the file if it exists
 
 # Populations
