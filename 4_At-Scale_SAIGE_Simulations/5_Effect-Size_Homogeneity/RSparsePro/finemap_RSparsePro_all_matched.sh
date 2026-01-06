@@ -257,7 +257,7 @@ python "${python_splitter}" \
     -i "${master_commands_file}" \
     -o "${command_files_dir}" \
     -b ${commands_per_batch} \
-    -p "rsparsepro_finemap_batch_" \
+    -p "rsparsepro_finemap_matched_batch_" \
     -s ".sh"
 
 if [ $? -ne 0 ]; then
