@@ -3,41 +3,16 @@
 """
 
 Script to generate MESuSiE multi-population fine-mapping commands for all loci.
-
 This script creates a command file where each line runs MESuSiE fine-mapping
-
 for a different locus across all available matrix types and populations.
-
-Adapted from generate_susiex_commands.py to work with finemap_MESuSiE.R wrapper.
-
-Key differences from SuSiEx version:
-
-- No PLINK reference files needed (--ref_panels, --geno-dir, --plink_conv removed)
-
-- Uses --ancestry_labels parameter instead of inferring from paths
-
-- Calls R script instead of Python script
-
-- Different output file structure
-
-UPDATED:
-
-- Supports multiple analysis types: standard (paired identical filenames),
-
-dropped_causal (one pop uses drop_causal variant), matched_effects (effect sizes matched to central pop)
 
 """
 
 import os
-
 import glob
-
 import argparse
-
 from pathlib import Path
-
 from multiprocessing import Pool, cpu_count
-
 from functools import partial
 
 def detect_matrix_subdirs(ld_base_dir, matrix_filter=None):
@@ -1243,141 +1218,60 @@ def create_mesusie_commands(gwas_base_dir, ld_base_dir, output_base_dir, wrapper
 def main():
 
     """Main function with command line argument parsing."""
-
     parser = argparse.ArgumentParser(description='Generate MESuSiE multi-population fine-mapping commands (optimized for HPC)')
-
     # Define default paths (adapted for MESuSiE)
-
     default_wrapper = "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/MESuSiE/finemap_MESuSiE.R"
-
     default_gwas = "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step2_results"
-
     default_ld = "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices"
-
     default_output = "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/fine-mapping_results/mesusie_results"
-
     default_commands = f"{default_output}/mesusie_commands.txt"
-
     parser.add_argument('--wrapper-script', '-w', default=default_wrapper,
-
                        help=f'Path to finemap_MESuSiE.R script (default: {default_wrapper})')
-
     parser.add_argument('--gwas-dir', '-g', default=default_gwas,
-
                        help=f'Base directory containing GWAS summary statistics with population subdirectories (default: {default_gwas})')
-
     parser.add_argument('--ld-dir', '-l', default=default_ld,
-
                        help=f'Base directory containing LD matrices (default: {default_ld})')
-
     parser.add_argument('--output-dir', '-o', default=default_output,
-
                        help=f'Base directory for fine-mapping results (default: {default_output})')
-
     parser.add_argument('--commands-file', '-c', default=default_commands,
-
                        help=f'Output file for commands (default: {default_commands})')
-
     parser.add_argument('--populations', '-pop', type=str, default="AFR,EUR",
-
                        help='Comma-delimited list of population names (default: "AFR,EUR")')
-
     parser.add_argument('--analysis-type', '-a', type=str, default='standard',
-
                        choices=['standard', 'dropped_causal', 'matched_effects'],
-
                        help='Type of GWAS analysis to process (default: standard)')
-
     parser.add_argument('--central-pop', '-cp', type=str, default='EUR',
-
                        help='Central population for dropped_causal and matched_effects analyses (default: EUR)')
-
     parser.add_argument('--matrix-types', '-m', type=str, default=None,
-
                        help='Comma-delimited list of matrix subdirectory names to process (e.g., "raw_in-sample,PC-corrected"). If not specified, all detected matrix types will be processed.')
-
     parser.add_argument('--processes', '-p', type=int, default=None,
-
                        help='Number of processes to use for parallel processing (default: use all available cores)')
-
     parser.add_argument('--skip-existing', '-s', action='store_true',
-
                        help='Skip generating commands for output files that already exist and appear complete')
-
     parser.add_argument('--heritability', type=float, default=0.0003,
-
                        help='Target heritability value to filter traits (default: 0.0003)')
-
     parser.add_argument('--dry-run', '-d', action='store_true',
-
                        help='Print first 10 commands without writing to file')
-
     parser.add_argument('--list-matrices', action='store_true',
-
                        help='List available matrix subdirectories and exit')
-
     args = parser.parse_args()
-
+    
     # Parse populations
-
     populations = parse_populations(args.populations)
-
     print(f"Populations: {populations}")
-
     # Handle list-matrices option
-
     if args.list_matrices:
-
         print(f"Scanning for matrix subdirectories in: {args.ld_dir}")
-
         if not os.path.exists(args.ld_dir):
-
             print(f"Error: LD directory does not exist: {args.ld_dir}")
-
             return 1
-
         matrix_types = detect_matrix_subdirs(args.ld_dir)
-
         if matrix_types:
-
-            print("\\nAvailable matrix types:")
-
+            print("\nAvailable matrix types:")
             for matrix_type in matrix_types:
-
                 print(f" {matrix_type}")
-
-                # Show sample matrix files for this type from first population
-
-                first_pop = populations[0]
-
-                search_dir = os.path.join(args.ld_dir, matrix_type, first_pop)
-
-                if os.path.exists(search_dir):
-
-                    sample_files = glob.glob(os.path.join(search_dir, "*.vcor1"))[:3]
-
-                    if sample_files:
-
-                        print(f" Sample files ({first_pop}):")
-
-                        for f in sample_files:
-
-                            print(f" {os.path.basename(f)}")
-
-                        if len(glob.glob(os.path.join(search_dir, "*.vcor1"))) > 3:
-
-                            print(" ... and more")
-
-            print("\\nExample usage:")
-
-            print(" --matrix-types \\"raw_in-sample,PC-corrected\\"")
-
-            print(f" --matrix-types \\"{','.join(matrix_types)}\\"")
-
         else:
-
             print("No valid matrix configurations found.")
-
         return 0
 
     # Check if directories exist
