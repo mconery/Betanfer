@@ -289,12 +289,12 @@ def find_pheno_and_gwas_files_dropped_causal(gwas_base_dir, pheno_base_dir, popu
         pop_pheno_dir = os.path.join(pheno_base_dir, pop)
         
         if pop == central_pop:
-            # Central population uses standard files
-            gwas_filename = f"{pheno_causal}.{heritability}.{trait_type}.{chromosome}.step2.txt"
+            # Central population uses drop_causal files
+            gwas_filename = f"{pheno_causal}.{heritability}.{trait_type}.{chromosome}.drop_causal.step2.txt"
             pheno_filename = f"{pheno_causal}.{heritability}.{trait_type}.txt"
         else:
-            # Other populations use drop_causal variant
-            gwas_filename = f"{pheno_causal}.{heritability}.{trait_type}.{chromosome}.drop_causal.step2.txt"
+            # Other populations use standard files
+            gwas_filename = f"{pheno_causal}.{heritability}.{trait_type}.{chromosome}.step2.txt"
             pheno_filename = f"{pheno_causal}.{heritability}.{trait_type}.txt"  # Phenotype is same
         
         # Find GWAS file
@@ -303,9 +303,9 @@ def find_pheno_and_gwas_files_dropped_causal(gwas_base_dir, pheno_base_dir, popu
             gwas_files[pop] = gwas_path
         else:
             if pop == central_pop:
-                pattern = f"{pheno_causal}.*.{trait_type}.{chromosome}.step2.txt"
-            else:
                 pattern = f"{pheno_causal}.*.{trait_type}.{chromosome}.drop_causal.step2.txt"
+            else:
+                pattern = f"{pheno_causal}.*.{trait_type}.{chromosome}.step2.txt"
             matching = glob.glob(os.path.join(pop_gwas_dir, pattern))
             if matching:
                 gwas_files[pop] = matching[0]
