@@ -44,7 +44,7 @@ mkdir -p "$command_files_dir"
 commands_per_batch=200
 
 # Master commands file
-master_commands_file="${command_files_dir}/master_carma_commands.txt"
+master_commands_file="${command_files_dir}/master_carma_drop_commands.txt"
 > "$master_commands_file" # Clear the file if it exists
 
 # Set number of nodes
