@@ -44,7 +44,7 @@ mkdir -p "$command_files_dir"
 commands_per_batch=2500
 
 # Master commands file
-master_commands_file="${command_files_dir}/master_rsparsepro_commands.txt"
+master_commands_file="${command_files_dir}/master_rsparsepro_matched_commands.txt"
 > "$master_commands_file" # Clear the file if it exists
 
 # Set number of nodes
