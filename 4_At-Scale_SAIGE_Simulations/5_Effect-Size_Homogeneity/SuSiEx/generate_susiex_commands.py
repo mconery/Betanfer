@@ -299,19 +299,19 @@ def find_gwas_files_dropped_causal(gwas_base_dir, populations, central_pop, phen
         pop_gwas_dir = os.path.join(gwas_base_dir, pop)
         if pop == central_pop:
             # Central population uses standard files
-            expected_filename = f"{pheno_causal}.{heritability}.{trait_type}.{chromosome}.step2.txt"
+            expected_filename = f"{pheno_causal}.{heritability}.{trait_type}.{chromosome}.drop_causal.step2.txt"
         else:
             # Other populations use drop_causal variant
-            expected_filename = f"{pheno_causal}.{heritability}.{trait_type}.{chromosome}.drop_causal.step2.txt"
+            expected_filename = f"{pheno_causal}.{heritability}.{trait_type}.{chromosome}.step2.txt"
         expected_path = os.path.join(pop_gwas_dir, expected_filename)
         if os.path.exists(expected_path):
             gwas_files[pop] = expected_path
         else:
             # Try broader pattern matching
             if pop == central_pop:
-                pattern = f"{pheno_causal}.*.{trait_type}.{chromosome}.step2.txt"
-            else:
                 pattern = f"{pheno_causal}.*.{trait_type}.{chromosome}.drop_causal.step2.txt"
+            else:
+                pattern = f"{pheno_causal}.*.{trait_type}.{chromosome}.step2.txt"
             matching_files = glob.glob(os.path.join(pop_gwas_dir, pattern))
             if matching_files:
                 gwas_files[pop] = matching_files[0]
