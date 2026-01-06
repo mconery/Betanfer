@@ -93,7 +93,7 @@ echo "=================================================="
 # Create jobs directory for parallel execution
 jobs_dir="${command_files_dir}/command_gen_jobs"
 mkdir -p "$jobs_dir"
-rm -f "$jobs_dir"/*.sh
+rm -f "$jobs_dir"/mesusie_job*.sh
 
 echo ""
 # Create individual job scripts for parallel execution
@@ -258,7 +258,7 @@ echo ""
 echo "Creating batched command files using parallel Python splitter..."
 
 # Clean up any existing mesusie batch files
-rm -f "${command_files_dir}"/mesusie_finemap_batch_*.sh
+rm -f "${command_files_dir}"/mesusie_finemap_matched_batch_*.sh
 
 # Use Python splitter for fast parallel batch creation
 python "${python_splitter}" \
