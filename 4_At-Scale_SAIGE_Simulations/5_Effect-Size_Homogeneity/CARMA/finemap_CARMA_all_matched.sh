@@ -266,7 +266,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Verify batch creation
-num_batch_files=$(ls "${command_files_dir}" | grep -c "^carma_finemap_batch_" || true)
+num_batch_files=$(ls "${command_files_dir}" | grep -c "^carma_finemap_matched_batch_" || true)
 echo "Verified: Created ${num_batch_files} batch files in ${command_files_dir}"
 
 if [ ${num_batch_files} -eq 0 ]; then
@@ -299,7 +299,7 @@ echo \"Submitting ${num_batch_files} batches to Flux queue...\"
 
 batch_count=0
 
-for batch in ${command_files_dir}/carma_finemap_batch_*.sh; do
+for batch in ${command_files_dir}/carma_finemap_matched_batch_*.sh; do
 
     batch_name=\$(basename \${batch} .sh)
 
