@@ -5,7 +5,7 @@
 #SBATCH -o infer_multi_trait_ld.meta.log
 #SBATCH -N 64
 #SBATCH -p extended
-#SBATCH -t 24:00:00
+#SBATCH -t 12:00:00
 
 ################################################################################################################
 ###################################### Load Modules and Environment ############################################
@@ -42,8 +42,10 @@ variant_dir="${base_ld_dir}/raw_in-sample/weighted"
 num_nodes=${SLURM_NNODES}
 
 # Define meta-analysis types, trait types and number of traits
-meta_types=("fixed" "random")
-trait_types=("all" "continuous" "binary")
+#meta_types=("fixed" "random")
+meta_types=("random")
+#trait_types=("all" "continuous" "binary")
+trait_types=("binary")
 num_traits_list=(50 100 200 300 400 500 750 1000 1250 1500 1750 2000)
 
 # Directory for all command files
