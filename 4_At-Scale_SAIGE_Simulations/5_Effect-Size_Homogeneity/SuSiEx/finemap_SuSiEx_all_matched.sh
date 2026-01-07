@@ -90,7 +90,7 @@ echo "=================================================="
 # Create jobs directory for parallel execution
 jobs_dir="${command_files_dir}/command_gen_jobs"
 mkdir -p "$jobs_dir"
-rm -f "$jobs_dir"/susiex_job*.sh
+rm -f "$jobs_dir"/susiex_match_job*.sh
 
 echo ""
 # Create individual job scripts for parallel execution
@@ -118,7 +118,7 @@ for h_idx in "${!heritabilities[@]}"; do
       command_file="${command_files_dir}/susiex_${trait_type}_${h_label}_${match_type}_commands.txt"
 
       # Create job script
-      job_script="${jobs_dir}/susiex_job_${total_jobs}.sh"
+      job_script="${jobs_dir}/susiex_match_job_${total_jobs}.sh"
       cat > "$job_script" << 'JOBEOF'
 #!/bin/bash
 set -e
@@ -197,7 +197,7 @@ srun -N ${num_nodes} -n ${num_nodes} -c 56 flux start bash -c "
     echo \"Submitting ${total_jobs} command generation jobs...\"
 
     job_count=0
-    for job_script in ${jobs_dir}/susiex_job_*.sh; do
+    for job_script in ${jobs_dir}/susiex_match_job_*.sh; do
       job_name=\$(basename \${job_script} .sh)
       flux submit -N1 -n1 -c56 \
         bash \${job_script}

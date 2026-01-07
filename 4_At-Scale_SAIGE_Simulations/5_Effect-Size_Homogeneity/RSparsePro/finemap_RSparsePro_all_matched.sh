@@ -79,7 +79,7 @@ echo "=================================================="
 # Create jobs directory for parallel execution
 jobs_dir="${command_files_dir}/command_gen_jobs"
 mkdir -p "$jobs_dir"
-rm -f "$jobs_dir"/rsparsepro_job*.sh
+rm -f "$jobs_dir"/rsparsepro_match_job*.sh
 echo ""
 
 echo "Creating command generation jobs..."
@@ -110,7 +110,7 @@ for h_idx in "${!heritabilities[@]}"; do
                 command_file="${command_files_dir}/rsparsepro_${analysis_type}_${match_type}_${trait_type}_${h_label}_commands.txt"
 
                 # Create job script
-                job_script="${jobs_dir}/rsparsepro_job_${total_jobs}.sh"
+                job_script="${jobs_dir}/rsparsepro_match_job_${total_jobs}.sh"
 
                 cat > "$job_script" << 'JOBEOF'
 #!/bin/bash
@@ -192,7 +192,7 @@ echo \"Submitting ${total_jobs} command generation jobs...\"
 
 job_count=0
 
-for job_script in ${jobs_dir}/rsparsepro_job_*.sh; do
+for job_script in ${jobs_dir}/rsparsepro_match_job_*.sh; do
 
     flux submit -N1 -n1 -c56 \
         bash \${job_script}
