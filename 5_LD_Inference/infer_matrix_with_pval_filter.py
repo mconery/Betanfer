@@ -73,19 +73,14 @@ Features
 import os
 import glob
 import argparse
-import random
 import sys
-from pathlib import Path
 from typing import List, Tuple, Dict, Set
 from collections import defaultdict
 from multiprocessing import Pool
 from functools import partial
-
 import pandas as pd
-import numpy as np
 import pysam
 import logging
-import re
 
 from extraction_utils import (
     load_variant_list,
@@ -486,7 +481,7 @@ def write_filtering_stats(stats: Dict, output_path: str, pval_threshold: float, 
         if buffer_bp:
             f.write(f" Genomic buffer: {buffer_bp} bp\n")
         else:
-            f.write(f" Genomic buffer: None (matrix variants only)\n")
+            f.write(" Genomic buffer: None (matrix variants only)\n")
         f.write("\n")
         f.write("FILTERING SUMMARY:\n")
         f.write(f" Total traits evaluated: {stats['total_traits']}\n")
@@ -585,8 +580,8 @@ def main():
     output_dir = os.path.dirname(os.path.abspath(args.output_file))
     os.makedirs(output_dir, exist_ok=True)
 
-    logger.info(f"Creating LD matrix from indexed summary statistics with p-value filtering")
-    logger.info(f"(OPTIMIZED: Early exit + Batch tabix queries + Parallel processing)")
+    logger.info("Creating LD matrix from indexed summary statistics with p-value filtering")
+    logger.info("(OPTIMIZED: Early exit + Batch tabix queries + Parallel processing)")
     logger.info(f"Input directory: {args.indexed_dir}")
     logger.info(f"Variant file: {args.variant_file}")
     logger.info(f"Output file: {args.output_file}")
@@ -595,17 +590,17 @@ def main():
     if args.buffer:
         logger.info(f"Genomic buffer: {args.buffer} bp")
     else:
-        logger.info(f"Genomic buffer: None (matrix variants only)")
+        logger.info("Genomic buffer: None (matrix variants only)")
     logger.info(f"Device: {args.device}")
     if args.num_processes:
         logger.info(f"Parallel processes: {args.num_processes}")
     else:
-        logger.info(f"Parallel processes: auto-detect (will use all CPU cores)")
+        logger.info("Parallel processes: auto-detect (will use all CPU cores)")
 
     # Step 1: Load variants to extract
     logger.info("\nStep 1: Loading variants to extract...")
     try:
-        variants_to_extract = set(pd.read_csv(args.variant_file, header=None)[0])
+        variants_to_extract = load_variant_list(args.variant_file)
     except Exception as e:
         logger.warning(f"Error loading variant file: {e}")
         try:
@@ -674,7 +669,7 @@ def main():
         logger.info("\nStep 4: Defining genomic buffer region...")
         try:
             buffer_region = get_buffer_region_variants(variant_map, args.buffer)
-            logger.info(f"Buffer region defined for chromosome filtering")
+            logger.info("Buffer region defined for chromosome filtering")
         except Exception as e:
             logger.error(f"Error defining buffer region: {e}")
             sys.exit(1)
@@ -682,8 +677,8 @@ def main():
     # Step 5: Filter traits by p-value (use ALL traits that pass filtering)
     logger.info(f"\nStep {'5' if args.buffer else '4'}: Filtering traits by p-value...")
     logger.info(f"Checking for associations with p-value < {args.pval_threshold}")
-    logger.info(f"All traits passing filter will be used for LD matrix computation")
-    logger.info(f"(OPTIMIZED: Using parallel processing with batch tabix queries and early exit)")
+    logger.info("All traits passing filter will be used for LD matrix computation")
+    logger.info("(OPTIMIZED: Using parallel processing with batch tabix queries and early exit)")
 
     try:
         filtered_files, filtering_stats = filter_traits_by_pvalue(
@@ -697,7 +692,7 @@ def main():
             num_processes=args.num_processes
         )
 
-        logger.info(f"\nFiltering summary:")
+        logger.info("\nFiltering summary:")
         logger.info(f" Total traits evaluated: {filtering_stats['traits_checked']}")
         logger.info(f" Traits retained (null): {filtering_stats['traits_retained']}")
         logger.info(f" Traits filtered out: {filtering_stats['traits_filtered_out']}")
@@ -708,7 +703,7 @@ def main():
             logger.info(f" Minimum p-value observed: {filtering_stats['min_pval_across_all']:.2e}")
 
         # Log optimization metrics
-        logger.info(f"\nOptimization metrics:")
+        logger.info("\nOptimization metrics:")
         logger.info(f" Parallel processes used: {filtering_stats['num_processes']}")
         logger.info(f" Total matrix region tabix calls: {filtering_stats['total_matrix_tabix_calls']} (1 per trait)")
         logger.info(f" Early exits: {filtering_stats['early_exits']} traits (filtered before checking all variants)")
