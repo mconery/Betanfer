@@ -90,9 +90,10 @@ import re
 from extraction_utils import (
     load_variant_list,
     make_var_dict_for_positional_ids,
-    extract_betas_batch,
     compute_beta_correlation_matrix,
-    save_beta_matrix
+    save_beta_matrix,
+    extract_betas_batch_region,
+    get_region_bounds_from_variant_map
 )
 
 
@@ -181,35 +182,6 @@ def get_buffer_region_variants(variant_map: Dict[str, Tuple], buffer_bp: int) ->
     logger.info(f"Buffer region: {chrom}:{buffer_start}-{buffer_end} "
                 f"(original range: {min_pos}-{max_pos}, buffer: {buffer_bp} bp)")
     return chrom, buffer_start, buffer_end
-
-
-def get_region_bounds_from_variant_map(variant_map: Dict[str, Tuple]) -> Tuple[str, int, int]:
-    """
-    Get the genomic boundaries of the matrix variant region.
-
-    Args:
-        variant_map: Dictionary mapping variant ID to (chromosome, position)
-
-    Returns:
-        Tuple of (chromosome, min_pos, max_pos)
-    """
-    chroms = set()
-    positions = []
-    for variant, (chrom, pos) in variant_map.items():
-        chroms.add(chrom)
-        try:
-            positions.append(int(pos))
-        except (ValueError, TypeError):
-            pass
-
-    if len(chroms) != 1:
-        raise ValueError(f"Expected single chromosome, found: {chroms}")
-    if not positions:
-        raise ValueError("No valid positions found")
-
-    chrom = chroms.pop()
-    return chrom, min(positions), max(positions)
-
 
 def check_trait_pvalue_significance_optimized(
     trait_file: str,
@@ -761,7 +733,7 @@ def main():
     logger.info(f"\nStep {'6' if args.buffer else '5'}: Extracting beta values from null traits...")
 
     try:
-        beta_matrix = extract_betas_batch(
+        beta_matrix = extract_betas_batch_region(
             file_list=traits_to_use,
             variant_col=args.variant_col,
             beta_col=args.beta_col,
