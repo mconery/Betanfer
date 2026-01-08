@@ -71,7 +71,6 @@ Features
 """
 
 import os
-import glob
 import argparse
 import sys
 from typing import List, Tuple, Dict, Set
@@ -88,65 +87,14 @@ from extraction_utils import (
     compute_beta_correlation_matrix,
     save_beta_matrix,
     extract_betas_batch_region,
-    get_region_bounds_from_variant_map
+    get_region_bounds_from_variant_map,
+    find_indexed_sumstats_files
 )
 
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-
-
-def find_indexed_sumstats_files(indexed_dir: str, num_threads: int = None) -> List[str]:
-    """
-    Find all tabix-indexed summary statistics files in the specified directory.
-    
-    PARALLELIZED: Uses multi-threading to check .tbi existence in parallel,
-    which is more efficient for directories with many files.
-    
-    Args:
-        indexed_dir: Directory containing indexed files
-        num_threads: Number of threads to use. If None, uses CPU count.
-    
-    Returns:
-        List of file paths for valid .gz files with corresponding .tbi indices
-    """
-    import concurrent.futures
-    
-    # Determine number of threads (default: use available CPU cores)
-    if num_threads is None:
-        num_threads = os.cpu_count()
-    
-    # Find all .gz files
-    gz_pattern = os.path.join(indexed_dir, "*.gz")
-    gz_files = glob.glob(gz_pattern)
-    
-    if not gz_files:
-        logging.warning(f"No .gz files found in {indexed_dir}")
-        return []
-    
-    logging.info(f"Found {len(gz_files)} .gz files. Checking for .tbi indices (using {num_threads} threads)...")
-    
-    def check_tbi_exists(gz_file: str) -> Tuple[str, bool]:
-        """Check if .tbi file exists for a given .gz file"""
-        tbi_file = gz_file + ".tbi"
-        has_tbi = os.path.exists(tbi_file)
-        return gz_file, has_tbi
-    
-    indexed_files = []
-    
-    # Parallel file checking
-    with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
-        futures = [executor.submit(check_tbi_exists, gz_file) for gz_file in gz_files]
-        
-        for future in concurrent.futures.as_completed(futures):
-            gz_file, has_tbi = future.result()
-            if has_tbi:
-                indexed_files.append(gz_file)
-    
-    logging.info(f"Found {len(indexed_files)} indexed files (with .tbi indices)")
-    
-    return indexed_files
 
 def filter_files_by_chromosome(indexed_files: List[str], active_chromosome: str) -> List[str]:
     """
@@ -780,11 +728,7 @@ def main():
 
     try:
         ld_matrix = compute_beta_correlation_matrix(
-            gwas_files=traits_to_use,
-            variants_to_extract=variants_to_extract,
-            variant_map=variant_map,
-            variant_col=args.variant_col,
-            beta_col=args.beta_col,
+            beta_matrix,
             device=args.device,
             save_prefix=args.save_binary_prefix
         )
