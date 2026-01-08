@@ -76,7 +76,7 @@ import argparse
 import sys
 from typing import List, Tuple, Dict, Set
 from collections import defaultdict
-from multiprocessing import Pool
+from multiprocessing import Pool, cpu_count
 from functools import partial
 import pandas as pd
 import pysam
@@ -97,26 +97,56 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 
-def find_indexed_sumstats_files(indexed_dir):
+def find_indexed_sumstats_files(indexed_dir: str, num_threads: int = None) -> List[str]:
     """
     Find all tabix-indexed summary statistics files in the specified directory.
-
+    
+    PARALLELIZED: Uses multi-threading to check .tbi existence in parallel,
+    which is more efficient for directories with many files.
+    
     Args:
         indexed_dir: Directory containing indexed files
-
+        num_threads: Number of threads to use. If None, uses CPU count.
+    
     Returns:
         List of file paths for valid .gz files with corresponding .tbi indices
     """
-    indexed_files = []
+    import concurrent.futures
+    
+    # Determine number of threads (default: use available CPU cores)
+    if num_threads is None:
+        num_threads = os.cpu_count()
+    
     # Find all .gz files
     gz_pattern = os.path.join(indexed_dir, "*.gz")
     gz_files = glob.glob(gz_pattern)
-    for gz_file in gz_files:
+    
+    if not gz_files:
+        logging.warning(f"No .gz files found in {indexed_dir}")
+        return []
+    
+    logging.info(f"Found {len(gz_files)} .gz files. Checking for .tbi indices (using {num_threads} threads)...")
+    
+    def check_tbi_exists(gz_file: str) -> Tuple[str, bool]:
+        """Check if .tbi file exists for a given .gz file"""
         tbi_file = gz_file + ".tbi"
-        if os.path.exists(tbi_file):
-            indexed_files.append(gz_file)
+        has_tbi = os.path.exists(tbi_file)
+        return gz_file, has_tbi
+    
+    indexed_files = []
+    
+    # Parallel file checking
+    with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
+        futures = [executor.submit(check_tbi_exists, gz_file) for gz_file in gz_files]
+        
+        for future in concurrent.futures.as_completed(futures):
+            gz_file, has_tbi = future.result()
+            if has_tbi:
+                indexed_files.append(gz_file)
+    
+    logging.info(f"Found {len(indexed_files)} indexed files (with .tbi indices)")
+    
     return indexed_files
-
 
 def filter_files_by_chromosome(indexed_files: List[str], active_chromosome: str) -> List[str]:
     """
@@ -378,8 +408,7 @@ def filter_traits_by_pvalue(
     """
     # Determine number of processes (default: use all available CPUs)
     if num_processes is None:
-        import multiprocessing
-        num_processes = multiprocessing.cpu_count()
+        num_processes = cpu_count()
 
     logger.info(f"Using {num_processes} processes for parallel trait filtering")
 
@@ -639,7 +668,7 @@ def main():
 
     # Step 3: Find and filter indexed summary statistics files by chromosome
     logger.info("\nStep 3: Discovering indexed summary statistics files for active chromosome...")
-    all_indexed_files = find_indexed_sumstats_files(args.indexed_dir)
+    all_indexed_files = find_indexed_sumstats_files(args.indexed_dir, args.num_processes)
 
     if not all_indexed_files:
         logger.error(f"Error: No tabix-indexed files found in {args.indexed_dir}")
