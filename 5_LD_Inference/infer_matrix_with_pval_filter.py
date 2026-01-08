@@ -450,41 +450,7 @@ def write_filtering_stats(stats: Dict, output_path: str, pval_threshold: float, 
         buffer_bp: Optional buffer size used
     """
     with open(output_path, 'w') as f:
-        f.write("=" * 80 + "\n")
-        f.write("P-VALUE BASED TRAIT FILTERING STATISTICS (PARALLELIZED VERSION)\n")
-        f.write("=" * 80 + "\n\n")
-        f.write("FILTERING PARAMETERS:\n")
-        f.write(f" P-value threshold: {pval_threshold}\n")
-        if buffer_bp:
-            f.write(f" Genomic buffer: {buffer_bp} bp\n")
-        else:
-            f.write(" Genomic buffer: None (matrix variants only)\n")
-        f.write("\n")
-        f.write("FILTERING SUMMARY:\n")
-        f.write(f" Total traits evaluated: {stats['total_traits']}\n")
-        f.write(f" Traits checked: {stats['traits_checked']}\n")
-        f.write(f" Traits retained: {stats['traits_retained']}\n")
-        f.write(f" Traits filtered out: {stats['traits_filtered_out']}\n")
-        if stats['traits_checked'] > 0:
-            retention_rate = 100 * stats['traits_retained'] / stats['traits_checked']
-            f.write(f" Retention rate: {retention_rate:.1f}%\n")
-            f.write(f" Minimum p-value across all traits: {stats['min_pval_across_all']:.2e}\n")
-        f.write("\n")
-        f.write("OPTIMIZATION METRICS:\n")
-        f.write(f" Total matrix region tabix calls: {stats['total_matrix_tabix_calls']}\n")
-        f.write(f" Total buffer region tabix calls: {stats['total_buffer_tabix_calls']}\n")
-        f.write(f" Early exits (trait filtered before checking all variants): {stats['early_exits']}\n")
-        if stats['traits_checked'] > 0:
-            early_exit_rate = 100 * stats['early_exits'] / stats['traits_checked']
-            f.write(f" Early exit rate: {early_exit_rate:.1f}%\n")
-        f.write(f" Parallel processes used: {stats.get('num_processes', 'sequential')}\n")
-        f.write("\n")
-
-        # Write per-trait details
-        f.write("TRAIT-LEVEL DETAILS:\n")
-        f.write("-" * 80 + "\n")
         f.write("Trait\tChecked\tFound\tSignificant\tMin_Pval\tStatus\n")
-        f.write("-" * 80 + "\n")
         for detail in stats['trait_details']:
             status = "FILTERED" if detail['significant_in_matrix'] or detail['significant_in_buffer'] else "RETAINED"
             f.write(f"{detail['trait_file']}\t"
