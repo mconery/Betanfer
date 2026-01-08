@@ -208,7 +208,7 @@ echo "Starting flux-based execution of batched population-specific commands at $
 mkdir -p "${base_ld_dir}/flux_output"
 
 # Start Flux and submit batch jobs
-srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start bash -c "
+srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start -Sstatedir=/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/5_LD_Inference/jobstate bash -c "
     # Display Flux resource allocation
     echo \"Flux instance started at \$(date)\"
     echo \"Available resources:\"
