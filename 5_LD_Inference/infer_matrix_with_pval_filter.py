@@ -1,77 +1,58 @@
 #!/usr/bin/env python3
 
 """
-infer_matrix_with_pval_filter.py
+infer_matrix_with_pval_filter.py (OPTIMIZED VERSION)
 
 Create LD (linkage disequilibrium) matrices from tabix-indexed GWAS summary statistics
 using beta correlation inference, with p-value filtering to exclude traits with significant
 associations in the region of interest.
 
-This script extends the null-trait approach by:
-1. Checking p-values for all variants in the LD matrix
-2. Optionally including a genomic buffer region around the matrix variants
-3. Dropping traits where ANY variant in the matrix (or buffer) is significant
-4. Computing LD matrices only from null traits (no significant associations in region)
+OPTIMIZATIONS:
+1. Early Exit: Returns immediately upon finding first significant p-value
+2. Batch Tabix Queries: Fetches entire genomic region once per trait, indexes results
 
 This filtering approach ensures that the LD matrix reflects true linkage disequilibrium
 rather than confounding due to pleiotropy or multiple causal variants.
 
 Usage
 -----
-
-python infer_ld_with_pval_filter.py \\
-    --indexed_dir /path/to/indexed/sumstats \\
-    --variant_file /path/to/variants.txt \\
-    --output_file /path/to/ld_matrix.tsv.gz \\
-    --pval_col pvalue \\
-    --pval_threshold 0.05 \\
-    [--random_seed 5] \\
-    [--variant_col rs_number] \\
-    [--beta_col beta] \\
-    [--pos_col POS] \\
-    [--buffer 100000] \\
-    [--variant_id_format CHR:POS:REF:ALT] \\
-    [--device cuda] \\
-    [--save_binary_prefix /path/to/binary_output] \\
-    [--stats_output /path/to/filtering_stats.txt]
+python infer_matrix_with_pval_filter.py \\
+  --indexed_dir /path/to/indexed/sumstats \\
+  --variant_file /path/to/variants.txt \\
+  --output_file /path/to/ld_matrix.tsv.gz \\
+  --pval_col pvalue \\
+  --pval_threshold 0.05 \\
+  [--random_seed 5] \\
+  [--variant_col rs_number] \\
+  [--beta_col beta] \\
+  [--pos_col POS] \\
+  [--buffer 100000] \\
+  [--variant_id_format CHR:POS:REF:ALT] \\
+  [--device cuda] \\
+  [--save_binary_prefix /path/to/binary_output] \\
+  [--stats_output /path/to/filtering_stats.txt]
 
 Arguments
 ---------
-
 --indexed_dir Directory containing tabix-indexed summary statistics [REQUIRED]
-
 --variant_file File containing variant IDs to extract (one per line) [REQUIRED]
-
 --output_file Output file for the LD matrix [REQUIRED]
-
 --pval_col Column name for p-values in summary stats [REQUIRED]
-
 --pval_threshold P-value threshold for significance [REQUIRED]
-
 --random_seed Random seed for reproducibility [default: 5]
-
 --variant_col Column name for variant IDs in summary stats [default: rs_number]
-
 --beta_col Column name for beta values [default: beta]
-
 --pos_col Column name for variant positions [default: POS]
-             [OPTIONAL unless --buffer is specified]
-
---buffer Genomic distance (bp) to extend buffer region around matrix variants
-         [default: None (no buffer)]. When specified, variants within this distance
-         upstream/downstream of the matrix boundaries are also checked for significance.
-
+--buffer Genomic distance (bp) for buffer region around matrix variants [default: None]
 --variant_id_format Format string for variant IDs [default: CHR:POS:REF:ALT]
-
 --device Device for computation ('cuda' or 'cpu') [default: cuda]
-
 --save_binary_prefix Optional prefix for PLINK binary format output
-
 --stats_output Optional output file for filtering statistics and trait information
 
 Features
 --------
-
+- OPTIMIZED: Early exit on first significant p-value found
+- OPTIMIZED: Batch tabix queries (single region fetch per trait)
 - Filters traits based on p-value significance thresholds
 - Optional genomic buffer region to exclude nearby associations
 - Uses ALL traits that pass p-value filtering (no sampling)
@@ -80,7 +61,6 @@ Features
 - Parallel beta extraction using tabix indexing
 - GPU-accelerated correlation computation
 - Optional binary matrix output in PLINK format
-
 """
 
 import os
@@ -90,12 +70,12 @@ import random
 import sys
 from pathlib import Path
 from typing import List, Tuple, Dict, Set
+from collections import defaultdict
 import pandas as pd
 import numpy as np
 import pysam
 import logging
 import re
-
 from extraction_utils import (
     load_variant_list,
     make_var_dict_for_positional_ids,
@@ -108,19 +88,17 @@ from extraction_utils import (
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-
 def find_indexed_sumstats_files(indexed_dir):
     """
     Find all tabix-indexed summary statistics files in the specified directory.
     
     Args:
         indexed_dir: Directory containing indexed files
-        
+    
     Returns:
         List of file paths for valid .gz files with corresponding .tbi indices
     """
     indexed_files = []
-    
     # Find all .gz files
     gz_pattern = os.path.join(indexed_dir, "*.gz")
     gz_files = glob.glob(gz_pattern)
@@ -132,7 +110,6 @@ def find_indexed_sumstats_files(indexed_dir):
     
     return indexed_files
 
-
 def filter_files_by_chromosome(indexed_files: List[str], active_chromosome: str) -> List[str]:
     """
     Filter indexed files to keep only those matching the active chromosome.
@@ -140,7 +117,7 @@ def filter_files_by_chromosome(indexed_files: List[str], active_chromosome: str)
     Args:
         indexed_files: List of indexed file paths
         active_chromosome: Active chromosome identifier (e.g., '1', '22', 'X')
-        
+    
     Returns:
         List of filtered file paths containing 'chr{active_chromosome}.' in the filename
     """
@@ -153,7 +130,6 @@ def filter_files_by_chromosome(indexed_files: List[str], active_chromosome: str)
     
     return filtered_files
 
-
 def get_buffer_region_variants(variant_map: Dict[str, Tuple], buffer_bp: int) -> Tuple[str, int, int]:
     """
     Define the buffer region boundaries based on the matrix variants.
@@ -161,7 +137,7 @@ def get_buffer_region_variants(variant_map: Dict[str, Tuple], buffer_bp: int) ->
     Args:
         variant_map: Dictionary mapping variant ID to (chromosome, position)
         buffer_bp: Buffer size in base pairs
-        
+    
     Returns:
         Tuple of (chromosome, start_pos, end_pos) for the buffer region
     """
@@ -198,14 +174,50 @@ def get_buffer_region_variants(variant_map: Dict[str, Tuple], buffer_bp: int) ->
     
     return chrom, buffer_start, buffer_end
 
-
-def check_trait_pvalue_significance(trait_file: str, variants_to_check: Set[str],
-                                   variant_map: Dict[str, Tuple],
-                                   variant_col: str, pval_col: str,
-                                   pval_threshold: float,
-                                   buffer_region: Tuple = None) -> Tuple[bool, Dict]:
+def get_region_bounds_from_variant_map(variant_map: Dict[str, Tuple]) -> Tuple[str, int, int]:
     """
-    Check if a trait has any significant p-values in the variants to check.
+    Get the genomic boundaries of the matrix variant region.
+    
+    Args:
+        variant_map: Dictionary mapping variant ID to (chromosome, position)
+    
+    Returns:
+        Tuple of (chromosome, min_pos, max_pos)
+    """
+    chroms = set()
+    positions = []
+    
+    for variant, (chrom, pos) in variant_map.items():
+        chroms.add(chrom)
+        try:
+            positions.append(int(pos))
+        except (ValueError, TypeError):
+            pass
+    
+    if len(chroms) != 1:
+        raise ValueError(f"Expected single chromosome, found: {chroms}")
+    
+    if not positions:
+        raise ValueError("No valid positions found")
+    
+    chrom = chroms.pop()
+    return chrom, min(positions), max(positions)
+
+def check_trait_pvalue_significance_optimized(
+    trait_file: str,
+    variants_to_check: Set[str],
+    variant_map: Dict[str, Tuple],
+    variant_col: str,
+    pval_col: str,
+    pval_threshold: float,
+    buffer_region: Tuple = None
+) -> Tuple[bool, Dict]:
+    """
+    OPTIMIZED: Check if a trait has any significant p-values in the variants to check.
+    
+    Optimizations:
+    1. Early exit: Returns immediately upon finding first significant variant
+    2. Batch tabix: Fetches entire region once and indexes results
     
     Args:
         trait_file: Path to tabix-indexed trait file
@@ -215,11 +227,11 @@ def check_trait_pvalue_significance(trait_file: str, variants_to_check: Set[str]
         pval_col: Column name for p-values
         pval_threshold: P-value significance threshold
         buffer_region: Optional tuple (chrom, start, end) for genomic region to check
-        
+    
     Returns:
         Tuple of (is_significant, stats_dict):
-            - is_significant: True if ANY variant is significant (trait should be excluded)
-            - stats_dict: Dictionary with details on significant variants found
+        - is_significant: True if ANY variant is significant
+        - stats_dict: Dictionary with details on checking
     """
     stats = {
         'trait_file': os.path.basename(trait_file),
@@ -229,7 +241,9 @@ def check_trait_pvalue_significance(trait_file: str, variants_to_check: Set[str]
         'significant_in_matrix': False,
         'significant_in_buffer': False,
         'min_pval': 1.0,
-        'variants_with_data': []
+        'variants_with_data': [],
+        'matrix_tabix_calls': 1,  # Track optimization
+        'buffer_tabix_calls': 1 if buffer_region else 0
     }
     
     try:
@@ -247,20 +261,33 @@ def check_trait_pvalue_significance(trait_file: str, variants_to_check: Set[str]
                 logger.warning(f"Could not find columns in {trait_file}: {e}")
                 return False, stats
             
-            # Check matrix variants
-            for variant in variants_to_check:
-                stats['variants_checked'] += 1
-                chrom, pos = variant_map.get(variant, (None, None))
+            # OPTIMIZATION #1: Batch tabix query for matrix region
+            # Instead of fetching each variant individually, fetch the entire region once
+            try:
+                chrom, min_pos, max_pos = get_region_bounds_from_variant_map(variant_map)
                 
-                if not chrom or not pos:
-                    continue
+                # Create a set for fast lookup of variants we care about
+                variants_to_check_set = set(variants_to_check)
                 
-                try:
-                    records = tabix_file.fetch(reference=chrom, start=int(pos)-1, end=int(pos)+1)
+                # Single tabix fetch for entire region
+                records = list(tabix_file.fetch(reference=chrom, start=min_pos - 1, end=max_pos + 1))
+                
+                # Index records by variant ID for O(1) lookup
+                records_by_variant = defaultdict(list)
+                for record in records:
+                    fields = record.split('\t')
+                    try:
+                        variant_id = fields[variant_idx]
+                        records_by_variant[variant_id].append(fields)
+                    except IndexError:
+                        continue
+                
+                # Now check only the variants we care about
+                for variant in variants_to_check_set:
+                    stats['variants_checked'] += 1
                     
-                    for record in records:
-                        fields = record.split('\t')
-                        if fields[variant_idx] == variant:
+                    if variant in records_by_variant:
+                        for fields in records_by_variant[variant]:
                             stats['variants_found'] += 1
                             stats['variants_with_data'].append(variant)
                             
@@ -271,29 +298,34 @@ def check_trait_pvalue_significance(trait_file: str, variants_to_check: Set[str]
                                 if pval < pval_threshold:
                                     stats['significant_variants'].append((variant, pval))
                                     stats['significant_in_matrix'] = True
+                                    # OPTIMIZATION #2: Early exit - return immediately
+                                    return True, stats
                             except (ValueError, IndexError):
                                 logger.debug(f"Could not parse p-value for {variant} in {trait_file}")
-                            
-                            break
+                                continue
+                            break  # Only need first matching record per variant
                 
-                except Exception as e:
-                    logger.debug(f"Error fetching {variant} from {trait_file}: {e}")
+            except Exception as e:
+                logger.warning(f"Error in matrix region checking for {trait_file}: {e}")
+                return False, stats
             
-            # Check buffer region if specified
+            # OPTIMIZATION #1 + #2: Batch tabix for buffer region (if specified)
             if buffer_region:
                 chrom, buffer_start, buffer_end = buffer_region
                 
                 try:
-                    records = tabix_file.fetch(reference=chrom, start=buffer_start, end=buffer_end)
+                    # Single tabix fetch for entire buffer region
+                    buffer_records = list(tabix_file.fetch(reference=chrom, start=buffer_start, end=buffer_end))
                     
-                    for record in records:
+                    # Process buffer records
+                    for record in buffer_records:
                         fields = record.split('\t')
                         try:
                             variant_id = fields[variant_idx]
                             pval = float(fields[pval_idx])
                             
-                            # Skip if we already checked this variant
-                            if variant_id in variants_to_check:
+                            # Skip if we already checked this variant in matrix
+                            if variant_id in variants_to_check_set:
                                 continue
                             
                             stats['min_pval'] = min(stats['min_pval'], pval)
@@ -301,7 +333,8 @@ def check_trait_pvalue_significance(trait_file: str, variants_to_check: Set[str]
                             if pval < pval_threshold:
                                 stats['significant_variants'].append((variant_id, pval, 'buffer'))
                                 stats['significant_in_buffer'] = True
-                        
+                                # OPTIMIZATION #2: Early exit
+                                return True, stats
                         except (ValueError, IndexError):
                             continue
                 
@@ -317,11 +350,15 @@ def check_trait_pvalue_significance(trait_file: str, variants_to_check: Set[str]
     
     return is_significant, stats
 
-
-def filter_traits_by_pvalue(trait_files: List[str], variants_to_check: Set[str],
-                           variant_map: Dict[str, Tuple],
-                           variant_col: str, pval_col: str, pval_threshold: float,
-                           buffer_region: Tuple = None) -> Tuple[List[str], Dict]:
+def filter_traits_by_pvalue(
+    trait_files: List[str],
+    variants_to_check: Set[str],
+    variant_map: Dict[str, Tuple],
+    variant_col: str,
+    pval_col: str,
+    pval_threshold: float,
+    buffer_region: Tuple = None
+) -> Tuple[List[str], Dict]:
     """
     Filter trait files to keep only those with no significant p-values in the region.
     Uses ALL traits that pass the filter (no sampling).
@@ -334,7 +371,7 @@ def filter_traits_by_pvalue(trait_files: List[str], variants_to_check: Set[str],
         pval_col: Column name for p-values
         pval_threshold: P-value significance threshold
         buffer_region: Optional tuple (chrom, start, end) for genomic buffer region
-        
+    
     Returns:
         Tuple of (filtered_trait_files, filtering_stats)
     """
@@ -345,7 +382,10 @@ def filter_traits_by_pvalue(trait_files: List[str], variants_to_check: Set[str],
         'traits_retained': 0,
         'traits_filtered_out': 0,
         'min_pval_across_all': 1.0,
-        'trait_details': []
+        'trait_details': [],
+        'total_matrix_tabix_calls': 0,
+        'total_buffer_tabix_calls': 0,
+        'early_exits': 0
     }
     
     for i, trait_file in enumerate(trait_files):
@@ -354,8 +394,8 @@ def filter_traits_by_pvalue(trait_files: List[str], variants_to_check: Set[str],
         if (i + 1) % 100 == 0:
             logger.info(f"Checked {i + 1}/{len(trait_files)} traits...")
         
-        # Check if trait has significant p-values
-        is_significant, stats = check_trait_pvalue_significance(
+        # Check if trait has significant p-values using optimized function
+        is_significant, stats = check_trait_pvalue_significance_optimized(
             trait_file=trait_file,
             variants_to_check=variants_to_check,
             variant_map=variant_map,
@@ -365,11 +405,19 @@ def filter_traits_by_pvalue(trait_files: List[str], variants_to_check: Set[str],
             buffer_region=buffer_region
         )
         
+        # Track optimization metrics
+        filtering_stats['total_matrix_tabix_calls'] += stats['matrix_tabix_calls']
+        filtering_stats['total_buffer_tabix_calls'] += stats['buffer_tabix_calls']
+        
+        if is_significant and stats['variants_checked'] < len(variants_to_check):
+            filtering_stats['early_exits'] += 1
+        
         # Update global statistics
         filtering_stats['min_pval_across_all'] = min(
             filtering_stats['min_pval_across_all'],
             stats['min_pval']
         )
+        
         filtering_stats['trait_details'].append(stats)
         
         # Retain trait if NOT significant
@@ -380,7 +428,6 @@ def filter_traits_by_pvalue(trait_files: List[str], variants_to_check: Set[str],
             filtering_stats['traits_filtered_out'] += 1
     
     return filtered_files, filtering_stats
-
 
 def write_filtering_stats(stats: Dict, output_path: str, pval_threshold: float, buffer_bp: int = None):
     """
@@ -394,28 +441,39 @@ def write_filtering_stats(stats: Dict, output_path: str, pval_threshold: float, 
     """
     with open(output_path, 'w') as f:
         f.write("=" * 80 + "\n")
-        f.write("P-VALUE BASED TRAIT FILTERING STATISTICS\n")
+        f.write("P-VALUE BASED TRAIT FILTERING STATISTICS (OPTIMIZED VERSION)\n")
         f.write("=" * 80 + "\n\n")
         
         f.write("FILTERING PARAMETERS:\n")
-        f.write(f"  P-value threshold: {pval_threshold}\n")
+        f.write(f" P-value threshold: {pval_threshold}\n")
         if buffer_bp:
-            f.write(f"  Genomic buffer: {buffer_bp} bp\n")
+            f.write(f" Genomic buffer: {buffer_bp} bp\n")
         else:
-            f.write(f"  Genomic buffer: None (matrix variants only)\n")
+            f.write(f" Genomic buffer: None (matrix variants only)\n")
         f.write("\n")
         
         f.write("FILTERING SUMMARY:\n")
-        f.write(f"  Total traits evaluated: {stats['total_traits']}\n")
-        f.write(f"  Traits checked: {stats['traits_checked']}\n")
-        f.write(f"  Traits retained (null): {stats['traits_retained']}\n")
-        f.write(f"  Traits filtered out: {stats['traits_filtered_out']}\n")
+        f.write(f" Total traits evaluated: {stats['total_traits']}\n")
+        f.write(f" Traits checked: {stats['traits_checked']}\n")
+        f.write(f" Traits retained (null): {stats['traits_retained']}\n")
+        f.write(f" Traits filtered out: {stats['traits_filtered_out']}\n")
         
         if stats['traits_checked'] > 0:
             retention_rate = 100 * stats['traits_retained'] / stats['traits_checked']
-            f.write(f"  Retention rate: {retention_rate:.1f}%\n")
+            f.write(f" Retention rate: {retention_rate:.1f}%\n")
         
-        f.write(f"  Minimum p-value across all traits: {stats['min_pval_across_all']:.2e}\n")
+        f.write(f" Minimum p-value across all traits: {stats['min_pval_across_all']:.2e}\n")
+        f.write("\n")
+        
+        f.write("OPTIMIZATION METRICS:\n")
+        f.write(f" Total matrix region tabix calls: {stats['total_matrix_tabix_calls']}\n")
+        f.write(f" Total buffer region tabix calls: {stats['total_buffer_tabix_calls']}\n")
+        f.write(f" Early exits (trait filtered before checking all variants): {stats['early_exits']}\n")
+        
+        if stats['traits_checked'] > 0:
+            early_exit_rate = 100 * stats['early_exits'] / stats['traits_checked']
+            f.write(f" Early exit rate: {early_exit_rate:.1f}%\n")
+        
         f.write("\n")
         
         # Write per-trait details
@@ -433,11 +491,11 @@ def write_filtering_stats(stats: Dict, output_path: str, pval_threshold: float, 
                    f"{detail['min_pval']:.2e}\t"
                    f"{status}\n")
 
-
 def main():
     parser = argparse.ArgumentParser(
         description="Create LD matrix from tabix-indexed GWAS summary statistics "
-                   "with p-value-based filtering to exclude traits with significant associations."
+        "with p-value-based filtering to exclude traits with significant associations. "
+        "(OPTIMIZED VERSION with early exit and batch tabix queries)"
     )
     
     # Required arguments
@@ -460,12 +518,10 @@ def main():
     parser.add_argument("--beta_col", type=str, default="beta",
                        help="Column name for beta values [default: beta]")
     parser.add_argument("--pos_col", type=str, default="POS",
-                       help="Column name for variant positions [default: POS]. "
-                            "Required if --buffer is specified.")
+                       help="Column name for variant positions [default: POS].")
     parser.add_argument("--buffer", type=int, default=None,
                        help="Genomic distance (bp) for buffer region around matrix variants. "
-                            "When specified, variants within this distance of the matrix boundaries "
-                            "are also checked for significance. Default: None (no buffer)")
+                       "Default: None (no buffer)")
     parser.add_argument("--variant_id_format", type=str, default="CHR:POS:REF:ALT",
                        help="Format string for variant IDs [default: CHR:POS:REF:ALT]")
     parser.add_argument("--device", type=str, default="cuda", choices=["cuda", "cpu"],
@@ -495,15 +551,18 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
     
     logger.info(f"Creating LD matrix from indexed summary statistics with p-value filtering")
+    logger.info(f"(OPTIMIZED: Early exit + Batch tabix queries)")
     logger.info(f"Input directory: {args.indexed_dir}")
     logger.info(f"Variant file: {args.variant_file}")
     logger.info(f"Output file: {args.output_file}")
     logger.info(f"P-value threshold: {args.pval_threshold}")
     logger.info(f"P-value column: {args.pval_col}")
+    
     if args.buffer:
         logger.info(f"Genomic buffer: {args.buffer} bp")
     else:
         logger.info(f"Genomic buffer: None (matrix variants only)")
+    
     logger.info(f"Device: {args.device}")
     
     # Step 1: Load variants to extract
@@ -548,6 +607,7 @@ def main():
     
     # Step 3: Find and filter indexed summary statistics files by chromosome
     logger.info("\nStep 3: Discovering indexed summary statistics files for active chromosome...")
+    
     all_indexed_files = find_indexed_sumstats_files(args.indexed_dir)
     
     if not all_indexed_files:
@@ -568,12 +628,14 @@ def main():
     logger.info(f"Found {len(indexed_files)} indexed files for chromosome {active_chromosome}")
     logger.info("Sample files:")
     for i, gz_file in enumerate(indexed_files[:5]):
-        logger.info(f"  {os.path.basename(gz_file)}")
+        logger.info(f" {os.path.basename(gz_file)}")
+    
     if len(indexed_files) > 5:
-        logger.info(f"  ... and {len(indexed_files) - 5} more files")
+        logger.info(f" ... and {len(indexed_files) - 5} more files")
     
     # Step 4: Define buffer region if specified
     buffer_region = None
+    
     if args.buffer:
         logger.info("\nStep 4: Defining genomic buffer region...")
         try:
@@ -587,6 +649,7 @@ def main():
     logger.info(f"\nStep {'5' if args.buffer else '4'}: Filtering traits by p-value...")
     logger.info(f"Checking for associations with p-value < {args.pval_threshold}")
     logger.info(f"All traits passing filter will be used for LD matrix computation")
+    logger.info(f"(OPTIMIZED: Using batch tabix queries and early exit)")
     
     try:
         filtered_files, filtering_stats = filter_traits_by_pvalue(
@@ -600,15 +663,24 @@ def main():
         )
         
         logger.info(f"\nFiltering summary:")
-        logger.info(f"  Total traits evaluated: {filtering_stats['traits_checked']}")
-        logger.info(f"  Traits retained (null): {filtering_stats['traits_retained']}")
-        logger.info(f"  Traits filtered out: {filtering_stats['traits_filtered_out']}")
+        logger.info(f" Total traits evaluated: {filtering_stats['traits_checked']}")
+        logger.info(f" Traits retained (null): {filtering_stats['traits_retained']}")
+        logger.info(f" Traits filtered out: {filtering_stats['traits_filtered_out']}")
         
         if filtering_stats['traits_checked'] > 0:
             retention_rate = 100 * filtering_stats['traits_retained'] / filtering_stats['traits_checked']
-            logger.info(f"  Retention rate: {retention_rate:.1f}%")
+            logger.info(f" Retention rate: {retention_rate:.1f}%")
         
-        logger.info(f"  Minimum p-value observed: {filtering_stats['min_pval_across_all']:.2e}")
+        logger.info(f" Minimum p-value observed: {filtering_stats['min_pval_across_all']:.2e}")
+        
+        # Log optimization metrics
+        logger.info(f"\nOptimization metrics:")
+        logger.info(f" Total matrix region tabix calls: {filtering_stats['total_matrix_tabix_calls']} (1 per trait)")
+        logger.info(f" Early exits: {filtering_stats['early_exits']} traits (filtered before checking all variants)")
+        
+        if filtering_stats['traits_checked'] > 0:
+            early_exit_rate = 100 * filtering_stats['early_exits'] / filtering_stats['traits_checked']
+            logger.info(f" Early exit rate: {early_exit_rate:.1f}%")
         
         # Check if we have any null traits
         if len(filtered_files) == 0:
@@ -672,8 +744,8 @@ def main():
         
         if args.save_binary_prefix:
             logger.info("Also saved binary format:")
-            logger.info(f"  Matrix: {args.save_binary_prefix}.vcor1")
-            logger.info(f"  Variants: {args.save_binary_prefix}.vcor1.vars")
+            logger.info(f" Matrix: {args.save_binary_prefix}.vcor1")
+            logger.info(f" Variants: {args.save_binary_prefix}.vcor1.vars")
     
     except Exception as e:
         logger.error(f"Error saving matrix: {e}")
@@ -683,12 +755,11 @@ def main():
     if args.stats_output:
         logger.info(f"\nStep {'9' if args.buffer else '8'}: Saving filtering statistics...")
         try:
-            write_filtering_stats(filtering_stats, args.stats_output, 
-                                args.pval_threshold, args.buffer)
+            write_filtering_stats(filtering_stats, args.stats_output,
+                                 args.pval_threshold, args.buffer)
             logger.info(f"Saved filtering statistics to: {args.stats_output}")
         except Exception as e:
             logger.error(f"Error saving filtering statistics: {e}")
-            # Don't exit, this is optional
     
     # Final summary
     logger.info(f"\n{'='*70}")
@@ -702,12 +773,13 @@ def main():
     logger.info(f"Traits used for LD matrix: {len(traits_to_use)}")
     logger.info(f"Variants analyzed: {len(variants_to_extract)}")
     logger.info(f"P-value threshold: {args.pval_threshold}")
+    
     if args.buffer:
         logger.info(f"Genomic buffer: {args.buffer} bp")
+    
     logger.info(f"Output file: {args.output_file}")
     logger.info(f"Matrix dimensions: {ld_matrix.shape[0]} × {ld_matrix.shape[1]}")
     logger.info(f"{'='*70}")
-
 
 if __name__ == "__main__":
     main()
