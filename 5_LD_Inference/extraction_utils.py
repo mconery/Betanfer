@@ -17,6 +17,7 @@ import shutil
 import torch
 import random
 from collections import defaultdict
+import glob
 
 
 # Set up logging
@@ -47,6 +48,57 @@ def load_variant_list(file_path: str, variant_col: str = 'variant_id', sep: str 
     except Exception as e:
         logger.error(f"ERROR: Error loading variant list from {file_path}: {e}")
         raise
+
+def find_indexed_sumstats_files(indexed_dir: str, num_threads: int = None) -> List[str]:
+    """
+    Find all tabix-indexed summary statistics files in the specified directory.
+    
+    PARALLELIZED: Uses multi-threading to check .tbi existence in parallel,
+    which is more efficient for directories with many files.
+    
+    Args:
+        indexed_dir: Directory containing indexed files
+        num_threads: Number of threads to use. If None, uses CPU count.
+    
+    Returns:
+        List of file paths for valid .gz files with corresponding .tbi indices
+    """
+    import concurrent.futures
+    
+    # Determine number of threads (default: use available CPU cores)
+    if num_threads is None:
+        num_threads = os.cpu_count()
+    
+    # Find all .gz files
+    gz_pattern = os.path.join(indexed_dir, "*.gz")
+    gz_files = glob.glob(gz_pattern)
+    
+    if not gz_files:
+        logging.warning(f"No .gz files found in {indexed_dir}")
+        return []
+    
+    logging.info(f"Found {len(gz_files)} .gz files. Checking for .tbi indices (using {num_threads} threads)...")
+    
+    def check_tbi_exists(gz_file: str) -> Tuple[str, bool]:
+        """Check if .tbi file exists for a given .gz file"""
+        tbi_file = gz_file + ".tbi"
+        has_tbi = os.path.exists(tbi_file)
+        return gz_file, has_tbi
+    
+    indexed_files = []
+    
+    # Parallel file checking
+    with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
+        futures = [executor.submit(check_tbi_exists, gz_file) for gz_file in gz_files]
+        
+        for future in concurrent.futures.as_completed(futures):
+            gz_file, has_tbi = future.result()
+            if has_tbi:
+                indexed_files.append(gz_file)
+    
+    logging.info(f"Found {len(indexed_files)} indexed files (with .tbi indices)")
+    
+    return indexed_files
 
 def make_var_dict_for_positional_ids(
     variants_to_extract: Set[str],
@@ -719,26 +771,15 @@ def save_beta_matrix(beta_matrix: pd.DataFrame, output_path: str,
         raise
 
 def compute_beta_correlation_matrix(
-    gwas_files: List[str],
-    variants_to_extract: Set[str],
-    variant_map: Dict[str, tuple],
-    variant_col: str = "rs_number",
-    beta_col: str = "beta",
-    chunk_size: int = 50000,
+    betas_df: pd.DataFrame,
     device: str = 'cuda',
-    save_prefix: Optional[str] = None
-) -> np.ndarray:
+    save_prefix: Optional[str] = None) -> np.ndarray:
     """
     Extract beta values from tabix-indexed GWAS files and compute correlation matrix.
     Optionally save as PLINK `.vcor1` binary matrix and `.vcor1.vars` variant list.
     
     Args:
-        gwas_files: List of paths to tabix-indexed GWAS summary statistics files.
-        variants_to_extract: Set of variant IDs to extract.
-        variant_map: Dictionary mapping variant ID to (chromosome, position).
-        variant_col: Column name for variant identifiers (default: "rs_number").
-        beta_col: Column name for beta values (default: "beta").
-        chunk_size: Chunk size for processing (default: 50000).
+        betas_df: Dataframe of extracted betas
         device: Device to use for computation ('cuda' or 'cpu', default: 'cuda').
         save_prefix: If provided, base filename (without extension) to save:
                      - `{save_prefix}.vcor1` (float32 square matrix binary)
@@ -747,15 +788,6 @@ def compute_beta_correlation_matrix(
     Returns:
         np.ndarray: Correlation matrix as a numpy array.
     """
-    # Extract beta matrix
-    betas_df = extract_betas_batch(
-        file_list=gwas_files,
-        variant_col=variant_col,
-        beta_col=beta_col,
-        variants_to_extract=variants_to_extract,
-        chunk_size=chunk_size,
-        variant_map=variant_map
-    )
     
     # Convert to tensor on device
     betas = torch.tensor(betas_df.values, device=device, dtype=torch.float32)
