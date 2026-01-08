@@ -463,7 +463,7 @@ def write_filtering_stats(stats: Dict, output_path: str, pval_threshold: float, 
         f.write("FILTERING SUMMARY:\n")
         f.write(f" Total traits evaluated: {stats['total_traits']}\n")
         f.write(f" Traits checked: {stats['traits_checked']}\n")
-        f.write(f" Traits retained (null): {stats['traits_retained']}\n")
+        f.write(f" Traits retained: {stats['traits_retained']}\n")
         f.write(f" Traits filtered out: {stats['traits_filtered_out']}\n")
         if stats['traits_checked'] > 0:
             retention_rate = 100 * stats['traits_retained'] / stats['traits_checked']
@@ -671,7 +671,7 @@ def main():
 
         logger.info("\nFiltering summary:")
         logger.info(f" Total traits evaluated: {filtering_stats['traits_checked']}")
-        logger.info(f" Traits retained (null): {filtering_stats['traits_retained']}")
+        logger.info(f" Traits retained: {filtering_stats['traits_retained']}")
         logger.info(f" Traits filtered out: {filtering_stats['traits_filtered_out']}")
 
         if filtering_stats['traits_checked'] > 0:
@@ -689,20 +689,20 @@ def main():
             early_exit_rate = 100 * filtering_stats['early_exits'] / filtering_stats['traits_checked']
             logger.info(f" Early exit rate: {early_exit_rate:.1f}%")
 
-        # Check if we have any null traits
+        # Check if we have any remaining traits
         if len(filtered_files) == 0:
-            logger.error("ERROR: No null traits available! All traits were filtered out.")
+            logger.error("ERROR: No traits remaining! All traits were filtered out.")
             sys.exit(1)
 
         traits_to_use = filtered_files
-        logger.info(f"Using {len(traits_to_use)} null traits for LD matrix computation")
+        logger.info(f"Using {len(traits_to_use)} traits for LD matrix computation")
 
     except Exception as e:
         logger.error(f"Error filtering traits by p-value: {e}")
         sys.exit(1)
 
     # Step 6: Extract betas from filtered traits
-    logger.info(f"\nStep {'6' if args.buffer else '5'}: Extracting beta values from null traits...")
+    logger.info(f"\nStep {'6' if args.buffer else '5'}: Extracting beta values from filtered traits...")
 
     try:
         beta_matrix = extract_betas_batch_region(
@@ -775,7 +775,7 @@ def main():
     logger.info(f"Active chromosome: {active_chromosome}")
     logger.info(f"Chromosome-specific files found: {len(indexed_files)}")
     logger.info(f"Total traits checked: {filtering_stats['traits_checked']}")
-    logger.info(f"Traits retained (null): {filtering_stats['traits_retained']}")
+    logger.info(f"Traits retained: {filtering_stats['traits_retained']}")
     logger.info(f"Traits used for LD matrix: {len(traits_to_use)}")
     logger.info(f"Variants analyzed: {len(variants_to_extract)}")
     logger.info(f"P-value threshold: {args.pval_threshold}")
