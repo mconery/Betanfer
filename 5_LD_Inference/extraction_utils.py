@@ -16,6 +16,7 @@ from pathlib import Path
 import shutil
 import torch
 import random
+from collections import defaultdict
 
 
 # Set up logging
@@ -148,6 +149,154 @@ def extract_betas_batch(
         results = [future.result() for future in concurrent.futures.as_completed(futures)]
     
     return pd.concat(results, axis=1)
+
+def get_region_bounds_from_variant_map(variant_map: Dict[str, Tuple]) -> Tuple[str, int, int]:
+    """
+    Get the genomic boundaries of the matrix variant region.
+
+    Args:
+        variant_map: Dictionary mapping variant ID to (chromosome, position)
+
+    Returns:
+        Tuple of (chromosome, min_pos, max_pos)
+    """
+    chroms = set()
+    positions = []
+    for variant, (chrom, pos) in variant_map.items():
+        chroms.add(chrom)
+        try:
+            positions.append(int(pos))
+        except (ValueError, TypeError):
+            pass
+
+    if len(chroms) != 1:
+        raise ValueError(f"Expected single chromosome, found: {chroms}")
+    if not positions:
+        raise ValueError("No valid positions found")
+
+    chrom = chroms.pop()
+    return chrom, min(positions), max(positions)
+
+def extract_betas_batch_region(
+    file_list: List[str],
+    variant_col: str,
+    beta_col: str,
+    variants_to_extract: Set[str],
+    variant_map: Dict[str, tuple],
+    chunk_size: int = 100000
+) -> pd.DataFrame:
+    """
+    OPTIMIZED: Extracts beta values using region-based tabix queries.
+    
+    This function uses `get_region_bounds_from_variant_map` to determine the genomic
+    region of interest, then performs a single batch tabix query per file instead of
+    individual per-variant queries. This is significantly more efficient for consecutive
+    variants in a genomic region.
+    
+    Args:
+        file_list: List of bgzipped, tabix-indexed file paths
+        variant_col: Column name for variant identifiers
+        beta_col: Column name for beta values
+        variants_to_extract: Set of variant IDs to extract (required)
+        variant_map: Dictionary mapping variant ID to (chromosome, position)
+        chunk_size: Not used (retained for backward compatibility)
+    
+    Returns:
+        pd.DataFrame: Variants as rows, files as columns with beta values
+    
+    Optimization Details:
+        1. Get genomic region bounds from variant_map once
+        2. For each file, perform single tabix fetch for entire region
+        3. Index fetched records by variant ID for O(1) lookup
+        4. Extract only the requested variants from the batch
+        5. Use parallel file processing with ThreadPoolExecutor
+    """
+    
+    # Get region bounds - single call, reused for all files
+    try:
+        chrom, min_pos, max_pos = get_region_bounds_from_variant_map(variant_map)
+        logging.info(f"Region bounds: {chrom}:{min_pos}-{max_pos}")
+    except Exception as e:
+        logging.error(f"Error determining region bounds: {e}")
+        raise
+    
+    variants_list = sorted(variants_to_extract)
+    results = []
+    
+    def process_single_file(file_path: str) -> pd.Series:
+        """Process a single tabix-indexed file using region-based query"""
+        betas = pd.Series(np.nan, index=variants_list, name=file_path)
+        
+        try:
+            with pysam.TabixFile(file_path) as tabix_file:
+                header = tabix_file.header[0].strip().split('\t') if tabix_file.header else []
+                
+                if not header:
+                    logging.warning(f"Could not read header from {file_path}")
+                    return betas
+                
+                try:
+                    vid_idx = header.index(variant_col)
+                    beta_idx = header.index(beta_col)
+                except ValueError as e:
+                    logging.warning(f"Could not find columns in {file_path}: {e}")
+                    return betas
+                
+                # OPTIMIZATION: Single batch tabix query for entire region
+                try:
+                    # Fetch all records in the genomic region at once
+                    records = list(tabix_file.fetch(
+                        reference=chrom, 
+                        start=int(min_pos) - 1,  # Convert to 0-based
+                        end=int(max_pos) + 1
+                    ))
+                    
+                    # Index records by variant ID for O(1) lookup
+                    records_by_variant = defaultdict(list)
+                    for record in records:
+                        fields = record.split('\t')
+                        try:
+                            variant_id = fields[vid_idx]
+                            records_by_variant[variant_id].append(fields)
+                        except IndexError:
+                            continue
+                    
+                    # Extract betas for requested variants
+                    for variant in variants_list:
+                        if variant in records_by_variant:
+                            # Take first matching record for this variant
+                            fields = records_by_variant[variant][0]
+                            try:
+                                betas[variant] = float(fields[beta_idx])
+                            except (ValueError, IndexError):
+                                logging.debug(f"Could not parse beta for {variant} in {file_path}")
+                                continue
+                
+                except Exception as e:
+                    logging.warning(f"Error fetching region from {file_path}: {e}")
+                    return betas
+        
+        except Exception as e:
+            logging.error(f"Error processing {file_path}: {str(e)}")
+            return betas
+        
+        return betas
+    
+    # Parallel processing of files
+    num_threads = min(len(file_list), os.cpu_count() or 1)
+    logging.info(f"Using {num_threads} threads to process {len(file_list)} files")
+    
+    with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
+        futures = [executor.submit(process_single_file, file) for file in file_list]
+        results = [future.result() for future in concurrent.futures.as_completed(futures)]
+    
+    # Concatenate results into a single DataFrame
+    beta_df = pd.concat(results, axis=1)
+    
+    logging.info(f"Extracted betas: {beta_df.shape[0]} variants × {beta_df.shape[1]} files")
+    
+    return beta_df
+
 
 def bgzip_and_tbi_sumstats_with_label_cols(
     input_path: str,
