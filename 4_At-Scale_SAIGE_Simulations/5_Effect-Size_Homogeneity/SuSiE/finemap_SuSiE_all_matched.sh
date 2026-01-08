@@ -114,7 +114,6 @@ set -e
 
 OUT_DIR="PLACEHOLDER_OUT_DIR"
 CMD_FILE="PLACEHOLDER_CMD_FILE"
-MASTER_CMD_FILE="PLACEHOLDER_MASTER_CMD_FILE"
 
 mkdir -p "$OUT_DIR"
 
@@ -139,15 +138,11 @@ fi
 
 num_commands=$(wc -l < "$CMD_FILE")
 echo "✓ Generated $num_commands commands for PLACEHOLDER_ANALYSIS_TYPE_PLACEHOLDER_TRAIT_TYPE_PLACEHOLDER_H_LABEL"
-
-# Append to master commands file
-grep -v "^#" "$CMD_FILE" >> "$MASTER_CMD_FILE"
 JOBEOF
 
             # Replace placeholders
             sed -i "s|PLACEHOLDER_OUT_DIR|$out_dir|g" "$job_script"
             sed -i "s|PLACEHOLDER_CMD_FILE|$command_file|g" "$job_script"
-            sed -i "s|PLACEHOLDER_MASTER_CMD_FILE|$master_commands_file|g" "$job_script"
             sed -i "s|PLACEHOLDER_CMD_SCRIPT|$command_script|g" "$job_script"
             sed -i "s|PLACEHOLDER_MAP_SCRIPT|$map_script|g" "$job_script"
             sed -i "s|PLACEHOLDER_SUMSTATS_DIR|$sumstats_dir|g" "$job_script"
@@ -213,25 +208,45 @@ fi
 
 echo "Command generation completed at $(date)"
 
-################################################################################################################
-################################## Summary and Final Status ###################################################
-################################################################################################################
-
 echo ""
 echo "=================================================="
 echo "COMMAND FILE GENERATION COMPLETE"
 echo "=================================================="
-echo "Total configurations processed: $total_jobs"
-echo "Total commands in master file: $(wc -l < "$master_commands_file")"
-echo "Master commands file: $master_commands_file"
-echo "Command directory: $command_files_dir"
-echo "=================================================="
+
+################################################################################################################
+################################## Merge Individual Command Files to Master File ##############################
+################################################################################################################
+
+echo ""
+echo "Merging individual command files into master file..."
+echo "Start time: $(date)"
+
+# Initialize line counter
+total_commands=0
+
+# Loop through all individual command files and append to master file in sequence
+# This avoids the race condition by processing files sequentially AFTER all parallel jobs complete
+for command_file in "${command_files_dir}"/susie_*_*_*_matched_to_*_commands.txt; do
+    if [[ -f "$command_file" ]] && [[ -s "$command_file" ]]; then
+        num_lines=$(wc -l < "$command_file")
+        grep -v "^#" "$command_file" >> "$master_commands_file"
+        echo "✓ Merged $num_lines commands from $(basename "$command_file")"
+        ((total_commands += num_lines))
+    fi
+done
+
+echo ""
+echo "Total commands merged: $total_commands"
+echo "Merge completed at $(date)"
+echo ""
 
 # Verify master commands file
 if [[ ! -f "$master_commands_file" ]] || [[ ! -s "$master_commands_file" ]]; then
     echo "ERROR: Master commands file is missing or empty!"
     exit 1
 fi
+
+echo "Verified: Master commands file contains $(wc -l < "$master_commands_file") commands"
 
 ################################################################################################################
 ################################## Create batched command files ################################################
