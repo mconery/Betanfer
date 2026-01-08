@@ -76,7 +76,7 @@ Features
 - Optional genomic buffer region to exclude nearby associations
 - Uses ALL traits that pass p-value filtering (no sampling)
 - Logs detailed statistics on trait filtering
-- Automatically discovers tabix-indexed summary statistics files
+- Automatically discovers tabix-indexed summary statistics files for the active chromosome
 - Parallel beta extraction using tabix indexing
 - GPU-accelerated correlation computation
 - Optional binary matrix output in PLINK format
@@ -131,6 +131,27 @@ def find_indexed_sumstats_files(indexed_dir):
             indexed_files.append(gz_file)
     
     return indexed_files
+
+
+def filter_files_by_chromosome(indexed_files: List[str], active_chromosome: str) -> List[str]:
+    """
+    Filter indexed files to keep only those matching the active chromosome.
+    
+    Args:
+        indexed_files: List of indexed file paths
+        active_chromosome: Active chromosome identifier (e.g., '1', '22', 'X')
+        
+    Returns:
+        List of filtered file paths containing 'chr{active_chromosome}.' in the filename
+    """
+    pattern = f"chr{active_chromosome}."
+    filtered_files = [f for f in indexed_files if pattern in os.path.basename(f)]
+    
+    if not filtered_files:
+        logger.warning(f"No files found matching pattern 'chr{active_chromosome}.' in filenames")
+        logger.warning(f"Available files: {[os.path.basename(f) for f in indexed_files[:5]]}")
+    
+    return filtered_files
 
 
 def get_buffer_region_variants(variant_map: Dict[str, Tuple], buffer_bp: int) -> Tuple[str, int, int]:
@@ -485,24 +506,8 @@ def main():
         logger.info(f"Genomic buffer: None (matrix variants only)")
     logger.info(f"Device: {args.device}")
     
-    # Step 1: Find indexed summary statistics files
-    logger.info("\nStep 1: Discovering indexed summary statistics files...")
-    indexed_files = find_indexed_sumstats_files(args.indexed_dir)
-    
-    if not indexed_files:
-        logger.error(f"Error: No tabix-indexed files found in {args.indexed_dir}")
-        logger.error("Expected to find pairs of .gz and .gz.tbi files.")
-        sys.exit(1)
-    
-    logger.info(f"Found {len(indexed_files)} indexed summary statistics files")
-    logger.info("Sample files:")
-    for i, gz_file in enumerate(indexed_files[:5]):
-        logger.info(f"  {os.path.basename(gz_file)}")
-    if len(indexed_files) > 5:
-        logger.info(f"  ... and {len(indexed_files) - 5} more files")
-    
-    # Step 2: Load variants to extract
-    logger.info("\nStep 2: Loading variants to extract...")
+    # Step 1: Load variants to extract
+    logger.info("\nStep 1: Loading variants to extract...")
     try:
         variants_to_extract = set(pd.read_csv(args.variant_file, header=None)[0])
     except Exception as e:
@@ -522,8 +527,8 @@ def main():
     
     logger.info(f"Loaded {len(variants_to_extract)} variants to extract")
     
-    # Step 3: Create variant position mapping
-    logger.info("\nStep 3: Creating variant position mapping...")
+    # Step 2: Create variant position mapping and identify active chromosome
+    logger.info("\nStep 2: Creating variant position mapping...")
     try:
         variant_map = make_var_dict_for_positional_ids(variants_to_extract, args.variant_id_format)
         logger.info(f"Created position mapping for {len(variant_map)} variants")
@@ -536,9 +541,36 @@ def main():
             sys.exit(1)
         
         active_chromosome = active_chromosome[0]
+        logger.info(f"Active chromosome: {active_chromosome}")
     except Exception as e:
         logger.error(f"Error creating variant position mapping: {e}")
         sys.exit(1)
+    
+    # Step 3: Find and filter indexed summary statistics files by chromosome
+    logger.info("\nStep 3: Discovering indexed summary statistics files for active chromosome...")
+    all_indexed_files = find_indexed_sumstats_files(args.indexed_dir)
+    
+    if not all_indexed_files:
+        logger.error(f"Error: No tabix-indexed files found in {args.indexed_dir}")
+        logger.error("Expected to find pairs of .gz and .gz.tbi files.")
+        sys.exit(1)
+    
+    logger.info(f"Found {len(all_indexed_files)} total indexed files in directory")
+    
+    # Filter for chromosome-specific files
+    indexed_files = filter_files_by_chromosome(all_indexed_files, active_chromosome)
+    
+    if not indexed_files:
+        logger.error(f"Error: No files found for chromosome {active_chromosome}")
+        logger.error(f"Expected filenames to contain 'chr{active_chromosome}.'")
+        sys.exit(1)
+    
+    logger.info(f"Found {len(indexed_files)} indexed files for chromosome {active_chromosome}")
+    logger.info("Sample files:")
+    for i, gz_file in enumerate(indexed_files[:5]):
+        logger.info(f"  {os.path.basename(gz_file)}")
+    if len(indexed_files) > 5:
+        logger.info(f"  ... and {len(indexed_files) - 5} more files")
     
     # Step 4: Define buffer region if specified
     buffer_region = None
@@ -663,7 +695,8 @@ def main():
     logger.info("LD MATRIX CREATION WITH P-VALUE FILTERING - COMPLETE")
     logger.info(f"{'='*70}")
     logger.info(f"Input directory: {args.indexed_dir}")
-    logger.info(f"Available files: {len(indexed_files)}")
+    logger.info(f"Active chromosome: {active_chromosome}")
+    logger.info(f"Chromosome-specific files found: {len(indexed_files)}")
     logger.info(f"Total traits checked: {filtering_stats['traits_checked']}")
     logger.info(f"Traits retained (null): {filtering_stats['traits_retained']}")
     logger.info(f"Traits used for LD matrix: {len(traits_to_use)}")
