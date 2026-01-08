@@ -62,33 +62,11 @@ import pandas as pd
 from extraction_utils import (
     load_variant_list,
     make_var_dict_for_positional_ids,
-    extract_betas_batch,
+    extract_betas_batch_region,
     compute_beta_correlation_matrix,
-    save_beta_matrix, sample_traits
+    save_beta_matrix, sample_traits,
+    find_indexed_sumstats_files
 )
-
-def find_indexed_sumstats_files(indexed_dir):
-    """
-    Find all tabix-indexed summary statistics files in the specified directory.
-
-    Args:
-        indexed_dir: Directory containing indexed files
-
-    Returns:
-        List of tuples: (bgzf_file_path, tbi_file_path) for valid pairs
-    """
-    indexed_files = []
-
-    # Find all .gz files
-    gz_pattern = os.path.join(indexed_dir, "*.gz")
-    gz_files = glob.glob(gz_pattern)
-
-    for gz_file in gz_files:
-        tbi_file = gz_file + ".tbi"
-        if os.path.exists(tbi_file):
-            indexed_files.append((gz_file, tbi_file))
-
-    return indexed_files
 
 def filter_traits_by_type(indexed_files, trait_type):
     """
@@ -276,7 +254,7 @@ def main():
     # Step 5: Extract betas
     print("\nStep 5: Extracting beta values...")
     try:
-        beta_matrix = extract_betas_batch(
+        beta_matrix = extract_betas_batch_region(
             file_list=selected_files,
             variant_col=args.variant_col,
             beta_col=args.beta_col,
@@ -297,11 +275,7 @@ def main():
     print("\nStep 6: Computing LD matrix using beta correlations...")
     try:
         ld_matrix = compute_beta_correlation_matrix(
-            gwas_files=selected_files,
-            variants_to_extract=variants_to_extract,
-            variant_map=variant_map,
-            variant_col=args.variant_col,
-            beta_col=args.beta_col,
+            beta_matrix,
             device=args.device,
             save_prefix=args.save_binary_prefix
         )
