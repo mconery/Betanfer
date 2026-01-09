@@ -4,8 +4,8 @@
 #SBATCH -J infer_multi_trait_ld_meta
 #SBATCH -o infer_multi_trait_ld.meta.log
 #SBATCH -N 64
-#SBATCH -p extended
-#SBATCH -t 12:00:00
+#SBATCH -p batch
+#SBATCH -t 2:00:00
 
 ################################################################################################################
 ###################################### Load Modules and Environment ############################################
@@ -53,7 +53,7 @@ commands_dir="${base_ld_dir}/command_files"
 mkdir -p "$commands_dir"
 
 # Batch configuration
-commands_per_batch=20
+commands_per_batch=8
 
 # Master commands file
 master_commands_file="${commands_dir}/master_meta_commands.txt"
@@ -106,6 +106,7 @@ for meta_type in "${meta_types[@]}"; do
             # Set output directory
             output_dir="${base_ld_dir}/beta-inferred_${n_traits}_${meta_type}_${trait_type}/Meta"
             commands_file="${commands_dir}/${meta_type}_${n_traits}_${trait_type}_meta_commands.txt"
+            rm $commands_file 
             mkdir -p "$output_dir"
 
             # Generate commands for this configuration
@@ -137,33 +138,40 @@ for meta_type in "${meta_types[@]}"; do
             ((total_commands += num_commands))
             ((total_command_files++))
 
-            # Append to master commands file
-            grep -v "^#" "$commands_file" >> "$master_commands_file"
-
         done
     done
 done
 
 ################################################################################################################
-################################## Summary and Final Status ###################################################
+################################## Merge Individual Command Files to Master File ##############################
 ################################################################################################################
 
 echo ""
-echo "================================================"
-echo "COMMAND FILE GENERATION COMPLETE"
-echo "================================================"
-echo "End time: $(date)"
-echo "Total command files generated: $total_command_files"
-echo "Total commands in master file: $(wc -l < "$master_commands_file")"
-echo "Master commands file: $master_commands_file"
-echo "Command directory: $commands_dir"
-echo "================================================"
+echo "Merging individual command files into master file..."
+echo "Start time: $(date)"
+
+# Loop through all individual command files and append to master file in sequence
+# This avoids the race condition by processing files sequentially AFTER all parallel jobs complete
+ls $commands_dir/*_*_*_meta_commands.txt | while read command_file; do
+    if [[ -f "$command_file" ]] && [[ -s "$command_file" ]]; then
+        num_lines=$(wc -l < $command_file)
+        grep -v "^#" "$command_file" >> "$master_commands_file"
+        echo "✓ Merged $num_lines commands from $(basename "$command_file")"
+    fi
+done
+
+echo ""
+echo "Total commands merged: $(wc -l $master_commands_file)"
+echo "Merge completed at $(date)"
+echo ""
 
 # Verify master commands file
 if [[ ! -f "$master_commands_file" ]] || [[ ! -s "$master_commands_file" ]]; then
     echo "ERROR: Master commands file is missing or empty!"
     exit 1
 fi
+
+echo "Verified: Master commands file contains $(wc -l < "$master_commands_file") commands"
 
 ################################################################################################################
 ################################## Create batched command files ################################################
