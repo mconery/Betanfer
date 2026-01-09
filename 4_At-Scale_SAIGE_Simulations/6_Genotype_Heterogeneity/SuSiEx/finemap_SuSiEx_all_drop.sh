@@ -298,117 +298,73 @@ fi
 ################################################################################################################
 
 echo ""
-
 echo "Starting flux-based execution of batched SuSiEx fine-mapping commands at $(date)"
 
 # Create flux output directory
-
 flux_output_dir="${base_finemap_dir}/flux_output"
-
 mkdir -p "$flux_output_dir"
 
+# Activate environment before launching flux
+source activate $map_enviro
+
 # Start Flux and submit batch jobs
-
 srun -N ${num_nodes} -n ${num_nodes} -c 56 flux start bash -c "
-
-# Display Flux resource allocation
-
-echo \"Flux instance started at \$(date)\"
-
-echo \"Available resources:\"
-
-flux resource list
-
-echo \"\"
-
-# Submit all batch files to Flux
-
-echo \"Submitting ${num_batch_files} batches to Flux queue...\"
-
-batch_count=0
-
-for batch in ${command_files_dir}/susiex_finemap_drop_batch_*.sh; do
-
-  batch_name=\$(basename \${batch} .sh)
-
-  flux submit -N1 -n1 -c2 \
-
-    --output=${flux_output_dir}/\${batch_name}.log \
-
-    bash \${batch}
-
-  ((batch_count++))
-
-  # Print progress every 20 batches
-
-  if [ \$((batch_count % 20)) -eq 0 ]; then
-
-    echo \" Submitted \${batch_count}/${num_batch_files} batches\"
-
-  fi
-
-done
-
-echo \"All ${num_batch_files} batches submitted to Flux queue at \$(date)\"
-
-echo \"\"
-
-# Wait for all jobs to complete
-
-echo \"Waiting for all batches to complete...\"
-
-flux queue drain
-
-echo \"\"
-
-echo \"All batches completed at \$(date)\"
-
-# Display final resource status
-
-echo \"Final Flux resource status:\"
-
-flux resource list
-
+    # Display Flux resource allocation
+    echo \"Flux instance started at \$(date)\"
+    echo \"Available resources:\"
+    flux resource list
+    echo \"\"
+    
+    # Submit all batch files to Flux
+    echo \"Submitting ${num_batch_files} batches to Flux queue...\"
+    batch_count=0
+    for batch in ${command_files_dir}/susiex_finemap_drop_batch_*.sh; do
+        batch_name=\$(basename \${batch} .sh)
+        flux submit -N1 -n1 -c2 \
+            --output=${flux_output_dir}/\${batch_name}.log \
+            bash \${batch}
+        
+        ((batch_count++))
+        
+        # Print progress every 20 batches
+        if [ \$((batch_count % 20)) -eq 0 ]; then
+            echo \"  Submitted \${batch_count}/${num_batch_files} batches\"
+        fi
+    done
+    
+    echo \"All ${num_batch_files} batches submitted to Flux queue at \$(date)\"
+    echo \"\"
+    
+    # Wait for all jobs to complete
+    echo \"Waiting for all batches to complete...\"
+    flux queue drain
+    
+    echo \"\"
+    echo \"All batches completed at \$(date)\"
+    
+    # Display final resource status
+    echo \"Final Flux resource status:\"
+    flux resource list
 "
 
 ################################################################################################################
-
 ################################## Post-processing and cleanup ##################################################
-
 ################################################################################################################
 
 echo ""
-
 echo "Post-processing results..."
 
 # Count successful batch completions by checking for output files
-
 successful_batches=$(ls -1 "${flux_output_dir}"/susiex_finemap_drop_batch_*.log 2>/dev/null | wc -l)
-
 echo "Successfully completed batches: ${successful_batches}/${num_batch_files}"
 
 # Check for any failed batches
-
 if [ ${successful_batches} -ne ${num_batch_files} ]; then
-
-  echo "WARNING: Some batches may have failed. Check logs in ${flux_output_dir}"
-
+    echo "WARNING: Some batches may have failed. Check logs in ${flux_output_dir}"
 fi
 
-# Cleanup temporary job scripts
-
-rm -rf "$jobs_dir"
-
 echo ""
-
 echo "SuSiEx fine-mapping workflow completed at $(date)"
-
 echo "Batch files retained in: ${command_files_dir}"
-
 echo "Flux logs available in: ${flux_output_dir}"
-
 echo "Fine-mapping results in: ${base_finemap_dir}"
-
-echo ""
-
-echo "=================================================="
