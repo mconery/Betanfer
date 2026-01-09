@@ -199,7 +199,7 @@ def main():
     print("\nStep 2: Loading variants to extract...")
     try:
         # Assume the variant file has a single column with variant IDs and no header
-        variants_to_extract = set(pd.read_csv(args.variant_file, header=None)[0])      
+        variants_to_extract = load_variant_list(args.variant_file)      
     except Exception as e:
         print(f"Error loading variant file: {e}", file=sys.stderr)
         print("Trying alternative approach...", file=sys.stderr)

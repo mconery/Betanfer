@@ -37,12 +37,8 @@ def load_variant_list(file_path: str, variant_col: str = 'variant_id', sep: str 
         Set of variant IDs to extract
     """
     try:
-        df = pd.read_csv(file_path, sep=sep)
-        
-        if variant_col not in df.columns:
-            raise ValueError(f"ERROR: Column '{variant_col}' not found in {file_path}")
-        
-        variant_set = set(df[variant_col].astype(str))
+        df = pd.read_csv(file_path, sep=sep, header=None)        
+        variant_set = set(df.iloc[:,0].astype(str))
         logger.info(f"NOTE: Loaded {len(variant_set)} variants from {file_path}")
         return variant_set
     except Exception as e:
@@ -94,7 +90,7 @@ def find_indexed_sumstats_files(indexed_dir: str, num_threads: int = None) -> Li
         for future in concurrent.futures.as_completed(futures):
             gz_file, has_tbi = future.result()
             if has_tbi:
-                indexed_files.append(gz_file)
+                indexed_files.append(gz_file, gz_file + '.tbi')
     
     logging.info(f"Found {len(indexed_files)} indexed files (with .tbi indices)")
     

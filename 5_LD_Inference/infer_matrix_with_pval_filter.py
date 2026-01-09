@@ -108,7 +108,7 @@ def filter_files_by_chromosome(indexed_files: List[str], active_chromosome: str)
         List of filtered file paths containing 'chr{active_chromosome}.' in the filename
     """
     pattern = f"chr{active_chromosome}."
-    filtered_files = [f for f in indexed_files if pattern in os.path.basename(f)]
+    filtered_files = [f[0] for f in indexed_files if pattern in os.path.basename(f[0])]
     if not filtered_files:
         logger.warning(f"No files found matching pattern 'chr{active_chromosome}.' in filenames")
         logger.warning(f"Available files: {[os.path.basename(f) for f in indexed_files[:5]]}")
