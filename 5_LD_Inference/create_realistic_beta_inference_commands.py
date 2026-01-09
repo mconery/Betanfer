@@ -177,7 +177,7 @@ def main():
         print(f"Error: Matrix script does not exist: {args.matrix_script}", file=sys.stderr)
         sys.exit(1)
 
-    if args.pval_threshold <= 0 or args.pval_threshold > 1:
+    if args.pval_threshold < 0 or args.pval_threshold > 1:
         print(f"Error: P-value threshold must be between 0 and 1, got: {args.pval_threshold}", file=sys.stderr)
         sys.exit(1)
 
