@@ -31,19 +31,17 @@ python_splitter="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fi
 # Base directories
 base_ld_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices"
 
-# EUR population directories
-eur_scratch_dir="/lustre/orion/bif154/scratch/mconery/indexed_realistic_EUR_sumstats"
-eur_variant_dir="${base_ld_dir}/raw_in-sample/EUR"
+# Indexed GWAS summary statistics (realistic traits with fixed meta-analysis)
+indexed_dir="/lustre/orion/bif154/scratch/mconery/indexed_realistic_fixed_META_sumstats"
 
-# AFR population directories
-afr_scratch_dir="/lustre/orion/bif154/scratch/mconery/indexed_realistic_AFR_sumstats"
-afr_variant_dir="${base_ld_dir}/raw_in-sample/AFR"
+# Variant directory (same for all analyses)
+variant_dir="${base_ld_dir}/raw_in-sample/weighted"
 
 # Set number of nodes
 num_nodes=${SLURM_NNODES}
 
 # Define p-value thresholds and buffer sizes
-pval_thresholds=(5e-6 5e-8) #Need to check 0 later
+pval_thresholds=(0 5e-6 5e-8)
 buffer_sizes=(0 100000 250000 500000)
 
 # Directory for all command files
