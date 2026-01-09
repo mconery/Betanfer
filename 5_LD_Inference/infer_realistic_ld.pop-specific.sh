@@ -3,7 +3,7 @@
 #SBATCH -A bif154
 #SBATCH -J infer_realistic_ld_pop-specific
 #SBATCH -o infer_realistic_ld.pop-specific.log
-#SBATCH -N 10
+#SBATCH -N 64
 #SBATCH -p extended
 #SBATCH -t 6:00:00
 
