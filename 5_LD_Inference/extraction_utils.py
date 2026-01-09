@@ -90,7 +90,7 @@ def find_indexed_sumstats_files(indexed_dir: str, num_threads: int = None) -> Li
         for future in concurrent.futures.as_completed(futures):
             gz_file, has_tbi = future.result()
             if has_tbi:
-                indexed_files.append(gz_file, gz_file + '.tbi')
+                indexed_files.append([gz_file, gz_file + '.tbi'])
     
     logging.info(f"Found {len(indexed_files)} indexed files (with .tbi indices)")
     
