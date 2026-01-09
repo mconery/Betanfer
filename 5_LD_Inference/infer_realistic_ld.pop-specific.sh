@@ -32,11 +32,11 @@ python_splitter="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fi
 base_ld_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices"
 
 # EUR population directories
-eur_scratch_dir="/lustre/orion/bif154/scratch/mconery/indexed_EUR_sumstats"
+eur_scratch_dir="/lustre/orion/bif154/scratch/mconery/indexed_realistic_EUR_sumstats"
 eur_variant_dir="${base_ld_dir}/raw_in-sample/EUR"
 
 # AFR population directories
-afr_scratch_dir="/lustre/orion/bif154/scratch/mconery/indexed_AFR_sumstats"
+afr_scratch_dir="/lustre/orion/bif154/scratch/mconery/indexed_realistic_AFR_sumstats"
 afr_variant_dir="${base_ld_dir}/raw_in-sample/AFR"
 
 # Set number of nodes
