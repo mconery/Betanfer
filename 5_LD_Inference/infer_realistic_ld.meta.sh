@@ -4,8 +4,8 @@
 #SBATCH -J infer_realistic_ld_meta
 #SBATCH -o infer_realistic_ld.meta.log
 #SBATCH -N 64
-#SBATCH -p extended
-#SBATCH -t 12:00:00
+#SBATCH -p batch
+#SBATCH -t 2:00:00
 
 ################################################################################################################
 ###################################### Load Modules and Environment ############################################
