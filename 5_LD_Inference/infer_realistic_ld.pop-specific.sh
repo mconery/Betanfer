@@ -43,7 +43,7 @@ afr_variant_dir="${base_ld_dir}/raw_in-sample/AFR"
 num_nodes=${SLURM_NNODES}
 
 # Define p-value thresholds and buffer sizes
-pval_thresholds=(0 5e-8 5e-6 5e-4) #Need to check 0 later
+pval_thresholds=(5e-8 5e-6 5e-4) #Need to check 0 later
 buffer_sizes=(0 100000 250000 500000)
 
 # Directory for all command files
