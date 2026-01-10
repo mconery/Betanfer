@@ -42,11 +42,10 @@ variant_dir="${base_ld_dir}/raw_in-sample/weighted"
 num_nodes=${SLURM_NNODES}
 
 # Define meta-analysis types, trait types and number of traits
-#meta_types=("fixed" "random")
-meta_types=("random")
+meta_types=("fixed" "random")
 #trait_types=("all" "continuous" "binary")
-trait_types=("binary")
-num_traits_list=(50 100 200 300 400 500 750 1000 1250 1500 1750 2000)
+trait_types=("all")
+num_traits_list=(2500 3000 3500 4000)
 
 # Directory for all command files
 commands_dir="${base_ld_dir}/command_files"
