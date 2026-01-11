@@ -1,8 +1,8 @@
 #!/bin/bash
 
 #SBATCH -A bif154
-#SBATCH -J SuSiE_finemap_all
-#SBATCH -o finemap_SuSiE_all.log
+#SBATCH -J SuSiE_finemap_unified
+#SBATCH -o finemap_SuSiE_unified.log
 #SBATCH -N 40
 #SBATCH -p batch
 #SBATCH -t 2:00:00
