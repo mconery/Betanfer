@@ -41,7 +41,7 @@ command_files_dir="${base_finemap_dir}/command_files"
 mkdir -p "$command_files_dir"
 
 # Batch configuration
-commands_per_batch=20
+commands_per_batch=50
 
 # Master commands file
 master_commands_file="${command_files_dir}/master_rsparsepro_commands.txt"
@@ -77,7 +77,7 @@ echo "=================================================="
 # Create jobs directory for parallel execution
 jobs_dir="${command_files_dir}/command_gen_jobs"
 mkdir -p "$jobs_dir"
-rm -f "$jobs_dir"/*.sh
+rm -f "$jobs_dir"/rsparsepro_job_*.sh
 
 echo ""
 
@@ -104,14 +104,13 @@ for h_idx in "${!heritabilities[@]}"; do
             command_file="${command_files_dir}/rsparsepro_${analysis_type}_${trait_type}_${h_label}_commands.txt"
 
             # Create job script
-            job_script="${jobs_dir}/job_${total_jobs}.sh"
+            job_script="${jobs_dir}/rsparsepro_job_${total_jobs}.sh"
             cat > "$job_script" << 'JOBEOF'
 #!/bin/bash
 set -e
 
 OUT_DIR="PLACEHOLDER_OUT_DIR"
 CMD_FILE="PLACEHOLDER_CMD_FILE"
-MASTER_CMD_FILE="PLACEHOLDER_MASTER_CMD_FILE"
 
 mkdir -p "$OUT_DIR"
 
@@ -135,15 +134,11 @@ fi
 
 num_commands=$(wc -l < "$CMD_FILE")
 echo "✓ Generated $num_commands commands for PLACEHOLDER_ANALYSIS_TYPE_PLACEHOLDER_TRAIT_TYPE_PLACEHOLDER_H_LABEL"
-
-# Append to master commands file
-grep -v "^#" "$CMD_FILE" >> "$MASTER_CMD_FILE"
 JOBEOF
 
             # Replace placeholders
             sed -i "s|PLACEHOLDER_OUT_DIR|$out_dir|g" "$job_script"
             sed -i "s|PLACEHOLDER_CMD_FILE|$command_file|g" "$job_script"
-            sed -i "s|PLACEHOLDER_MASTER_CMD_FILE|$master_commands_file|g" "$job_script"
             sed -i "s|PLACEHOLDER_CMD_SCRIPT|$command_script|g" "$job_script"
             sed -i "s|PLACEHOLDER_MAP_SCRIPT|$map_script|g" "$job_script"
             sed -i "s|PLACEHOLDER_SUMSTATS_DIR|$sumstats_dir|g" "$job_script"
@@ -174,7 +169,7 @@ srun -N ${num_nodes} -n ${num_nodes} -c 56 flux start bash -c "
     
     echo \"Submitting ${total_jobs} command generation jobs...\"
     job_count=0
-    for job_script in ${jobs_dir}/job_*.sh; do
+    for job_script in ${jobs_dir}/rsparsepro_job_*.sh; do
         flux submit -N1 -n1 -c56 \
             bash \${job_script}
         
@@ -203,25 +198,45 @@ fi
 
 echo "Command generation completed at $(date)"
 
-################################################################################################################
-################################## Summary and Final Status ###################################################
-################################################################################################################
-
 echo ""
 echo "=================================================="
 echo "COMMAND FILE GENERATION COMPLETE"
 echo "=================================================="
-echo "Total configurations processed: $total_jobs"
-echo "Total commands in master file: $(wc -l < "$master_commands_file")"
-echo "Master commands file: $master_commands_file"
-echo "Command directory: $command_files_dir"
-echo "=================================================="
+
+################################################################################################################
+################################## Merge Individual Command Files to Master File ###############################
+################################################################################################################
+
+echo ""
+echo "Merging individual command files into master file..."
+echo "Start time: $(date)"
+
+# Initialize line counter
+total_commands=0
+
+# Loop through all individual command files and append to master file in sequence
+# This avoids the race condition by processing files sequentially AFTER all parallel jobs complete
+ls "${command_files_dir}" | grep rsparsepro | grep -v batch | grep -v match | grep -v drop | while read command_file; do
+    if [[ -f "$command_file" ]] && [[ -s "$command_file" ]]; then
+        num_lines=$(wc -l < "$command_file")
+        grep -v "^#" "$command_file" >> "$master_commands_file"
+        echo "✓ Merged $num_lines commands from $(basename "$command_file")"
+        ((total_commands += num_lines))
+    fi
+done
+
+echo ""
+echo "Total commands merged: $total_commands"
+echo "Merge completed at $(date)"
+echo ""
 
 # Verify master commands file
 if [[ ! -f "$master_commands_file" ]] || [[ ! -s "$master_commands_file" ]]; then
     echo "ERROR: Master commands file is missing or empty!"
     exit 1
 fi
+
+echo "Verified: Master commands file contains $(wc -l < "$master_commands_file") commands"
 
 ################################################################################################################
 ################################## Create batched command files ################################################
