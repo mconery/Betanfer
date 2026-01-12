@@ -3,7 +3,7 @@
 #SBATCH -A bif154
 #SBATCH -J RSparsePro_finemap_unified
 #SBATCH -o finemap_RSparsePro_unified.log
-#SBATCH -N 14
+#SBATCH -N 40
 #SBATCH -p batch
 #SBATCH -t 2:00:00
 
