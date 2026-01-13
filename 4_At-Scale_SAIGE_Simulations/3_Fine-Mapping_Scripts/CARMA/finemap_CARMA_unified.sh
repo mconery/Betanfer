@@ -25,6 +25,7 @@ module load flux
 map_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/CARMA/finemap_CARMA.R"
 command_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/CARMA/generate_carma_commands.py"
 python_splitter="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/5_LD_Inference/split_commands_parallel.py"
+flux_executor="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/flux_batch_executor.py"
 
 # Set environment location
 map_enviro="/lustre/orion/bif154/proj-shared/mconery/tools/environments/carma"
@@ -41,7 +42,7 @@ command_files_dir="${base_finemap_dir}/command_files"
 mkdir -p "$command_files_dir"
 
 # Batch configuration
-commands_per_batch=7
+commands_per_batch=200
 
 # Master commands file
 master_commands_file="${command_files_dir}/master_carma_commands.txt"
@@ -91,7 +92,7 @@ for h_idx in "${!heritabilities[@]}"; do
         for analysis_type in "${analysis_types[@]}"; do
             # Define matrix types for this configuration
             if [[ $trait_type == "all" ]]; then
-                matrix_types="raw_in-sample,PC-corrected,beta-inferred_50_${analysis_type}_all,beta-inferred_100_${analysis_type}_all,beta-inferred_200_${analysis_type}_all,beta-inferred_300_${analysis_type}_all,beta-inferred_400_${analysis_type}_all,beta-inferred_500_${analysis_type}_all,beta-inferred_750_${analysis_type}_all,beta-inferred_1000_${analysis_type}_all,beta-inferred_1250_${analysis_type}_all,beta-inferred_1500_${analysis_type}_all,beta-inferred_1750_${analysis_type}_all,beta-inferred_2000_${analysis_type}_all"
+                matrix_types="raw_in-sample,PC-corrected,beta-inferred_50_${analysis_type}_all,beta-inferred_100_${analysis_type}_all,beta-inferred_200_${analysis_type}_all,beta-inferred_300_${analysis_type}_all,beta-inferred_400_${analysis_type}_all,beta-inferred_500_${analysis_type}_all,beta-inferred_750_${analysis_type}_all,beta-inferred_1000_${analysis_type}_all,beta-inferred_1250_${analysis_type}_all,beta-inferred_1500_${analysis_type}_all,beta-inferred_1750_${analysis_type}_all,beta-inferred_2000_${analysis_type}_all,beta-inferred_2500_${analysis_type}_all,beta-inferred_3000_${analysis_type}_all,beta-inferred_3500_${analysis_type}_all,beta-inferred_4000_${analysis_type}_all"
             elif [[ $trait_type == "continuous" ]]; then
                 matrix_types="raw_in-sample,PC-corrected,beta-inferred_50_${analysis_type}_continuous,beta-inferred_100_${analysis_type}_continuous,beta-inferred_200_${analysis_type}_continuous,beta-inferred_300_${analysis_type}_continuous,beta-inferred_400_${analysis_type}_continuous,beta-inferred_500_${analysis_type}_continuous,beta-inferred_750_${analysis_type}_continuous,beta-inferred_1000_${analysis_type}_continuous,beta-inferred_1250_${analysis_type}_continuous,beta-inferred_1500_${analysis_type}_continuous,beta-inferred_1750_${analysis_type}_continuous,beta-inferred_2000_${analysis_type}_continuous"
             else  # binary
@@ -211,22 +212,19 @@ echo ""
 echo "Merging individual command files into master file..."
 echo "Start time: $(date)"
 
-# Initialize line counter
-total_commands=0
-
 # Loop through all individual command files and append to master file in sequence
 # This avoids the race condition by processing files sequentially AFTER all parallel jobs complete
-ls "${command_files_dir}" | grep carma | grep -v batch | grep -v match | grep -v drop | while read command_file; do
-    if [[ -f "$command_file" ]] && [[ -s "$command_file" ]]; then
-        num_lines=$(wc -l < "$command_file")
-        grep -v "^#" "$command_file" >> "$master_commands_file"
+ls "${command_files_dir}" | grep carma | grep -v batch | grep -v match | grep -v drop | grep -v master | while read command_file; do
+    if [[ -f "${command_files_dir}/$command_file" ]] && [[ -s "${command_files_dir}/$command_file" ]]; then
+        num_lines=$(wc -l < "${command_files_dir}/$command_file")
+        grep -v "^#" "${command_files_dir}/$command_file" >> "$master_commands_file"
         echo "✓ Merged $num_lines commands from $(basename "$command_file")"
-        ((total_commands += num_lines))
+        total_commands=$(( num_lines + total_commands ))
     fi
 done
 
 echo ""
-echo "Total commands merged: $total_commands"
+echo "Total commands merged: $(wc -l $master_commands_file)"
 echo "Merge completed at $(date)"
 echo ""
 
@@ -246,7 +244,7 @@ echo ""
 echo "Creating batched command files using parallel Python splitter..."
 
 # Clean up any existing carma batch files
-rm -f "${command_files_dir}"/carma_finemap_batch_*.sh
+rm -f "${command_files_dir}"/carma_finemap_batch_*.txt
 
 # Use Python splitter for fast parallel batch creation
 python "${python_splitter}" \
@@ -254,7 +252,7 @@ python "${python_splitter}" \
     -o "${command_files_dir}" \
     -b ${commands_per_batch} \
     -p "carma_finemap_batch_" \
-    -s ".sh"
+    -s ".txt"
 
 if [ $? -ne 0 ]; then
     echo "ERROR: Python batch splitter failed"
@@ -295,13 +293,14 @@ srun -N ${num_nodes} -n ${num_nodes} -c 56 flux start bash -c "
     # Submit all batch files to Flux
     echo \"Submitting ${num_batch_files} batches to Flux queue...\"
     batch_count=0
-    for batch in ${command_files_dir}/carma_finemap_batch_*.sh; do
-        batch_name=\$(basename \${batch} .sh)
-        flux submit -N1 -n1 -c2 \
-            --output=${flux_output_dir}/\${batch_name}.log \
-            bash \${batch}
-        
+    for batch in ${command_files_dir}/carma_finemap_batch_*.txt; do
+        batch_name=\$(basename \${batch} .txt)
+        flux run -N1 -n1 -c32 --output=${flux_output_dir}/\${batch_name}.log \
+        python \"${flux_executor}\" \
+            --workers 28 \
+            \"\${batch}\"
         ((batch_count++))
+
         
         # Print progress every 20 batches
         if [ \$((batch_count % 20)) -eq 0 ]; then
