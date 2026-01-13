@@ -297,7 +297,7 @@ srun -N ${num_nodes} -n ${num_nodes} -c 56 flux start bash -c "
         batch_name=\$(basename \${batch} .txt)
         flux run -N1 -n1 -c32 --output=${flux_output_dir}/\${batch_name}.log \
         python \"${flux_executor}\" \
-            --workers 28 \
+            --workers 32 \
             \"\${batch}\"
         ((batch_count++))
 
