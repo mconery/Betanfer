@@ -8,8 +8,8 @@ Flux to distribute batch files across nodes while individual nodes handle local
 parallelization.
 
 Usage:
-    flux run -n 1 -c 32 python flux_batch_executor.py batch_commands_001.txt
-    flux run -n 1 -c 32 python flux_batch_executor.py --workers 32 batch_commands_001.txt
+    flux run -n 1 -c 28 python flux_batch_executor.py batch_commands_001.txt
+    flux run -n 1 -c 28 python flux_batch_executor.py --workers 28 batch_commands_001.txt
 """
 
 import argparse
@@ -187,7 +187,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Use default 32 workers
+  # Use default 28 workers
   python flux_batch_executor.py batch_commands.txt
 
   # Specify custom number of workers
@@ -207,8 +207,8 @@ Examples:
         "-w",
         "--workers",
         type=int,
-        default=32,
-        help="Number of parallel workers (default: 32)",
+        default=28,
+        help="Number of parallel workers (default: 28)",
     )
     parser.add_argument(
         "--log-level",
