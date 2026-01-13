@@ -187,7 +187,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Use default 28 workers
+  # Use default 32 workers
   python flux_batch_executor.py batch_commands.txt
 
   # Specify custom number of workers
