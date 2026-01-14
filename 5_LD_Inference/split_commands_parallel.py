@@ -117,14 +117,16 @@ def main():
     
     args = parser.parse_args()
     
+    # Validate that exactly one of batch_size or num_batches is provided
+    if args.batch_size is None and args.num_batches is None:
+        parser.error("ERROR: Must specify either --batch-size or --num-batches")
+    if args.batch_size is not None and args.num_batches is not None:
+        parser.error("ERROR: Cannot specify both --batch-size and --num-batches")
+    
     # Validate inputs
     if not os.path.isfile(args.input):
         print(f"ERROR: Input file not found: {args.input}", file=sys.stderr)
         sys.exit(1)
-        
-    # Validate that exactly one of batch_size or num_batches is provided if args.batch_size is None and args.num_batches is None: parser.error("ERROR: Must specify either --batch-size or --num-batches")
-    if args.batch_size is not None and args.num_batches is not None: 
-        parser.error("ERROR: Cannot specify both --batch-size and --num-batches")
     
     # Create output directory
     output_dir = Path(args.output)
@@ -133,36 +135,54 @@ def main():
     except Exception as e:
         print(f"ERROR: Failed to create output directory '{args.output}': {e}", file=sys.stderr)
         sys.exit(1)
-    
+
     # Determine number of processes
     num_processes = args.jobs if args.jobs else os.cpu_count()
-    
     if args.verbose:
         print(f"Input file: {args.input}")
         print(f"Output directory: {output_dir}")
-        print(f"Batch size: {args.batch_size} commands")
         print(f"Parallel processes: {num_processes}")
         print()
-    
+
     # Read and group commands into batches
     print("Reading and grouping commands...", end='', flush=True)
     start_time = time.time()
+    # First pass: read all commands to count them if using --num-batches
+    if args.num_batches is not None:
+        # Count total commands first
+        total_commands = 0
+        try:
+            with open(args.input, 'r') as f:
+                for line in f:
+                    line = line.rstrip('\n')
+                    if not line or line.startswith('#'):
+                        continue
+                    total_commands += 1
+        except IOError as e:
+            print(f"\nERROR: Failed to read input file '{args.input}': {e}", file=sys.stderr)
+            sys.exit(1)
+        
+        # Calculate batch size from number of batches
+        try:
+            args.batch_size = calculate_batch_size(total_commands, args.num_batches)
+            if args.verbose:
+                print(f"\nCalculated batch size: {args.batch_size} commands per batch")
+                print(f"Total commands to process: {total_commands}")
+                print(f"Number of batches: {args.num_batches}\n")
+        except ValueError as e:
+            print(f"\nERROR: {e}", file=sys.stderr)
+            sys.exit(1)
+    
     batches = read_commands_chunked(args.input, args.batch_size, num_processes)
     read_time = time.time() - start_time
     print(f" Done ({read_time:.2f}s)")
-    
     total_commands = sum(len(cmds) for _, cmds in batches)
-    # Calculate batch size if --num-batches was specified 
-    if args.num_batches is not None: 
-        args.batch_size = calculate_batch_size(total_commands, args.num_batches) 
-        if args.verbose: print(f"Calculated batch size: {args.batch_size} commands per batch")
     print(f"Total commands: {total_commands}")
     print(f"Total batches: {len(batches)}")
     print()
     
     # Calculate zero-padding for batch numbers
     padding = len(str(len(batches)))
-    
     # Prepare arguments for parallel processing
     write_args = [
         (batch_num, commands, str(output_dir), args.prefix, args.suffix, padding)
@@ -172,7 +192,6 @@ def main():
     # Write batch files in parallel
     print("Writing batch files in parallel...", end='', flush=True)
     write_start = time.time()
-    
     try:
         with Pool(processes=num_processes) as pool:
             results = pool.map(write_batch_file, write_args)
@@ -180,7 +199,6 @@ def main():
     except Exception as e:
         print(f"\nERROR: Parallel processing failed: {e}", file=sys.stderr)
         sys.exit(1)
-    
     print(f" Done ({write_time:.2f}s)")
     
     # Check for errors
@@ -188,18 +206,16 @@ def main():
     if failed:
         print(f"\nERROR: {len(failed)} batch file(s) failed to write:", file=sys.stderr)
         for batch_num, _, _, error in failed:
-            print(f"  Batch {batch_num}: {error}", file=sys.stderr)
+            print(f" Batch {batch_num}: {error}", file=sys.stderr)
         sys.exit(1)
     
     # Verify batch creation
     batch_files = list(output_dir.glob(f"{args.prefix}*{args.suffix}"))
-    
     if len(batch_files) == 0:
         print("ERROR: No batch files were created!", file=sys.stderr)
         sys.exit(1)
-    
     if len(batch_files) != len(batches):
-        print(f"WARNING: Expected {len(batches)} batch files, found {len(batch_files)}", 
+        print(f"WARNING: Expected {len(batches)} batch files, found {len(batch_files)}",
               file=sys.stderr)
     
     # Print summary
@@ -224,8 +240,7 @@ def main():
         for batch_file in sorted(batch_files):
             with open(batch_file) as f:
                 num_lines = sum(1 for _ in f)
-            print(f"  {batch_file.name}: {num_lines} commands")
-
+            print(f" {batch_file.name}: {num_lines} commands")
 
 if __name__ == '__main__':
     main()
