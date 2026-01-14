@@ -77,7 +77,7 @@ def write_batch_file(args):
     
     try:
         # Format batch filename with zero-padding
-        batch_filename = f"{prefix}{batch_num:0{padding}d}{suffix}"
+        batch_filename = f"{prefix}{batch_num}{suffix}"
         batch_path = os.path.join(output_dir, batch_filename)
         
         # Write batch file
