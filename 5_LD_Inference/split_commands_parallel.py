@@ -23,6 +23,15 @@ import time
 from collections import defaultdict
 
 
+def calculate_batch_size(total_commands, num_batches): 
+    """Calculate batch size from number of batches.""" 
+    if num_batches <= 0: 
+        raise ValueError("Number of batches must be > 0") 
+    if total_commands == 0: 
+        raise ValueError("No commands to process") 
+    import math 
+    return math.ceil(total_commands / num_batches)
+
 def read_commands_chunked(input_file, batch_size, num_processes):
     """
     Read commands file and group into batches.
@@ -93,8 +102,10 @@ def main():
                         help='Input commands file')
     parser.add_argument('-o', '--output', required=True,
                         help='Output directory for batch files')
-    parser.add_argument('-b', '--batch-size', type=int, default=50,
-                        help='Number of commands per batch (default: 50)')
+    parser.add_argument('-b', '--batch-size', type=int, default=None, 
+                        help='Number of commands per batch (mutually exclusive with --num-batches)')
+    parser.add_argument('-n', '--num-batches', type=int, default=None, 
+                        help='Number of batches to create (mutually exclusive with --batch-size)')
     parser.add_argument('-j', '--jobs', type=int, default=None,
                         help='Number of parallel processes (default: CPU count)')
     parser.add_argument('-p', '--prefix', default='batch_',
@@ -110,6 +121,10 @@ def main():
     if not os.path.isfile(args.input):
         print(f"ERROR: Input file not found: {args.input}", file=sys.stderr)
         sys.exit(1)
+        
+    # Validate that exactly one of batch_size or num_batches is provided if args.batch_size is None and args.num_batches is None: parser.error("ERROR: Must specify either --batch-size or --num-batches")
+    if args.batch_size is not None and args.num_batches is not None: 
+        parser.error("ERROR: Cannot specify both --batch-size and --num-batches")
     
     # Create output directory
     output_dir = Path(args.output)
@@ -137,6 +152,10 @@ def main():
     print(f" Done ({read_time:.2f}s)")
     
     total_commands = sum(len(cmds) for _, cmds in batches)
+    # Calculate batch size if --num-batches was specified 
+    if args.num_batches is not None: 
+        args.batch_size = calculate_batch_size(total_commands, args.num_batches) 
+        if args.verbose: print(f"Calculated batch size: {args.batch_size} commands per batch")
     print(f"Total commands: {total_commands}")
     print(f"Total batches: {len(batches)}")
     print()
