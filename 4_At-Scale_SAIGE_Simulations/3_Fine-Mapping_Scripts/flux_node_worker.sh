@@ -61,14 +61,18 @@ trap cleanup EXIT
 BATCH_FILE=""
 CARMA_SCRIPT=""
 MAP_ENVIRO=""
-NODE_ID=${SLURM_NODEID:-0}
+NODE_ID=${SLURM_NODEID}
 DRY_RUN=false
 TEST_MODE=false
 
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --batch-file|-b)
-      BATCH_FILE="$2"
+    --batch-file-prefix|-p)
+      BATCH_FILE_PREFIX="$2"
+      shift 2
+      ;;
+    --batch-file-suffix|-s)
+      BATCH_FILE_SUFFIX="$2"
       shift 2
       ;;
     --carma-script|-c)
@@ -77,10 +81,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     --env|-e)
       MAP_ENVIRO="$2"
-      shift 2
-      ;;
-    --node-id|-n)
-      NODE_ID="$2"
       shift 2
       ;;
     --dry-run|-d)
@@ -133,6 +133,8 @@ EOF
       ;;
   esac
 done
+
+BATCH_FILE="${BATCH_FILE_PREFIX}${NODE_ID}${BATCH_FILE_SUFFIX}"
 
 ################################################################################
 # VALIDATE ARGUMENTS
