@@ -378,7 +378,7 @@ export TEST_MODE_VAR="${TEST_MODE}"
 
 # FIXED: Use 'flux start <script>' instead of 'flux start bash << heredoc'
 # This avoids the "stdin is not a tty" error
-flux start -opmi=off "${FLUX_SCRIPT}"
+flux start ---test-size=1 "${FLUX_SCRIPT}"
 
 FLUX_EXIT_CODE=$?
 
