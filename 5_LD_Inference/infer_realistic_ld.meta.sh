@@ -187,6 +187,7 @@ echo "Starting flux-based execution of batched meta-analysis commands at $(date)
 # Create flux output directory
 mkdir -p "${base_ld_dir}/flux_output"
 mkdir -p "${base_ld_dir}/jobstate/real_meta"
+rm ${base_ld_dir}/jobstate/real_meta/*
 
 # Start Flux and submit batch jobs
 srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start --broker-opts=-Sstatedir=${base_ld_dir}/jobstate/real_meta bash -c "
