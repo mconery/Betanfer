@@ -247,7 +247,7 @@ echo ""
 echo "Creating batched command files using parallel Python splitter..."
 
 # Clean up any existing carma batch files
-rm -f "${batch_dir}"/carma_finemap_batch_*.sh
+rm -f "${batch_dir}"/carma_finemap_batch_*.txt
 
 # Use Python splitter for fast parallel batch creation
 python "${python_splitter}" \
@@ -264,7 +264,7 @@ fi
 
 # Verify batch creation
 num_batch_files=$(ls "${batch_dir}" | grep -c "^carma_finemap_batch_" || true)
-echo "Verified: Created ${num_batch_files} batch files in ${command_files_dir}"
+echo "Verified: Created ${num_batch_files} batch files in ${batch_dir}"
 
 if [ ${num_batch_files} -eq 0 ]; then
     echo "ERROR: No batch files were created"
