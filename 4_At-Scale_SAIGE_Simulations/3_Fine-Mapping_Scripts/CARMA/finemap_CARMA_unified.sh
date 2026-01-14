@@ -6,6 +6,7 @@
 #SBATCH -N 40
 #SBATCH -p batch
 #SBATCH -t 2:00:00
+#SBATCH -q debug
 
 ################################################################################################################
 ################################################### Load Modules ###############################################
@@ -25,7 +26,7 @@ module load flux
 map_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/CARMA/finemap_CARMA.R"
 command_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/CARMA/generate_carma_commands.py"
 python_splitter="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/5_LD_Inference/split_commands_parallel.py"
-flux_executor="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/flux_batch_executor.py"
+node_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/flux_node_worker.sh"
 
 # Set environment location
 map_enviro="/lustre/orion/bif154/proj-shared/mconery/tools/environments/carma"
@@ -39,10 +40,12 @@ base_finemap_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_
 
 # Command files directory
 command_files_dir="${base_finemap_dir}/command_files"
+batch_dir="${command_files_dir}/node_batches"
 mkdir -p "$command_files_dir"
+mkdir -p $batch_dir
 
 # Batch configuration
-commands_per_batch=200
+commands_per_batch=1000
 
 # Master commands file
 master_commands_file="${command_files_dir}/master_carma_commands.txt"
@@ -244,13 +247,13 @@ echo ""
 echo "Creating batched command files using parallel Python splitter..."
 
 # Clean up any existing carma batch files
-rm -f "${command_files_dir}"/carma_finemap_batch_*.txt
+rm -f "${batch_dir}"/carma_finemap_batch_*.sh
 
 # Use Python splitter for fast parallel batch creation
 python "${python_splitter}" \
     -i "${master_commands_file}" \
-    -o "${command_files_dir}" \
-    -b ${commands_per_batch} \
+    -o "${batch_dir}" \
+    -n "${num_nodes}" \
     -p "carma_finemap_batch_" \
     -s ".txt"
 
@@ -260,7 +263,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Verify batch creation
-num_batch_files=$(ls "${command_files_dir}" | grep -c "^carma_finemap_batch_" || true)
+num_batch_files=$(ls "${batch_dir}" | grep -c "^carma_finemap_batch_" || true)
 echo "Verified: Created ${num_batch_files} batch files in ${command_files_dir}"
 
 if [ ${num_batch_files} -eq 0 ]; then
@@ -275,75 +278,16 @@ fi
 # Activate environment
 source activate $map_enviro
 
+echo "[NODE $(hostname)] Starting node-local Flux execution..."
 echo ""
-echo "Starting flux-based execution of batched CARMA fine-mapping commands at $(date)"
 
-# Create flux output directory
-flux_output_dir="${base_finemap_dir}/flux_output"
-mkdir -p "$flux_output_dir"
+# Each node runs the worker script with its assigned batch
+srun -N ${num_nodes} -n ${num_nodes} \
+  --ntasks-per-node=1 \
+  --cpus-per-task=56 \
+  bash "${node_script}" \
+    --batch-file-prefix "${batch_dir}/carma_finemap_batch_" \
+    --batch-file-suffix ".txt" \
+    --carma-script "$map_script" \
+    --env "$map_enviro" 
 
-# Start Flux and submit batch jobs
-srun -N ${num_nodes} -n ${num_nodes} -c 56 flux start bash -c "
-    # Display Flux resource allocation
-    echo \"Flux instance started at \$(date)\"
-    echo \"Available resources:\"
-    flux resource list
-    echo \"\"
-    
-    # Submit all batch files to Flux
-    echo \"Submitting ${num_batch_files} batches to Flux queue...\"
-    batch_count=0
-    for batch in ${command_files_dir}/carma_finemap_batch_*.txt; do
-        batch_name=\$(basename \${batch} .txt)
-        flux run -N1 -n1 -c32 --output=${flux_output_dir}/\${batch_name}.log \
-        python \"${flux_executor}\" \
-            --workers 32 \
-            \"\${batch}\"
-        ((batch_count++))
-
-        
-        # Print progress every 20 batches
-        if [ \$((batch_count % 20)) -eq 0 ]; then
-            echo \"  Submitted \${batch_count}/${num_batch_files} batches\"
-        fi
-    done
-    
-    echo \"All ${num_batch_files} batches submitted to Flux queue at \$(date)\"
-    echo \"\"
-    
-    # Wait for all jobs to complete
-    echo \"Waiting for all batches to complete...\"
-    flux queue drain
-    
-    echo \"\"
-    echo \"All batches completed at \$(date)\"
-    
-    # Display final resource status
-    echo \"Final Flux resource status:\"
-    flux resource list
-"
-
-################################################################################################################
-################################## Post-processing and cleanup ##################################################
-################################################################################################################
-
-echo ""
-echo "Post-processing results..."
-
-# Count successful batch completions by checking for output files
-successful_batches=$(ls -1 "${flux_output_dir}"/carma_finemap_batch_*.log 2>/dev/null | wc -l)
-echo "Successfully completed batches: ${successful_batches}/${num_batch_files}"
-
-# Check for any failed batches
-if [ ${successful_batches} -ne ${num_batch_files} ]; then
-    echo "WARNING: Some batches may have failed. Check logs in ${flux_output_dir}"
-fi
-
-# Cleanup temporary job scripts
-rm -rf "$jobs_dir"
-
-echo ""
-echo "CARMA fine-mapping workflow completed at $(date)"
-echo "Batch files retained in: ${command_files_dir}"
-echo "Flux logs available in: ${flux_output_dir}"
-echo "Fine-mapping results in: ${base_finemap_dir}"
