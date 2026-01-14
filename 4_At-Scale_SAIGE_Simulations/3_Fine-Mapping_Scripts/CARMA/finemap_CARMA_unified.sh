@@ -43,9 +43,6 @@ batch_dir="${command_files_dir}/node_batches"
 mkdir -p "$command_files_dir"
 mkdir -p $batch_dir
 
-# Batch configuration
-commands_per_batch=1000
-
 # Master commands file
 master_commands_file="${command_files_dir}/master_carma_commands.txt"
 > "$master_commands_file" # Clear the file if it exists
@@ -74,13 +71,12 @@ echo "Trait types: ${trait_types[@]}"
 echo "Analysis types: ${analysis_types[@]}"
 echo "Total configurations: $((${#heritabilities[@]} * ${#trait_types[@]} * ${#analysis_types[@]}))"
 echo "Master commands file: $master_commands_file"
-echo "Batch size: ${commands_per_batch} commands per batch"
 echo "=================================================="
 
 # Create jobs directory for parallel execution
 jobs_dir="${command_files_dir}/command_gen_jobs"
 mkdir -p "$jobs_dir"
-rm -f "$jobs_dir"/*.sh
+rm -f "$jobs_dir"/carma_job_*.sh
 
 echo ""
 
@@ -289,4 +285,6 @@ srun -N ${num_nodes} -n ${num_nodes} \
     --batch-file-suffix ".txt" \
     --carma-script "$map_script" \
     --env "$map_enviro" 
+
+echo "SUCCESS: All jobs finished!"
 

@@ -25,7 +25,7 @@ module load flux
 map_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/SuSiE/finemap_SuSiE.R"
 command_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/SuSiE/generate_susie_commands.py"
 python_splitter="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/5_LD_Inference/split_commands_parallel.py"
-flux_executor="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/flux_batch_executor.py"
+node_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/flux_node_worker.sh"
 
 # Set environment location
 map_enviro="/lustre/orion/bif154/proj-shared/mconery/tools/environments/susie"
@@ -39,10 +39,9 @@ base_finemap_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_
 
 # Command files directory
 command_files_dir="${base_finemap_dir}/command_files"
+batch_dir="${command_files_dir}/node_batches"
 mkdir -p "$command_files_dir"
-
-# Batch configuration
-commands_per_batch=41
+mkdir -p $batch_dir
 
 # Master commands file
 master_commands_file="${command_files_dir}/master_susie_commands.txt"
@@ -72,13 +71,12 @@ echo "Trait types: ${trait_types[@]}"
 echo "Analysis types: ${analysis_types[@]}"
 echo "Total configurations: $((${#heritabilities[@]} * ${#trait_types[@]} * ${#analysis_types[@]}))"
 echo "Master commands file: $master_commands_file"
-echo "Batch size: ${commands_per_batch} commands per batch"
 echo "=================================================="
 
 # Create jobs directory for parallel execution
 jobs_dir="${command_files_dir}/command_gen_jobs"
 mkdir -p "$jobs_dir"
-rm -f "$jobs_dir"/*.sh
+rm -f "$jobs_dir"/susie_job_*.sh
 
 echo ""
 echo "Creating ${total_jobs} command generation jobs..."
@@ -106,7 +104,7 @@ for h_idx in "${!heritabilities[@]}"; do
             command_file="${command_files_dir}/susie_${analysis_type}_${trait_type}_${h_label}_commands.txt"
 
             # Create job script
-            job_script="${jobs_dir}/job_${total_jobs}.sh"
+            job_script="${jobs_dir}/susie_job_${total_jobs}.sh"
             cat > "$job_script" << 'JOBEOF'
 #!/bin/bash
 set -e
@@ -174,7 +172,7 @@ srun -N ${num_nodes} -n ${num_nodes} -c 56 flux start bash -c "
     
     echo \"Submitting ${total_jobs} command generation jobs...\"
     job_count=0
-    for job_script in ${jobs_dir}/job_*.sh; do
+    for job_script in ${jobs_dir}/susie_job_*.sh; do
         job_name=\$(basename \${job_script} .sh)
         flux submit -N1 -n1 -c56 \
             bash \${job_script}
@@ -219,7 +217,7 @@ echo "Start time: $(date)"
 
 # Loop through all individual command files and append to master file in sequence
 # This avoids the race condition by processing files sequentially AFTER all parallel jobs complete
-ls "${command_files_dir}" | grep susie | grep -v susiex | grep -v mesusie | grep -v multisusie | grep -v batch | grep -v match | grep -v drop | grep -v master | while read command_file; do
+ls "${command_files_dir}" | grep susie | grep -v batch | grep -v susiex | grep -v multisusie | grep -v mesusie | grep -v match | grep -v drop | while read command_file; do
     if [[ -f "${command_files_dir}/$command_file" ]] && [[ -s "${command_files_dir}/$command_file" ]]; then
         num_lines=$(wc -l < "${command_files_dir}/$command_file")
         grep -v "^#" "${command_files_dir}/$command_file" >> "$master_commands_file"
@@ -249,15 +247,15 @@ echo ""
 echo "Creating batched command files using parallel Python splitter..."
 
 # Clean up any existing susie batch files
-rm -f "${command_files_dir}"/susie_finemap_batch_*.txt
+rm -f "${batch_dir}"/susie_finemap_batch_*.txt
 
 # Use Python splitter for fast parallel batch creation
 python "${python_splitter}" \
     -i "${master_commands_file}" \
-    -o "${command_files_dir}" \
-    -b ${commands_per_batch} \
+    -o "${batch_dir}" \
+    -n "${num_nodes}" \
     -p "susie_finemap_batch_" \
-    -s ".txt" 
+    -s ".txt"
 
 if [ $? -ne 0 ]; then
     echo "ERROR: Python batch splitter failed"
@@ -265,8 +263,8 @@ if [ $? -ne 0 ]; then
 fi
 
 # Verify batch creation
-num_batch_files=$(ls "${command_files_dir}" | grep -c "^susie_finemap_batch_")
-echo "Verified: Created ${num_batch_files} batch files in ${command_files_dir}"
+num_batch_files=$(ls "${batch_dir}" | grep -c "^susie_finemap_batch_" || true)
+echo "Verified: Created ${num_batch_files} batch files in ${batch_dir}"
 
 if [ ${num_batch_files} -eq 0 ]; then
     echo "ERROR: No batch files were created"
@@ -277,74 +275,18 @@ fi
 ####################################### Execute Commands in Parallel #########################################
 ################################################################################################################
 
+echo "[NODE $(hostname)] Starting node-local Flux execution..."
 echo ""
-echo "Starting flux-based execution of batched SuSiE fine-mapping commands at $(date)"
 
-# Create flux output directory
-flux_output_dir="${base_finemap_dir}/flux_output"
-mkdir -p "$flux_output_dir"
+# Each node runs the worker script with its assigned batch
+srun -N ${num_nodes} -n ${num_nodes} \
+  --ntasks-per-node=1 \
+  --cpus-per-task=56 \
+  bash "${node_script}" \
+    --batch-file-prefix "${batch_dir}/susie_finemap_batch_" \
+    --batch-file-suffix ".txt" \
+    --carma-script "$map_script" \
+    --env "$map_enviro" 
 
-# Start Flux and submit batch jobs
-srun -N ${num_nodes} -n ${num_nodes} -c 56 flux start bash -c "
-    # Display Flux resource allocation
-    echo \"Flux instance started at \$(date)\"
-    echo \"Available resources:\"
-    flux resource list
-    echo \"\"
-    
-    # Submit all batch files to Flux
-    echo \"Submitting ${num_batch_files} batches to Flux queue...\"
-    batch_count=0
-    for batch in ${command_files_dir}/susie_finemap_batch_*.txt; do
-        batch_name=\$(basename \${batch} .txt)
-        flux run -N1 -n1 -c32 --output=${flux_output_dir}/\${batch_name}.log \
-        python \"${flux_executor}\" \
-            --workers 32 \
-            \"\${batch}\"
-        ((batch_count++))
-        
-        # Print progress every 20 batches
-        if [ \$((batch_count % 20)) -eq 0 ]; then
-            echo \"  Submitted \${batch_count}/${num_batch_files} batches\"
-        fi
-    done
-    
-    echo \"All ${num_batch_files} batches submitted to Flux queue at \$(date)\"
-    echo \"\"
-    
-    # Wait for all jobs to complete
-    echo \"Waiting for all batches to complete...\"
-    flux queue drain
-    
-    echo \"\"
-    echo \"All batches completed at \$(date)\"
-    
-    # Display final resource status
-    echo \"Final Flux resource status:\"
-    flux resource list
-"
+echo "SUCCESS: All jobs finished!"
 
-################################################################################################################
-################################## Post-processing and cleanup ##################################################
-################################################################################################################
-
-echo ""
-echo "Post-processing results..."
-
-# Count successful batch completions by checking for output files
-successful_batches=$(ls -1 "${flux_output_dir}"/susie_finemap_batch_*.log 2>/dev/null | wc -l)
-echo "Successfully completed batches: ${successful_batches}/${num_batch_files}"
-
-# Check for any failed batches
-if [ ${successful_batches} -ne ${num_batch_files} ]; then
-    echo "WARNING: Some batches may have failed. Check logs in ${flux_output_dir}"
-fi
-
-# Cleanup temporary job scripts
-rm -rf "$jobs_dir"
-
-echo ""
-echo "SuSiE fine-mapping workflow completed at $(date)"
-echo "Batch files retained in: ${command_files_dir}"
-echo "Flux logs available in: ${flux_output_dir}"
-echo "Fine-mapping results in: ${base_finemap_dir}"

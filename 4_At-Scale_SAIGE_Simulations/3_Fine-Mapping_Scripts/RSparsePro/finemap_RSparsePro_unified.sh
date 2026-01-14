@@ -6,6 +6,7 @@
 #SBATCH -N 40
 #SBATCH -p batch
 #SBATCH -t 2:00:00
+#SBATCH -q debug
 
 ################################################################################################################
 ################################################### Load Modules ###############################################
@@ -25,6 +26,7 @@ module load flux
 map_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/RSparsePro/finemap_RSparsePro.sh"
 command_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/RSparsePro/generate_rsparsepro_commands.py"
 python_splitter="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/5_LD_Inference/split_commands_parallel.py"
+node_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/flux_node_worker.sh"
 
 # Set environment location
 map_enviro="/lustre/orion/bif154/proj-shared/mconery/tools/environments/rsparsepro"
@@ -38,10 +40,9 @@ base_finemap_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_
 
 # Command files directory
 command_files_dir="${base_finemap_dir}/command_files"
+batch_dir="${command_files_dir}/node_batches"
 mkdir -p "$command_files_dir"
-
-# Batch configuration
-commands_per_batch=50
+mkdir -p $batch_dir
 
 # Master commands file
 master_commands_file="${command_files_dir}/master_rsparsepro_commands.txt"
@@ -71,7 +72,6 @@ echo "Trait types: ${trait_types[@]}"
 echo "Analysis types: ${analysis_types[@]}"
 echo "Total configurations: $((${#heritabilities[@]} * ${#trait_types[@]} * ${#analysis_types[@]}))"
 echo "Master commands file: $master_commands_file"
-echo "Batch size: ${commands_per_batch} commands per batch"
 echo "=================================================="
 
 # Create jobs directory for parallel execution
@@ -91,7 +91,7 @@ for h_idx in "${!heritabilities[@]}"; do
         for analysis_type in "${analysis_types[@]}"; do
             # Define matrix types for this configuration
             if [[ $trait_type == "all" ]]; then
-                matrix_types="raw_in-sample,PC-corrected,beta-inferred_50_${analysis_type}_all,beta-inferred_100_${analysis_type}_all,beta-inferred_200_${analysis_type}_all,beta-inferred_300_${analysis_type}_all,beta-inferred_400_${analysis_type}_all,beta-inferred_500_${analysis_type}_all,beta-inferred_750_${analysis_type}_all,beta-inferred_1000_${analysis_type}_all,beta-inferred_1250_${analysis_type}_all,beta-inferred_1500_${analysis_type}_all,beta-inferred_1750_${analysis_type}_all,beta-inferred_2000_${analysis_type}_all"
+                matrix_types="raw_in-sample,PC-corrected,beta-inferred_50_${analysis_type}_all,beta-inferred_100_${analysis_type}_all,beta-inferred_200_${analysis_type}_all,beta-inferred_300_${analysis_type}_all,beta-inferred_400_${analysis_type}_all,beta-inferred_500_${analysis_type}_all,beta-inferred_750_${analysis_type}_all,beta-inferred_1000_${analysis_type}_all,beta-inferred_1250_${analysis_type}_all,beta-inferred_1500_${analysis_type}_all,beta-inferred_1750_${analysis_type}_all,beta-inferred_2000_${analysis_type}_all,beta-inferred_2500_${analysis_type}_all,beta-inferred_3000_${analysis_type}_all,beta-inferred_3500_${analysis_type}_all,beta-inferred_4000_${analysis_type}_all"
             elif [[ $trait_type == "continuous" ]]; then
                 matrix_types="raw_in-sample,PC-corrected,beta-inferred_50_${analysis_type}_continuous,beta-inferred_100_${analysis_type}_continuous,beta-inferred_200_${analysis_type}_continuous,beta-inferred_300_${analysis_type}_continuous,beta-inferred_400_${analysis_type}_continuous,beta-inferred_500_${analysis_type}_continuous,beta-inferred_750_${analysis_type}_continuous,beta-inferred_1000_${analysis_type}_continuous,beta-inferred_1250_${analysis_type}_continuous,beta-inferred_1500_${analysis_type}_continuous,beta-inferred_1750_${analysis_type}_continuous,beta-inferred_2000_${analysis_type}_continuous"
             else  # binary
@@ -211,22 +211,19 @@ echo ""
 echo "Merging individual command files into master file..."
 echo "Start time: $(date)"
 
-# Initialize line counter
-total_commands=0
-
 # Loop through all individual command files and append to master file in sequence
 # This avoids the race condition by processing files sequentially AFTER all parallel jobs complete
-ls "${command_files_dir}" | grep rsparsepro | grep -v batch | grep -v match | grep -v drop | while read command_file; do
-    if [[ -f "$command_file" ]] && [[ -s "$command_file" ]]; then
-        num_lines=$(wc -l < "$command_file")
-        grep -v "^#" "$command_file" >> "$master_commands_file"
+ls "${command_files_dir}" | grep rsparsepro | grep -v batch | grep -v match | grep -v drop | grep -v master | while read command_file; do
+    if [[ -f "${command_files_dir}/$command_file" ]] && [[ -s "${command_files_dir}/$command_file" ]]; then
+        num_lines=$(wc -l < "${command_files_dir}/$command_file")
+        grep -v "^#" "${command_files_dir}/$command_file" >> "$master_commands_file"
         echo "✓ Merged $num_lines commands from $(basename "$command_file")"
-        ((total_commands += num_lines))
+        total_commands=$(( num_lines + total_commands ))
     fi
 done
 
 echo ""
-echo "Total commands merged: $total_commands"
+echo "Total commands merged: $(wc -l $master_commands_file)"
 echo "Merge completed at $(date)"
 echo ""
 
@@ -246,15 +243,15 @@ echo ""
 echo "Creating batched command files using parallel Python splitter..."
 
 # Clean up any existing rsparsepro batch files
-rm -f "${command_files_dir}"/rsparsepro_finemap_batch_*.sh
+rm -f "${batch_dir}"/rsparsepro_finemap_batch_*.txt
 
 # Use Python splitter for fast parallel batch creation
 python "${python_splitter}" \
     -i "${master_commands_file}" \
-    -o "${command_files_dir}" \
-    -b ${commands_per_batch} \
+    -o "${batch_dir}" \
+    -n "${num_nodes}" \
     -p "rsparsepro_finemap_batch_" \
-    -s ".sh"
+    -s ".txt"
 
 if [ $? -ne 0 ]; then
     echo "ERROR: Python batch splitter failed"
@@ -262,8 +259,8 @@ if [ $? -ne 0 ]; then
 fi
 
 # Verify batch creation
-num_batch_files=$(ls "${command_files_dir}" | grep -c "^rsparsepro_finemap_batch_" || true)
-echo "Verified: Created ${num_batch_files} batch files in ${command_files_dir}"
+num_batch_files=$(ls "${batch_dir}" | grep -c "^rsparsepro_finemap_batch_" || true)
+echo "Verified: Created ${num_batch_files} batch files in ${batch_dir}"
 
 if [ ${num_batch_files} -eq 0 ]; then
     echo "ERROR: No batch files were created"
@@ -274,77 +271,20 @@ fi
 ####################################### Execute Commands in Parallel #########################################
 ################################################################################################################
 
-echo ""
-echo "Starting flux-based execution of batched RSparsePro fine-mapping commands at $(date)"
-
-# Create flux output directory
-flux_output_dir="${base_finemap_dir}/flux_output"
-mkdir -p "$flux_output_dir"
-
 # Activate environment
 source activate $map_enviro
 
-# Start Flux and submit batch jobs
-srun -N ${num_nodes} -n ${num_nodes} -c 56 flux start bash -c "
-    # Display Flux resource allocation
-    echo \"Flux instance started at \$(date)\"
-    echo \"Available resources:\"
-    flux resource list
-    echo \"\"
-    
-    # Submit all batch files to Flux
-    echo \"Submitting ${num_batch_files} batches to Flux queue...\"
-    batch_count=0
-    for batch in ${command_files_dir}/rsparsepro_finemap_batch_*.sh; do
-        batch_name=\$(basename \${batch} .sh)
-        flux submit -N1 -n1 -c2 \
-            --output=${flux_output_dir}/\${batch_name}.log \
-            bash \${batch}
-        
-        ((batch_count++))
-        
-        # Print progress every 20 batches
-        if [ \$((batch_count % 20)) -eq 0 ]; then
-            echo \"  Submitted \${batch_count}/${num_batch_files} batches\"
-        fi
-    done
-    
-    echo \"All ${num_batch_files} batches submitted to Flux queue at \$(date)\"
-    echo \"\"
-    
-    # Wait for all jobs to complete
-    echo \"Waiting for all batches to complete...\"
-    flux queue drain
-    
-    echo \"\"
-    echo \"All batches completed at \$(date)\"
-    
-    # Display final resource status
-    echo \"Final Flux resource status:\"
-    flux resource list
-"
-
-################################################################################################################
-################################## Post-processing and cleanup ##################################################
-################################################################################################################
-
+echo "[NODE $(hostname)] Starting node-local Flux execution..."
 echo ""
-echo "Post-processing results..."
 
-# Count successful batch completions by checking for output files
-successful_batches=$(ls -1 "${flux_output_dir}"/rsparsepro_finemap_batch_*.log 2>/dev/null | wc -l)
-echo "Successfully completed batches: ${successful_batches}/${num_batch_files}"
+# Each node runs the worker script with its assigned batch
+srun -N ${num_nodes} -n ${num_nodes} \
+  --ntasks-per-node=1 \
+  --cpus-per-task=56 \
+  bash "${node_script}" \
+    --batch-file-prefix "${batch_dir}/rsparsepro_finemap_batch_" \
+    --batch-file-suffix ".txt" \
+    --carma-script "$map_script" \
+    --env "$map_enviro" 
 
-# Check for any failed batches
-if [ ${successful_batches} -ne ${num_batch_files} ]; then
-    echo "WARNING: Some batches may have failed. Check logs in ${flux_output_dir}"
-fi
-
-# Cleanup temporary job scripts
-rm -rf "$jobs_dir"
-
-echo ""
-echo "RSparsePro fine-mapping workflow completed at $(date)"
-echo "Batch files retained in: ${command_files_dir}"
-echo "Flux logs available in: ${flux_output_dir}"
-echo "Fine-mapping results in: ${base_finemap_dir}"
+echo "SUCCESS: All jobs finished!"
