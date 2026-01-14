@@ -141,33 +141,33 @@ BATCH_FILE="${BATCH_FILE_PREFIX}${NODE_ID}${BATCH_FILE_SUFFIX}"
 ################################################################################
 
 if [[ -z "${BATCH_FILE}" ]]; then
-  echo "ERROR: --batch-file is required"
-  exit 1
+    echo "ERROR: --batch-file is required"
+    exit 1
 fi
 
 if [[ -z "${CARMA_SCRIPT}" ]]; then
-  echo "ERROR: --carma-script is required"
-  exit 1
+    echo "ERROR: --carma-script is required"
+    exit 1
 fi
 
 if [[ -z "${MAP_ENVIRO}" ]]; then
-  echo "ERROR: --env is required"
-  exit 1
+    echo "ERROR: --env is required"
+    exit 1
 fi
 
 if [[ ! -f "${BATCH_FILE}" ]]; then
-  echo "ERROR: Batch file not found: ${BATCH_FILE}"
-  exit 1
+    echo "ERROR: Batch file not found: ${BATCH_FILE}"
+    exit 1
 fi
 
 if [[ ! -f "${CARMA_SCRIPT}" ]]; then
-  echo "ERROR: CARMA script not found: ${CARMA_SCRIPT}"
-  exit 1
+    echo "ERROR: CARMA script not found: ${CARMA_SCRIPT}"
+    exit 1
 fi
 
 if [[ ! -d "${MAP_ENVIRO}" ]]; then
-  echo "ERROR: Conda environment not found: ${MAP_ENVIRO}"
-  exit 1
+    echo "ERROR: Conda environment not found: ${MAP_ENVIRO}"
+    exit 1
 fi
 
 ################################################################################
@@ -198,24 +198,24 @@ NUM_COMMANDS=$(grep -v "^#" "${BATCH_FILE}" | grep -v "^$" | wc -l)
 print_status "Commands in batch: ${NUM_COMMANDS}"
 
 if [[ ${NUM_COMMANDS} -eq 0 ]]; then
-  print_status "ERROR: No commands found in batch file!"
-  exit 1
+    print_status "ERROR: No commands found in batch file!"
+    exit 1
 fi
 
 if [[ "${DRY_RUN}" == "true" ]]; then
-  print_header "DRY RUN - FIRST 5 COMMANDS"
-  echo "Commands that would be executed:"
-  echo ""
-  grep -v "^#" "${BATCH_FILE}" | grep -v "^$" | head -5 | nl
-  echo ""
-  print_status "Dry run complete (use --test to execute one command)"
-  exit 0
+    print_header "DRY RUN - FIRST 5 COMMANDS"
+    echo "Commands that would be executed:"
+    echo ""
+    grep -v "^#" "${BATCH_FILE}" | grep -v "^$" | head -5 | nl
+    echo ""
+    print_status "Dry run complete (use --test to execute one command)"
+    exit 0
 fi
 
 if [[ "${TEST_MODE}" == "true" ]]; then
-  print_header "TEST MODE - SINGLE COMMAND"
-  NUM_COMMANDS=1
-  print_status "Running first command only for testing"
+    print_header "TEST MODE - SINGLE COMMAND"
+    NUM_COMMANDS=1
+    print_status "Running first command only for testing"
 fi
 
 ################################################################################
@@ -227,8 +227,8 @@ source activate "${MAP_ENVIRO}" 2>&1 | grep -v "^$" | head -3
 
 # Verify R is available
 if ! command -v Rscript &> /dev/null; then
-  print_status "ERROR: Rscript not found in conda environment"
-  exit 1
+    print_status "ERROR: Rscript not found in conda environment"
+    exit 1
 fi
 
 print_status "R available: $(Rscript --version 2>&1 | head -1)"
@@ -240,14 +240,14 @@ print_status "R available: $(Rscript --version 2>&1 | head -1)"
 # Use /tmp for local-only ephemeral state (key to avoiding locks!)
 BROKER_STATEDIR="/tmp/flux-broker-${NODE_ID}-$$"
 mkdir -p "${BROKER_STATEDIR}"
-
 print_status "Broker state directory: ${BROKER_STATEDIR}"
 
 # Verify it's writable
 if ! touch "${BROKER_STATEDIR}/test" 2>/dev/null; then
-  print_status "ERROR: Cannot write to ${BROKER_STATEDIR}"
-  exit 1
+    print_status "ERROR: Cannot write to ${BROKER_STATEDIR}"
+    exit 1
 fi
+
 rm -f "${BROKER_STATEDIR}/test"
 
 ################################################################################
@@ -268,34 +268,35 @@ print_status "  FLUX_BROKER_OPTS=${FLUX_BROKER_OPTS}"
 print_status "  FLUX_PMI=${FLUX_PMI}"
 
 ################################################################################
-# START FLUX BROKER AND SUBMIT JOBS
+# CREATE FLUX EXECUTION SCRIPT (FIXED: Using temp file instead of heredoc)
 ################################################################################
 
-print_header "STARTING FLUX BROKER AND SUBMITTING JOBS"
+# Create a temporary script file instead of using heredoc with stdin
+FLUX_SCRIPT=$(mktemp)
 
-# Start Flux broker and submit all commands
-# This runs in a subshell managed by 'flux start'
-flux start bash << 'FLUX_EXEC_EOF'
+cat > "${FLUX_SCRIPT}" << 'FLUX_SCRIPT_EOF'
+#!/bin/bash
 
 set -e
 
-# These variables are passed from parent shell
-BATCH_FILE="${BATCH_FILE}"
-NODE_ID=${NODE_ID}
-NUM_COMMANDS=${NUM_COMMANDS}
-CORES_PER_JOB=${CORES_PER_JOB}
-TEST_MODE=${TEST_MODE}
+# These variables are passed from parent shell via environment
+BATCH_FILE="${BATCH_FILE_VAR}"
+NODE_ID=${NODE_ID_VAR}
+NUM_COMMANDS=${NUM_COMMANDS_VAR}
+CORES_PER_JOB=${CORES_PER_JOB_VAR}
+TEST_MODE=${TEST_MODE_VAR}
 
 # Get current timestamp for logging
 START_TIME=$(date +%s)
+
 echo "[$(date +%H:%M:%S)] Flux broker started on $(hostname)"
 
 # Show available resources
 echo ""
 echo "Available resources:"
 flux resource list
-
 echo ""
+
 echo "Submitting ${NUM_COMMANDS} CARMA commands..."
 echo ""
 
@@ -304,29 +305,30 @@ JOB_COUNT=0
 COMMAND_NUM=0
 
 while IFS= read -r carma_command; do
-  # Skip empty lines and comments
-  [[ -z "${carma_command}" ]] && continue
-  [[ "${carma_command}" =~ ^# ]] && continue
-  
-  COMMAND_NUM=$((COMMAND_NUM + 1))
-  
-  # Stop after specified number of commands (for testing)
-  if (( COMMAND_NUM > NUM_COMMANDS )); then
-    break
-  fi
-  
-  # Submit to local Flux queue
-  # Each job uses CORES_PER_JOB cores, allowing multiple concurrent jobs
-  JOB_ID=$(flux submit -N 1 -n 1 -c ${CORES_PER_JOB} \
-    bash -c "${carma_command}" 2>/dev/null)
-  
-  JOB_COUNT=$((JOB_COUNT + 1))
-  
-  # Print progress every 25 jobs
-  if (( JOB_COUNT % 25 == 0 )); then
-    echo "[$(date +%H:%M:%S)] Submitted ${JOB_COUNT}/${NUM_COMMANDS} commands"
-  fi
-  
+
+    # Skip empty lines and comments
+    [[ -z "${carma_command}" ]] && continue
+    [[ "${carma_command}" =~ ^# ]] && continue
+
+    COMMAND_NUM=$((COMMAND_NUM + 1))
+
+    # Stop after specified number of commands (for testing)
+    if (( COMMAND_NUM > NUM_COMMANDS )); then
+        break
+    fi
+
+    # Submit to local Flux queue
+    # Each job uses CORES_PER_JOB cores, allowing multiple concurrent jobs
+    JOB_ID=$(flux submit -N 1 -n 1 -c ${CORES_PER_JOB} \
+        bash -c "${carma_command}" 2>/dev/null)
+
+    JOB_COUNT=$((JOB_COUNT + 1))
+
+    # Print progress every 25 jobs
+    if (( JOB_COUNT % 25 == 0 )); then
+        echo "[$(date +%H:%M:%S)] Submitted ${JOB_COUNT}/${NUM_COMMANDS} commands"
+    fi
+
 done < "${BATCH_FILE}"
 
 echo ""
@@ -336,8 +338,8 @@ echo ""
 # Show queue status
 echo "Queue status after submission:"
 flux queue stats
-
 echo ""
+
 echo "[$(date +%H:%M:%S)] Waiting for all jobs to complete..."
 echo ""
 
@@ -357,13 +359,35 @@ END_TIME=$(date +%s)
 ELAPSED=$((END_TIME - START_TIME))
 echo "[$(date +%H:%M:%S)] Flux execution took $((ELAPSED / 60)) minutes $((ELAPSED % 60)) seconds"
 
-FLUX_EXEC_EOF
+FLUX_SCRIPT_EOF
+
+chmod +x "${FLUX_SCRIPT}"
+
+################################################################################
+# START FLUX BROKER AND SUBMIT JOBS
+################################################################################
+
+print_header "STARTING FLUX BROKER AND SUBMITTING JOBS"
+
+# Export variables needed by the flux script
+export BATCH_FILE_VAR="${BATCH_FILE}"
+export NODE_ID_VAR="${NODE_ID}"
+export NUM_COMMANDS_VAR="${NUM_COMMANDS}"
+export CORES_PER_JOB_VAR="${CORES_PER_JOB}"
+export TEST_MODE_VAR="${TEST_MODE}"
+
+# FIXED: Use 'flux start <script>' instead of 'flux start bash << heredoc'
+# This avoids the "stdin is not a tty" error
+flux start "${FLUX_SCRIPT}"
 
 FLUX_EXIT_CODE=$?
 
+# Clean up temp script
+rm -f "${FLUX_SCRIPT}"
+
 if [[ ${FLUX_EXIT_CODE} -ne 0 ]]; then
-  print_status "ERROR: Flux execution failed with code ${FLUX_EXIT_CODE}"
-  exit ${FLUX_EXIT_CODE}
+    print_status "ERROR: Flux execution failed with code ${FLUX_EXIT_CODE}"
+    exit ${FLUX_EXIT_CODE}
 fi
 
 ################################################################################
