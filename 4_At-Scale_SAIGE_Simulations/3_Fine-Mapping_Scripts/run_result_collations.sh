@@ -82,7 +82,7 @@ declare -a RESULT_DIRS
 cd "$RESULTS_BASE_DIR" || exit 1
 
 for dir in fixed* random* ; do
-    if [ -d "$dir" ] && [[ ! "$dir" =~ \.* ]]; then
+    if [ -d "$dir" ]; then
         RESULT_DIRS+=("$dir")
         echo "Found: $dir"
     fi
