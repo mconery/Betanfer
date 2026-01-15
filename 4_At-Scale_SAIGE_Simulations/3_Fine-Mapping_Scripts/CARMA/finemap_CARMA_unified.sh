@@ -286,5 +286,7 @@ srun -N ${num_nodes} -n ${num_nodes} \
     --carma-script "$map_script" \
     --env "$map_enviro" 
 
+wait
+
 echo "SUCCESS: All jobs finished!"
 
