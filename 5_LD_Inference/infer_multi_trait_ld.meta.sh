@@ -3,9 +3,10 @@
 #SBATCH -A bif154
 #SBATCH -J infer_multi_trait_ld_meta
 #SBATCH -o infer_multi_trait_ld.meta.log
-#SBATCH -N 64
+#SBATCH -N 200
 #SBATCH -p batch
 #SBATCH -t 2:00:00
+#SBATCH -q debug
 
 ################################################################################################################
 ###################################### Load Modules and Environment ############################################
@@ -43,16 +44,15 @@ num_nodes=${SLURM_NNODES}
 
 # Define meta-analysis types, trait types and number of traits
 meta_types=("fixed" "random")
-#trait_types=("all" "continuous" "binary")
-trait_types=("all")
-num_traits_list=(2500 3000 3500 4000)
+trait_types=("all" "continuous" "binary")
+num_traits_list=(50 100 200 300 400 500 750 1000 1250 1500 1750 2000)
 
 # Directory for all command files
 commands_dir="${base_ld_dir}/command_files"
 mkdir -p "$commands_dir"
 
 # Batch configuration
-commands_per_batch=8
+commands_per_batch=4
 
 # Master commands file
 master_commands_file="${commands_dir}/master_meta_commands.txt"
