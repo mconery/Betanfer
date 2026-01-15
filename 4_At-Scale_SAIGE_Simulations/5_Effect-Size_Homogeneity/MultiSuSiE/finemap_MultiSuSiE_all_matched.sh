@@ -41,9 +41,6 @@ base_finemap_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_
 command_files_dir="${base_finemap_dir}/command_files"
 mkdir -p "$command_files_dir"
 
-# Batch configuration
-commands_per_batch=100
-
 # Master commands file
 master_commands_file="${command_files_dir}/master_multisusie_matched_commands.txt"
 > "$master_commands_file" # Clear the file if it exists
@@ -88,7 +85,6 @@ if [[ ${analysis_type} == "matched_effects" ]]; then
 fi
 echo "Populations: ${populations}"
 echo "Master commands file: $master_commands_file"
-echo "Batch size: ${commands_per_batch} commands per batch"
 echo "=================================================="
 
 # Create jobs directory for parallel execution
@@ -281,7 +277,7 @@ rm -f "${command_files_dir}"/multisusie_finemap_matched_batch_*.sh
 python "${python_splitter}" \
   -i "${master_commands_file}" \
   -o "${command_files_dir}" \
-  -b ${commands_per_batch} \
+  -n "${num_nodes}" \
   -p "multisusie_finemap_matched_batch_" \
   -s ".sh"
 
