@@ -225,14 +225,6 @@ fi
 print_status "Activating conda environment..."
 source activate "${MAP_ENVIRO}" 2>&1 | grep -v "^$" | head -3
 
-# Verify R is available
-if ! command -v Rscript &> /dev/null; then
-    print_status "ERROR: Rscript not found in conda environment"
-    exit 1
-fi
-
-print_status "R available: $(Rscript --version 2>&1 | head -1)"
-
 ################################################################################
 # SETUP BROKER STATE DIRECTORY
 ################################################################################
