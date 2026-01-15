@@ -329,7 +329,7 @@ echo ""
 
 # Show queue status
 echo "Queue status after submission:"
-flux queue stats
+flux queue status
 echo ""
 
 echo "[$(date +%H:%M:%S)] Waiting for all jobs to complete..."
