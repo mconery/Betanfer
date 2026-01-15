@@ -205,55 +205,65 @@ echo "Available SLURM nodes: $NUM_NODES"
 echo "Collation directories to process: $num_dirs"
 echo ""
 
+# Write directory list to temporary file for passing to Flux
+TEMP_DIR_FILE=$(mktemp)
+for result_dir in "${RESULT_DIRS[@]}"; do
+    echo "$result_dir" >> "$TEMP_DIR_FILE"
+done
+
 # Start Flux and submit all jobs
-srun -N ${NUM_NODES} -n ${NUM_NODES} -c 56 flux start bash -c "
+srun -N ${NUM_NODES} -n ${NUM_NODES} -c 56 flux start bash << 'FLUX_EOF'
 
 # Display Flux resource allocation
-echo 'Flux instance started at '\$(date)
-echo 'Available resources:'
+echo "Flux instance started at $(date)"
+echo "Available resources:"
 flux resource list
-echo ''
+echo ""
 
 # Submit all collation jobs to Flux
-echo 'Submitting collation jobs to Flux queue...'
+echo "Submitting collation jobs to Flux queue..."
 job_count=0
 
-for result_dir in ${RESULT_DIRS[@]}; do
+# Read directories from the temp file passed via environment
+while IFS= read -r result_dir; do
     # Define paths
-    RESULTS_DIR='${RESULTS_BASE_DIR}'/\${result_dir}
-    OUTPUT_FILE='${OUTPUT_BASE_DIR}'/\${result_dir}.results_file.txt
-    COLLATION_SCRIPT='${SCRIPT_DIR}'/collate_\${result_dir}.sh
+    RESULTS_DIR="${RESULTS_BASE_DIR}/${result_dir}"
+    OUTPUT_FILE="${OUTPUT_BASE_DIR}/${result_dir}.results_file.txt"
+    COLLATION_SCRIPT="${SCRIPT_DIR}/collate_${result_dir}.sh"
     
     # Submit job to Flux - one task per node
     flux submit -N1 -n1 -c2 \
-        --output='${FLUX_OUTPUT_DIR}'/collate_\${result_dir}.log \
-        bash \${COLLATION_SCRIPT} \
-        '${CAUSAL_DIR}' \
-        \"\${RESULTS_DIR}\" \
-        \"\${OUTPUT_FILE}\" \
-        '${COLLATE_SCRIPT}' \
-        \"\${result_dir}\"
+        --output="${FLUX_OUTPUT_DIR}/collate_${result_dir}.log" \
+        bash "${COLLATION_SCRIPT}" \
+        "${CAUSAL_DIR}" \
+        "${RESULTS_DIR}" \
+        "${OUTPUT_FILE}" \
+        "${COLLATE_SCRIPT}" \
+        "${result_dir}"
     
     ((job_count++))
     
     # Print progress every 10 jobs
-    if [ \$((job_count % 10)) -eq 0 ]; then
-        echo \" Submitted \${job_count}/${num_dirs} jobs\"
+    if [ $((job_count % 10)) -eq 0 ]; then
+        echo " Submitted ${job_count} jobs"
     fi
-done
+done < "${TEMP_DIR_FILE}"
 
-echo 'All ${num_dirs} collation jobs submitted to Flux queue at '\$(date)
-echo ''
+echo "All collation jobs submitted to Flux queue at $(date)"
+echo ""
 
 # Wait for all jobs to complete
-echo 'Waiting for all collations to complete...'
+echo "Waiting for all collations to complete..."
 flux queue drain
 
-echo ''
-echo 'All collation jobs completed at '\$(date)
-echo 'Final Flux resource status:'
+echo ""
+echo "All collation jobs completed at $(date)"
+echo "Final Flux resource status:"
 flux resource list
-"
+FLUX_EOF
+
+# Cleanup temp file
+rm -f "$TEMP_DIR_FILE"
 
 ################################################################################################################
 ################################## Verify Completion and Summary ##############################################
