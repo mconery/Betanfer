@@ -66,6 +66,15 @@ total_command_files=0
 ################################## Generate Commands for All Combinations ####################################
 ################################################################################################################
 
+
+# Create a temporary directory for job scripts
+temp_job_dir="${commands_dir}/.temp-job-scripts"
+mkdir -p "${temp_job_dir}"
+
+# Create a temporary manifest file to track all job combinations
+job_manifest="${temp_job_dir}/job-manifest.txt"
+> "${job_manifest}"
+
 echo "================================================"
 echo "STARTING META-ANALYSIS LD MATRIX INFERENCE PIPELINE"
 echo "================================================"
@@ -107,39 +116,92 @@ for meta_type in "${meta_types[@]}"; do
             commands_file="${commands_dir}/${meta_type}_${n_traits}_${trait_type}_meta_commands.txt"
             rm $commands_file 
             mkdir -p "$output_dir"
+            
+            # Create a job script for this combination
+            job_script="${temp_job_dir}/gen-job-${meta_type}-${n_traits}-${trait_type}.sh"
 
-            # Generate commands for this configuration
-            python "$command_script" \
-                --variant_dir "$variant_dir" \
-                --output_dir "$output_dir" \
-                --commands_file "$commands_file" \
-                --matrix_script "$matrix_script" \
-                --indexed_dir "$indexed_dir" \
-                --n_traits "$n_traits" \
-                --trait_type "$trait_type" \
-                --variant_col '"#rs_number"' \
-                --beta_col beta \
-                --device cuda
+            cat > "${job_script}" <<'JOBEOF'
+#!/bin/bash
+set -e
 
-            if [[ $? -ne 0 ]]; then
-                echo "ERROR: Failed to generate commands for $n_traits traits, meta-type: $meta_type, trait-type: $trait_type"
-                exit 1
-            fi
+python_cmd="python ${command_script} --variant-dir ${variant_dir} --output-dir ${output_dir} --commands-file ${commands_file} --matrix-script ${matrix_script} --indexed-dir ${indexed_dir} --n-traits ${n_traits} --trait-type ${trait_type} --variant-col rs-number --beta-col beta --device cuda"
 
-            if [[ ! -f "$commands_file" ]] || [[ ! -s "$commands_file" ]]; then
-                echo "ERROR: Commands file is missing or empty: $commands_file"
-                exit 1
-            fi
+eval "$python_cmd"
 
-            num_commands=$(wc -l < "$commands_file")
-            echo "Generated $num_commands commands"
+if [ $? -ne 0 ]; then
+    echo "ERROR: Failed to generate commands for ${n_traits} traits, meta-type ${meta_type}, trait-type ${trait_type}" >&2
+    exit 1
+fi
 
-            ((total_commands += num_commands))
-            ((total_command_files++))
+if [ ! -f "${commands_file}" ] || [ ! -s "${commands_file}" ]; then
+    echo "ERROR: Commands file is missing or empty: ${commands_file}" >&2
+    exit 1
+fi
+
+num_commands=$(wc -l < "${commands_file}")
+echo "Generated ${num_commands} commands for ${meta_type}-${n_traits}-${trait_type}"
+JOBEOF
+
+            chmod +x "${job_script}"
+
+            # Add to manifest for tracking
+            echo "${job_script}|${commands_file}|${meta_type}|${n_traits}|${trait_type}" >> "${job_manifest}"
+            ((job_count++))
 
         done
     done
 done
+
+echo "Prepared ${job_count} command generation jobs"
+echo ""
+
+################################################################################################################
+############################# Execute command generation jobs in parallel via Flux #############################
+################################################################################################################
+
+echo "Starting Flux-based command generation..."
+echo ""
+
+# Create output directory for generation logs
+gen_log_dir="${commands_dir}/.gen-logs"
+mkdir -p "${gen_log_dir}"
+
+# Start Flux instance and submit all generation jobs
+echo "Submitting ${job_count} command generation jobs to Flux..."
+
+srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start --broker-opts="-Sstatedir=${base_ld_dir}/job-state/gen-meta" bash -c "
+    echo 'Flux generation instance started at:' \$(date)
+    echo 'Available resources:'
+    flux resource list
+    echo ''
+    
+    # Submit all generation jobs
+    job_count=0
+    while IFS='|' read -r job_script commands_file meta_type n_traits trait_type; do
+        job_name=\${meta_type}-\${n_traits}-\${trait_type}
+        flux submit -N 1 -n 1 -c 56 --output=${gen_log_dir}/\${job_name}.log bash \"\${job_script}\"
+        ((job_count++))
+        
+        if [ \$((job_count % 20)) -eq 0 ]; then
+            echo \"Submitted \${job_count}/${job_count} generation jobs\"
+        fi
+    done < \"${job_manifest}\"
+    
+    echo \"All ${job_count} generation jobs submitted to Flux queue at: \$(date)\"
+    echo ''
+    
+    # Wait for all generation jobs to complete
+    echo 'Waiting for all command generation jobs to complete...'
+    flux queue drain
+    echo 'All command generation jobs completed at:' \$(date)
+    echo ''
+"
+
+if [ $? -ne 0 ]; then
+    echo "ERROR: Flux command generation instance failed"
+    exit 1
+fi
+
 
 ################################################################################################################
 ################################## Merge Individual Command Files to Master File ##############################
