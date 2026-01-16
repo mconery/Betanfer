@@ -205,65 +205,33 @@ echo "Available SLURM nodes: $NUM_NODES"
 echo "Collation directories to process: $num_dirs"
 echo ""
 
-# Write directory list to temporary file for passing to Flux
-TEMP_DIR_FILE=$(mktemp)
+# Build the flux command string for execution inside flux start
+# Using the same pattern as run_step2_saige_all_traits.sh
+FLUX_CMD="flux resource list; echo ''; "
+FLUX_CMD+="echo 'Submitting ${num_dirs} collation jobs to Flux queue...'; "
+
+# Add a flux submit command for each result directory
 for result_dir in "${RESULT_DIRS[@]}"; do
-    echo "$result_dir" >> "$TEMP_DIR_FILE"
-done
-
-# Start Flux and submit all jobs
-srun -N ${NUM_NODES} -n ${NUM_NODES} -c 56 flux start bash << 'FLUX_EOF'
-
-# Display Flux resource allocation
-echo "Flux instance started at $(date)"
-echo "Available resources:"
-flux resource list
-echo ""
-
-# Submit all collation jobs to Flux
-echo "Submitting collation jobs to Flux queue..."
-job_count=0
-
-# Read directories from the temp file passed via environment
-while IFS= read -r result_dir; do
-    # Define paths
     RESULTS_DIR="${RESULTS_BASE_DIR}/${result_dir}"
     OUTPUT_FILE="${OUTPUT_BASE_DIR}/${result_dir}.results_file.txt"
     COLLATION_SCRIPT="${SCRIPT_DIR}/collate_${result_dir}.sh"
     
-    # Submit job to Flux - one task per node
-    flux submit -N1 -n1 -c2 \
-        --output="${FLUX_OUTPUT_DIR}/collate_${result_dir}.log" \
-        bash "${COLLATION_SCRIPT}" \
-        "${CAUSAL_DIR}" \
-        "${RESULTS_DIR}" \
-        "${OUTPUT_FILE}" \
-        "${COLLATE_SCRIPT}" \
-        "${result_dir}"
-    
-    ((job_count++))
-    
-    # Print progress every 10 jobs
-    if [ $((job_count % 10)) -eq 0 ]; then
-        echo " Submitted ${job_count} jobs"
-    fi
-done < "${TEMP_DIR_FILE}"
+    # Add flux submit command to the command string
+    FLUX_CMD+="flux submit -N1 -n1 -c2 --output='${FLUX_OUTPUT_DIR}/collate_${result_dir}.log' "
+    FLUX_CMD+="bash '${COLLATION_SCRIPT}' '${CAUSAL_DIR}' '${RESULTS_DIR}' '${OUTPUT_FILE}' '${COLLATE_SCRIPT}' '${result_dir}'; "
+done
 
-echo "All collation jobs submitted to Flux queue at $(date)"
-echo ""
+# Add final commands to wait and display results
+FLUX_CMD+="echo 'All ${num_dirs} collation jobs submitted at '\$(date); "
+FLUX_CMD+="echo 'Waiting for all collations to complete...'; "
+FLUX_CMD+="flux queue drain; "
+FLUX_CMD+="echo ''; "
+FLUX_CMD+="echo 'All collation jobs completed at '\$(date); "
+FLUX_CMD+="echo 'Final Flux resource status:'; "
+FLUX_CMD+="flux resource list; "
 
-# Wait for all jobs to complete
-echo "Waiting for all collations to complete..."
-flux queue drain
-
-echo ""
-echo "All collation jobs completed at $(date)"
-echo "Final Flux resource status:"
-flux resource list
-FLUX_EOF
-
-# Cleanup temp file
-rm -f "$TEMP_DIR_FILE"
+# Start Flux and submit all jobs using the same pattern as the working SAIGE script
+srun -N ${NUM_NODES} -n ${NUM_NODES} -c 56 flux start "$FLUX_CMD"
 
 ################################################################################################################
 ################################## Verify Completion and Summary ##############################################
