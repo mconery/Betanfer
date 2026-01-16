@@ -41,15 +41,15 @@ variant_dir="${base_ld_dir}/raw_in-sample/weighted"
 num_nodes=${SLURM_NNODES}
 
 # Define p-value thresholds and buffer sizes
-pval_thresholds=(5e-8 5e-6 5e-4)
-buffer_sizes=(0 100000 250000 500000)
+pval_thresholds=(0)
+buffer_sizes=(0)
 
 # Directory for all command files
 commands_dir="${base_ld_dir}/command_files"
 mkdir -p "$commands_dir"
 
 # Batch configuration
-commands_per_batch=20
+commands_per_batch=2
 
 # Master commands file
 master_commands_file="${commands_dir}/master_realistic_meta_commands.txt"
