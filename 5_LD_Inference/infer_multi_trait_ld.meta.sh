@@ -165,11 +165,13 @@ echo ""
 # Create output directory for generation logs
 gen_log_dir="${commands_dir}/.gen-logs"
 mkdir -p "${gen_log_dir}"
+mkdir -p ${base_ld_dir}/jobstate/multi_meta_gen
+rm ${base_ld_dir}/jobstate/multi_meta_gen/*
 
 # Start Flux instance and submit all generation jobs
 echo "Submitting ${job_count} command generation jobs to Flux..."
 
-srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start --broker-opts="-Sstatedir=${base_ld_dir}/job-state/gen-meta" bash -c "
+srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start --broker-opts="-Sstatedir=${base_ld_dir}/jobstate/multi_meta_gen" bash -c "
     echo 'Flux generation instance started at:' \$(date)
     echo 'Available resources:'
     flux resource list
