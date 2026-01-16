@@ -4,8 +4,8 @@
 #SBATCH -J Collate_finemap_parallel
 #SBATCH -o run_result_collations.log
 #SBATCH -N 20
-#SBATCH -p batch
-#SBATCH -t 2:00:00
+#SBATCH -p extended
+#SBATCH -t 4:00:00
 #SBATCH -q debug
 
 ################################################################################################################
