@@ -124,7 +124,7 @@ for meta_type in "${meta_types[@]}"; do
 #!/bin/bash
 set -e
 
-python_cmd="python ${command_script} --variant-dir ${variant_dir} --output-dir ${output_dir} --commands-file ${commands_file} --matrix-script ${matrix_script} --indexed-dir ${indexed_dir} --n-traits ${n_traits} --trait-type ${trait_type} --variant-col rs-number --beta-col beta --device cuda"
+python_cmd="python ${command_script} --variant_dir ${variant_dir} --output_dir ${output_dir} --commands_file ${commands_file} --matrix_script ${matrix_script} --indexed_dir ${indexed_dir} --n_traits ${n_traits} --trait_type ${trait_type} --variant_col rs-number --beta_col beta --device cuda"
 
 eval "$python_cmd"
 
