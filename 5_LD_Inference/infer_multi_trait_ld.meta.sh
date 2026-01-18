@@ -3,7 +3,7 @@
 #SBATCH -A bif154
 #SBATCH -J infer_multi_trait_ld_meta
 #SBATCH -o infer_multi_trait_ld.meta.log
-#SBATCH -N 200
+#SBATCH -N 72
 #SBATCH -p batch
 #SBATCH -t 2:00:00
 #SBATCH -q debug
@@ -74,6 +74,7 @@ mkdir -p "${temp_job_dir}"
 # Create a temporary manifest file to track all job combinations
 job_manifest="${temp_job_dir}/job-manifest.txt"
 > "${job_manifest}"
+job_count=0
 
 echo "================================================"
 echo "STARTING META-ANALYSIS LD MATRIX INFERENCE PIPELINE"
@@ -124,23 +125,35 @@ for meta_type in "${meta_types[@]}"; do
 #!/bin/bash
 set -e
 
-python_cmd="python ${command_script} --variant_dir ${variant_dir} --output_dir ${output_dir} --commands_file ${commands_file} --matrix_script ${matrix_script} --indexed_dir ${indexed_dir} --n_traits ${n_traits} --trait_type ${trait_type} --variant_col rs-number --beta_col beta --device cuda"
+python_cmd="python PLACEHOLDER_command_script --variant_dir PLACEHOLDER_variant_dir --output_dir PLACEHOLDER_output_dir --commands_file PLACEHOLDER_commands_file --matrix_script PLACEHOLDER_matrix_script --indexed_dir PLACEHOLDER_indexed_dir --n_traits PLACEHOLDER_n_traits --trait_type PLACEHOLDER_trait_type --variant_col rs-number --beta_col beta --device cuda"
 
 eval "$python_cmd"
 
 if [ $? -ne 0 ]; then
-    echo "ERROR: Failed to generate commands for ${n_traits} traits, meta-type ${meta_type}, trait-type ${trait_type}" >&2
+    echo "ERROR: Failed to generate commands for PLACEHOLDER_n_traits traits, meta-type PLACEHOLDER_meta_type, trait-type PLACEHOLDER_trait_type" >&2
     exit 1
 fi
 
-if [ ! -f "${commands_file}" ] || [ ! -s "${commands_file}" ]; then
-    echo "ERROR: Commands file is missing or empty: ${commands_file}" >&2
+if [ ! -f "PLACEHOLDER_commands_file" ] || [ ! -s "PLACEHOLDER_commands_file" ]; then
+    echo "ERROR: Commands file is missing or empty: PLACEHOLDER_commands_file" >&2
     exit 1
 fi
 
-num_commands=$(wc -l < "${commands_file}")
-echo "Generated ${num_commands} commands for ${meta_type}-${n_traits}-${trait_type}"
+num_commands=$(wc -l < "PLACEHOLDER_commands_file")
+echo "Generated ${num_commands} commands for PLACEHOLDER_meta_type-PLACEHOLDER_n_traits-PLACEHOLDER_trait_type"
 JOBEOF
+
+            #Replace placeholder variable names
+            sed -i "s|PLACEHOLDER_command_script|$command_script|g" "$job_script"
+            sed -i "s|PLACEHOLDER_variant_dir|$variant_dir|g" "$job_script"
+            sed -i "s|PLACEHOLDER_output_dir|$output_dir|g" "$job_script"
+            sed -i "s|PLACEHOLDER_commands_file|$commands_file|g" "$job_script"
+            sed -i "s|PLACEHOLDER_matrix_script|$matrix_script|g" "$job_script"
+            sed -i "s|PLACEHOLDER_indexed_dir|$indexed_dir|g" "$job_script"
+            sed -i "s|PLACEHOLDER_n_traits|$n_traits|g" "$job_script"
+            sed -i "s|PLACEHOLDER_trait_type|$trait_type|g" "$job_script"
+            sed -i "s|PLACEHOLDER_indexed_dir|$indexed_dir|g" "$job_script"
+            sed -i "s|PLACEHOLDER_meta_type|$meta_type|g" "$job_script"
 
             chmod +x "${job_script}"
 
