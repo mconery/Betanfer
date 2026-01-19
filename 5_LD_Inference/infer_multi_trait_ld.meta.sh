@@ -52,7 +52,7 @@ commands_dir="${base_ld_dir}/command_files"
 mkdir -p "$commands_dir"
 
 # Batch configuration
-commands_per_batch=4
+commands_per_batch=2
 
 # Master commands file
 master_commands_file="${commands_dir}/master_meta_commands.txt"
@@ -125,7 +125,7 @@ for meta_type in "${meta_types[@]}"; do
 #!/bin/bash
 set -e
 
-python_cmd="python PLACEHOLDER_command_script --variant_dir PLACEHOLDER_variant_dir --output_dir PLACEHOLDER_output_dir --commands_file PLACEHOLDER_commands_file --matrix_script PLACEHOLDER_matrix_script --indexed_dir PLACEHOLDER_indexed_dir --n_traits PLACEHOLDER_n_traits --trait_type PLACEHOLDER_trait_type --variant_col rs-number --beta_col beta --device cuda"
+python_cmd="python PLACEHOLDER_command_script --variant_dir PLACEHOLDER_variant_dir --output_dir PLACEHOLDER_output_dir --commands_file PLACEHOLDER_commands_file --matrix_script PLACEHOLDER_matrix_script --indexed_dir PLACEHOLDER_indexed_dir --n_traits PLACEHOLDER_n_traits --trait_type PLACEHOLDER_trait_type --variant_col '#rs_number' --beta_col beta --device cuda"
 
 eval "$python_cmd"
 
