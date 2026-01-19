@@ -3,19 +3,19 @@
 ################################################################################
 # flux_node_worker.sh
 #
-# Node-local Flux execution script for CARMA fine-mapping
+# Node-local Flux execution script for tasks (ex fine-mapping)
 # 
 # This script runs on EACH compute node and:
 # 1. Starts a local Flux broker (independent scheduler)
-# 2. Submits pre-assigned CARMA commands to local queue
+# 2. Submits pre-assigned commands to local queue
 # 3. Waits for all jobs to complete
 # 4. Cleans up
 #
 # Usage:
 #   bash flux_node_worker.sh \
 #     --batch-file /path/to/batch_node_0.txt \
-#     --carma-script /path/to/finemap_CARMA.R \
-#     --env /path/to/carma_conda_env \
+#     --execute-script /path/to/execute_script \
+#     --env /path/to/conda_env \
 #     --node-id 0
 #
 # Can be tested standalone on single node for validation
@@ -59,7 +59,7 @@ trap cleanup EXIT
 ################################################################################
 
 BATCH_FILE=""
-CARMA_SCRIPT=""
+EXECUTE_SCRIPT=""
 MAP_ENVIRO=""
 NODE_ID=${SLURM_NODEID}
 DRY_RUN=false
@@ -75,8 +75,8 @@ while [[ $# -gt 0 ]]; do
       BATCH_FILE_SUFFIX="$2"
       shift 2
       ;;
-    --carma-script|-c)
-      CARMA_SCRIPT="$2"
+    --execute-script|-c)
+      EXECUTE_SCRIPT="$2"
       shift 2
       ;;
     --env|-e)
@@ -97,7 +97,7 @@ Usage: bash flux_node_worker.sh [OPTIONS]
 
 Options:
   --batch-file, -b FILE      Path to command batch file for this node (REQUIRED)
-  --carma-script, -c FILE    Path to finemap_CARMA.R script (REQUIRED)
+  --execute-script, -c FILE    Path to execution script (REQUIRED)
   --env, -e PATH             Path to conda environment (REQUIRED)
   --node-id, -n ID           Node rank/ID (default: SLURM_NODEID)
   --dry-run, -d              Print first 5 commands without executing
@@ -108,21 +108,21 @@ Examples:
   # Normal execution
   bash flux_node_worker.sh \\
     --batch-file ./batch_node_0.txt \\
-    --carma-script ./finemap_CARMA.R \\
-    --env /path/to/carma
+    --execute-script ./mapping.R \\
+    --env /path/to/enviro
 
   # Dry run (see what would execute)
   bash flux_node_worker.sh \\
     --batch-file ./batch_node_0.txt \\
-    --carma-script ./finemap_CARMA.R \\
-    --env /path/to/carma \\
+    --execute-script ./mapping.R \\
+    --env /path/to/enviro \\
     --dry-run
 
   # Test mode (execute 1 command)
   bash flux_node_worker.sh \\
     --batch-file ./batch_node_0.txt \\
-    --carma-script ./finemap_CARMA.R \\
-    --env /path/to/carma \\
+    --execute-script ./mapping.R \\
+    --env /path/to/enviro \\
     --test
 EOF
       exit 0
@@ -145,8 +145,8 @@ if [[ -z "${BATCH_FILE}" ]]; then
     exit 1
 fi
 
-if [[ -z "${CARMA_SCRIPT}" ]]; then
-    echo "ERROR: --carma-script is required"
+if [[ -z "${EXECUTE_SCRIPT}" ]]; then
+    echo "ERROR: --execute-script is required"
     exit 1
 fi
 
@@ -160,8 +160,8 @@ if [[ ! -f "${BATCH_FILE}" ]]; then
     exit 1
 fi
 
-if [[ ! -f "${CARMA_SCRIPT}" ]]; then
-    echo "ERROR: CARMA script not found: ${CARMA_SCRIPT}"
+if [[ ! -f "${EXECUTE_SCRIPT}" ]]; then
+    echo "ERROR: Execution script not found: ${EXECUTE_SCRIPT}"
     exit 1
 fi
 
@@ -184,10 +184,10 @@ print_header "FLUX NODE WORKER INITIALIZATION"
 print_status "Hostname: ${HOSTNAME}"
 print_status "Node ID: ${NODE_ID}"
 print_status "Available cores: ${NUM_CORES}"
-print_status "Cores per CARMA job: ${CORES_PER_JOB}"
+print_status "Cores per job: ${CORES_PER_JOB}"
 print_status "Max concurrent jobs: ${MAX_CONCURRENT}"
 print_status "Batch file: ${BATCH_FILE}"
-print_status "CARMA script: ${CARMA_SCRIPT}"
+print_status "Execution script: ${EXECUTE_SCRIPT}"
 print_status "Conda environment: ${MAP_ENVIRO}"
 
 ################################################################################
@@ -289,18 +289,18 @@ echo "Available resources:"
 flux resource list
 echo ""
 
-echo "Submitting ${NUM_COMMANDS} CARMA commands..."
+echo "Submitting ${NUM_COMMANDS} commands..."
 echo ""
 
 # Submit all commands
 JOB_COUNT=0
 COMMAND_NUM=0
 
-while IFS= read -r carma_command; do
+while IFS= read -r execute_command; do
 
     # Skip empty lines and comments
-    [[ -z "${carma_command}" ]] && continue
-    [[ "${carma_command}" =~ ^# ]] && continue
+    [[ -z "${execute_command}" ]] && continue
+    [[ "${execute_command}" =~ ^# ]] && continue
 
     COMMAND_NUM=$((COMMAND_NUM + 1))
 
@@ -312,7 +312,7 @@ while IFS= read -r carma_command; do
     # Submit to local Flux queue
     # Each job uses CORES_PER_JOB cores, allowing multiple concurrent jobs
     JOB_ID=$(flux submit -N 1 -n 1 -c ${CORES_PER_JOB} \
-        bash -c "${carma_command}" 2>/dev/null)
+        bash -c "${execute_command}" 2>/dev/null)
 
     JOB_COUNT=$((JOB_COUNT + 1))
 
@@ -389,7 +389,7 @@ fi
 print_header "NODE WORKER COMPLETE"
 
 print_status "Node ${NODE_ID} finished successfully"
-print_status "Processed ${NUM_COMMANDS} CARMA commands"
+print_status "Processed ${NUM_COMMANDS} commands"
 print_status "Results should be in output directory"
 
 echo ""
