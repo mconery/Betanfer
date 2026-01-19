@@ -51,7 +51,7 @@ commands_dir="${base_ld_dir}/command_files"
 mkdir -p "$commands_dir"
 
 # Batch configuration
-commands_per_batch=20
+commands_per_batch=2
 
 # Master commands file
 master_commands_file="${commands_dir}/master_realistic_pop_commands.txt"
