@@ -284,7 +284,7 @@ srun -N ${num_nodes} -n ${num_nodes} \
   bash "${node_script}" \
     --batch-file-prefix "${batch_dir}/rsparsepro_finemap_batch_" \
     --batch-file-suffix ".txt" \
-    --carma-script "$map_script" \
+    --execute-script "$map_script" \
     --env "$map_enviro" 
 
 wait
