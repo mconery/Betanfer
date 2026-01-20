@@ -235,6 +235,10 @@ Examples:
     print("Building whitelist of valid output files...")
     valid_files = build_valid_files_whitelist(variant_files, args.output_dir, args.n_traits)
     print(f"Whitelist contains {len(valid_files)} valid output file(s)\n")
+    #Print a sample of white-listed files
+    print("Sample of whitelisted files:")
+    for i in range(min(len(valid_files), 5)):
+        print("  " + valid_files[i])
     
     # Find junk files
     print(f"Scanning output directory for junk files...")
