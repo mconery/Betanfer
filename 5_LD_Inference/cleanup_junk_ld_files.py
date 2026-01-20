@@ -214,7 +214,7 @@ Examples:
     print(f"Output directory: {args.output_dir}")
     print(f"Traits: {args.n_traits}")
     
-    if args.safe_mode:
+    if not args.delete_mode:
         print("Mode: SAFE MODE (no files will be deleted)\n")
     else:
         print("Mode: DELETE MODE (files will be permanently deleted)\n")
