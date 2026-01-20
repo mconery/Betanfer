@@ -70,10 +70,8 @@ def generate_output_filename(variant_file, output_dir, n_traits):
         base_name = base_name.replace('.raw_in-sample.unphased.vcor1', f'.inferred_{n_traits}-trait.unphased.vcor1')
     elif '.raw_in-sample' in base_name:
         base_name = base_name.replace('.raw_in-sample', f'.inferred_{n_traits}-trait')
-    
-    if not base_name.endswith('.unphased.vcor1'):
+    elif not base_name.endswith('.unphased.vcor1'):
         base_name += '.unphased.vcor1'
-    
     else:
         # Fallback: just append the suffix
         base_name += f'.inferred_{n_traits}-trait.unphased.vcor1'
