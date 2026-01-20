@@ -238,7 +238,7 @@ Examples:
     #Print a sample of white-listed files
     print("Sample of whitelisted files:")
     for i in range(min(len(valid_files), 5)):
-        print("  " + valid_files[i])
+        print("  " + list(valid_files)[i])
     
     # Find junk files
     print(f"Scanning output directory for junk files...")
