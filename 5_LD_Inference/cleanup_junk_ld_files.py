@@ -14,12 +14,12 @@ Usage:
 python cleanup_junk_files.py \
     --variant_dir /path/to/variant/files \
     --output_dir /path/to/output \
-    [--safe-mode] \
+    [--delete-mode] \
     [--n_traits 2000] \
     [--pattern "Pheno*raw_in-sample*.vars"]
 
-With --safe-mode: Lists junk files to console without deleting
-Without --safe-mode: Actually deletes identified junk files
+Without --delete-mode: Lists junk files to console without deleting
+With --delete-mode: Actually deletes identified junk files
 
 """
 
@@ -148,13 +148,13 @@ def main():
         epilog="""
 Examples:
   # Safe mode: just list junk files
-  python cleanup_junk_files.py --variant_dir /variants --output_dir /output --safe-mode
+  python cleanup_junk_files.py --variant_dir /variants --output_dir /output --delete-mode
   
   # Actually delete junk files
   python cleanup_junk_files.py --variant_dir /variants --output_dir /output
   
   # Process with custom n_traits value (must match your pipeline)
-  python cleanup_junk_files.py --variant_dir /variants --output_dir /output --n_traits 5000 --safe-mode
+  python cleanup_junk_files.py --variant_dir /variants --output_dir /output --n_traits 5000 --delete-mode
         """
     )
     
@@ -189,10 +189,10 @@ Examples:
     )
     
     parser.add_argument(
-        "--safe-mode",
+        "--delete-mode",
         action="store_true",
         default=False,
-        help="Safe mode: only list files that would be deleted (don't actually delete)"
+        help="Delete mode: Actually deletes files instead of listing"
     )
     
     args = parser.parse_args()
@@ -260,19 +260,11 @@ Examples:
     
     print(f"\nTotal size of junk files: {format_file_size(total_size)}")
     
-    if args.safe_mode:
+    if not args.delete_mode:
         print(f"\n[SAFE MODE] Would delete {len(all_junk_files)} file(s)")
-        print("Run without --safe-mode to actually delete these files")
+        print("Run with --delete-mode to actually delete these files")
         sys.exit(0)
-    
-    # Confirm deletion in non-safe mode
-    print(f"\n⚠️  DANGER: About to delete {len(all_junk_files)} file(s)!")
-    response = input("Are you sure? Type 'yes' to confirm: ")
-    
-    if response.lower() != 'yes':
-        print("Deletion cancelled - no files were deleted")
-        sys.exit(0)
-    
+        
     # Delete files
     print(f"\nDeleting junk files...\n")
     
