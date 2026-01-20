@@ -2,7 +2,7 @@
 #SBATCH -A bif154
 #SBATCH -J merge_ld_matrices
 #SBATCH -o merge_ld_matrices.log
-#SBATCH -N 30
+#SBATCH -N 75
 #SBATCH -p batch
 #SBATCH -t 2:00:00
 
@@ -27,10 +27,16 @@ python_splitter="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fi
 
 # Set directory locations
 input_dirs=(
-    "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_2500_random_all"
-    "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_3000_random_all"
-    "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_3500_random_all"
-    "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_4000_random_all"
+    "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_realistic_0_0kb"
+    "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_realistic_5e-4_100kb"
+    "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_realistic_5e-4_250kb"
+    "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_realistic_5e-4_500kb"
+    "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_realistic_5e-6_100kb"
+    "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_realistic_5e-6_250kb"
+    "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_realistic_5e-6_500kb"
+    "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_realistic_5e-8_100kb"
+    "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_realistic_5e-8_250kb"
+    "/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/beta-inferred_realistic_5e-8_500kb"
 )
 
 # Output location for commands and flux output
