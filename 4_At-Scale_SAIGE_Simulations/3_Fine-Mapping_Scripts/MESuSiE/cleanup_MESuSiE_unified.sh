@@ -62,7 +62,7 @@ num_nodes=${SLURM_NNODES}
 # Define heritabilities and trait types
 heritabilities=("5e-5" "3e-4")
 heritability_values=(0.00005 0.0003)
-trait_types=("all")
+trait_types=("all" "continuous" "binary")
 
 ################################################################################################################
 ######################################## Clean Junk Files from Output Directories #############################
