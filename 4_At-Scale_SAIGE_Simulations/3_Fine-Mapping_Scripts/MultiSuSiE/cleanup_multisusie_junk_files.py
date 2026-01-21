@@ -289,6 +289,8 @@ def find_all_junk_files_recursive(output_base_dir, valid_files_whitelist):
     all_junk_files = []
     
     for root, dirs, files in os.walk(output_base_dir):
+        # Skip 'timing' directories
+        dirs[:] = [d for d in dirs if d != 'timing']
         for filename in sorted(files):
             filepath = os.path.join(root, filename)
             
