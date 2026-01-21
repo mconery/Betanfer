@@ -3,9 +3,9 @@
 #SBATCH -A bif154
 #SBATCH -J CARMA_finemap_unified
 #SBATCH -o finemap_CARMA_unified.log
-#SBATCH -N 5646
+#SBATCH -N 1
 #SBATCH -p batch
-#SBATCH -t 1:00:00
+#SBATCH -t 2:00:00
 
 ################################################################################################################
 ################################################### Load Modules ###############################################
