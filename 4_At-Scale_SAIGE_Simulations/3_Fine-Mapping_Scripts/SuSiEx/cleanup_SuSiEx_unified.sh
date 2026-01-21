@@ -99,7 +99,8 @@ for i in "${!heritabilities[@]}"; do
       --ld-dir "${matrix_dir}" \
       --output-dir "${out_dir}" \
       --populations "${populations}" \
-      --heritability "${h_value}" >> "$cleanup_log_file" 2>&1
+      --heritability "${h_value}" \
+      --delete-mode >> "$cleanup_log_file" 2>&1
     
     if [ $? -ne 0 ]; then
       echo "WARNING: Cleanup scan failed for ${out_dir}" >&2
