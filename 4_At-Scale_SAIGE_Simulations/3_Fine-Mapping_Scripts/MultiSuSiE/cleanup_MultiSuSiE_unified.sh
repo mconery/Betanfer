@@ -3,7 +3,7 @@
 #SBATCH -A bif154
 #SBATCH -J MultiSuSiE_cleanup_unified
 #SBATCH -o cleanup_MultiSuSiE_all.log
-#SBATCH -N 6
+#SBATCH -N 1
 #SBATCH -p batch
 #SBATCH -t 2:00:00
 
