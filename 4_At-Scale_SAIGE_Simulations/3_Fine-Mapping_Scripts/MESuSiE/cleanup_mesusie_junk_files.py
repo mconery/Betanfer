@@ -270,7 +270,7 @@ def find_all_junk_files_recursive(output_base_dir, valid_files_whitelist):
     
     for root, dirs, files in os.walk(output_base_dir):
         # Skip RDS files directories - these are expected MESuSiE output
-        dirs[:] = [d for d in dirs if d != 'timing']
+        dirs[:] = [d for d in dirs if d != 'timing' and d != 'rds_files']
         
         for filename in sorted(files):
             filepath = os.path.join(root, filename)
