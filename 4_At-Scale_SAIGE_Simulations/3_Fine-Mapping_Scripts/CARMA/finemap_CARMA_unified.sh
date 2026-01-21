@@ -3,9 +3,9 @@
 #SBATCH -A bif154
 #SBATCH -J CARMA_finemap_unified
 #SBATCH -o finemap_CARMA_unified.log
-#SBATCH -N 5646
+#SBATCH -N 400
 #SBATCH -p batch
-#SBATCH -t 1:00:00
+#SBATCH -t 2:00:00
 
 ################################################################################################################
 ################################################### Load Modules ###############################################
@@ -28,7 +28,9 @@ python_splitter="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fi
 node_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/flux_node_worker.sh"
 
 # Set environment location
-map_enviro="/lustre/orion/bif154/proj-shared/mconery/tools/environments/carma"
+ENV_NAME=carma
+TAR_FILE=${ENV_NAME}.tar.gz
+TAR_DIR="/lustre/orion/bif154/proj-shared/mconery/tools/environments"
 
 # Set directories
 sumstats_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/meta_analysis_results"
@@ -49,6 +51,7 @@ master_commands_file="${command_files_dir}/master_carma_commands.txt"
 
 # Set number of nodes
 num_nodes=${SLURM_NNODES}
+NNODES=${SLURM_NNODES}
 
 # Define heritabilities, trait types, and analysis types
 heritabilities=("5e-5" "3e-4")
@@ -266,12 +269,35 @@ if [ ${num_batch_files} -eq 0 ]; then
     exit 1
 fi
 
+##################################################################################################################
+################################################ Load Conda Environment ##########################################
+##################################################################################################################
+
+##### START OF SBCAST AND CONDA-UNPACK #####
+# Move a copy of the env to the NVMe on each node
+echo "copying ${ENV_NAME} to each node in the job"
+sbcast -pf ${TAR_DIR}/${TAR_FILE} /mnt/bb/${USER}/${TAR_FILE}
+if [ ! "$?" == "0" ]; then
+    # CHECK EXIT CODE. When SBCAST fails, it may leave partial files on the compute nodes, and if you continue to launch srun,
+    # your application may pick up partially complete shared library files, which would give you confusing errors.
+    echo "SBCAST failed!"
+    exit 1
+fi
+
+# Untar the environment file (only need 1 task per node to do this)
+srun -N ${NNODES} --ntasks-per-node 1 mkdir -p /mnt/bb/${USER}/${ENV_NAME}
+echo "untaring ${ENV_NAME}"
+srun -N ${NNODES} --ntasks-per-node 1 tar -xzf /mnt/bb/${USER}/${TAR_FILE} -C /mnt/bb/${USER}/${ENV_NAME}
+
+# Unpack the env
+source activate /mnt/bb/${USER}/${ENV_NAME}
+srun -N ${NNODES} --ntasks-per-node 1 conda-unpack
+##### END OF SBCAST AND CONDA-UNPACK #####
+
+
 ################################################################################################################
 ####################################### Execute Commands in Parallel #########################################
 ################################################################################################################
-
-# Activate environment
-source activate $map_enviro
 
 echo "[NODE $(hostname)] Starting node-local Flux execution..."
 echo ""
