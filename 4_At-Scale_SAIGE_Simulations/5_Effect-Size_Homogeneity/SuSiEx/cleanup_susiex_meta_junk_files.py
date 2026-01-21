@@ -171,8 +171,6 @@ def build_whitelist(gwas_dir, matrix_types, target_heritability=None, filter_key
     # Find all causal files in GWAS directory
     causal_pattern = os.path.join(gwas_dir, "*_causal*.step2.txt")
     causal_files = glob.glob(causal_pattern)
-    print(len(causal_files))
-    print(causal_files[0])
     
     # Parse each GWAS file and build expected output list
     for gwas_file in causal_files:
