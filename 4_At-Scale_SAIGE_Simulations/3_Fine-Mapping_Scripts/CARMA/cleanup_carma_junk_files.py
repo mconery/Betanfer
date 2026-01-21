@@ -467,14 +467,6 @@ Examples:
         print("Run with --delete-mode to actually delete these files")
         sys.exit(0)
     
-    # Confirm deletion
-    print(f"\n⚠️  DANGER: About to delete {len(all_junk_files)} file(s)!")
-    response = input("Are you sure? Type 'yes' to confirm: ")
-    
-    if response.lower() != 'yes':
-        print("Deletion cancelled - no files were deleted")
-        sys.exit(0)
-    
     # Delete files
     print(f"\nDeleting junk files...\n")
     
