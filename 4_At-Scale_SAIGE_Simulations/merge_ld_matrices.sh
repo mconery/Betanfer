@@ -318,8 +318,8 @@ batch_count=0
 
 for batch in ${batch_dir}/merge_batch_*.sh; do
   batch_name=\$(basename \${batch} .sh)
-  flux submit -N1 -n1 -c56 \\\
-    --output=${output_dir}/flux_output/\${batch_name}.log \\\
+  flux submit -N1 -n1 -c56 \
+    --output=${output_dir}/flux_output/\${batch_name}.log \
     bash \${batch}
   
   ((batch_count++))
