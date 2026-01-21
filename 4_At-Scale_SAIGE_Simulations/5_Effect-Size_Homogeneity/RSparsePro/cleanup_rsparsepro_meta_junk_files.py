@@ -304,7 +304,7 @@ def find_all_junk_files_recursive(output_base_dir, valid_files_whitelist):
     all_junk_files = []
     
     for root, dirs, files in os.walk(output_base_dir):
-        dirs[:] = [d for d in dirs if d != 'timing']
+        dirs[:] = [d for d in dirs if d != 'timing' and d != 'z-score_files']
         for filename in sorted(files):
             filepath = os.path.join(root, filename)
             
