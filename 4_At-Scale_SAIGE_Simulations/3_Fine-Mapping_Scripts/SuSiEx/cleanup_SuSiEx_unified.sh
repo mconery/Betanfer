@@ -1,8 +1,8 @@
 #!/bin/bash
 
 #SBATCH -A bif154
-#SBATCH -J SuSiEx_cleanup_all
-#SBATCH -o cleanup_SuSiEx_all.log
+#SBATCH -J SuSiEx_cleanup_unified
+#SBATCH -o cleanup_SuSiEx_unified.log
 #SBATCH -N 1
 #SBATCH -p batch
 #SBATCH -t 2:00:00
