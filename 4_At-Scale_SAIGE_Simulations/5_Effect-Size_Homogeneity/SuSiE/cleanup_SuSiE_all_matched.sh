@@ -5,7 +5,7 @@
 #SBATCH -o cleanup_SuSiE_all_matched.log
 #SBATCH -N 1
 #SBATCH -p batch
-#SBATCH -t 0:30:00
+#SBATCH -t 2:00:00
 
 ################################################################################################################
 ################################################### Load Modules ###############################################
@@ -106,7 +106,8 @@ python "$CLEANUP_SCRIPT" \
   --output-dir "$OUTPUT_DIR" \
   --heritability "$H_VALUE" \
   --analysis-type "$ANALYSIS_TYPE" \
-  --filter-keyword "$MATCH_TYPE"
+  --filter-keyword "$MATCH_TYPE" \
+  --delete-mode
 
 if [ $? -ne 0 ]; then
   echo "ERROR: Cleanup scan failed for $OUTPUT_DIR"
