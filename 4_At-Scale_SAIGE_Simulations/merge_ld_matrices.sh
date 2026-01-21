@@ -282,7 +282,7 @@ python "${python_splitter}" \
   -s ".sh"
 
 # Verify batch creation
-num_batch_files=$(ls -1 "${batch_dir}"/batch_*.sh 2>/dev/null | wc -l)
+num_batch_files=$(ls -1 "${batch_dir}"/merge_batch_*.sh 2>/dev/null | wc -l)
 echo "Created ${num_batch_files} batch files in ${batch_dir}"
 
 if [ ${num_batch_files} -eq 0 ]; then
