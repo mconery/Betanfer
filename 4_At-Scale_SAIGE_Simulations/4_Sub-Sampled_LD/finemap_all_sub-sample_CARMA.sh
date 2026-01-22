@@ -21,8 +21,8 @@ module load flux
 ################################################################################################################
 
 # Set script locations
-map_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/finemap_CARMA.R"
-command_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/generate_carma_commands.py"
+map_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/CARMA/finemap_CARMA.R"
+command_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/CARMA/generate_carma_commands.py"
 
 #Set environment location
 map_enviro="/lustre/orion/bif154/proj-shared/mconery/tools/environments/carma"
@@ -30,7 +30,7 @@ map_enviro="/lustre/orion/bif154/proj-shared/mconery/tools/environments/carma"
 #Set directories
 sumstats_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/meta_analysis_results"
 matrix_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/raw_in-sample"
-out_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/fine-mapping_results/sub-sample_LD/carma_results"
+out_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/fine-mapping_results/fixed_sub-sample_LD_3e-4/carma_results"
 
 #Set command file
 command_file=$out_dir/"carma_commands.txt"
@@ -42,7 +42,7 @@ num_nodes=${SLURM_NNODES}
 ############################################## Prep Mapping Commands ###########################################
 ################################################################################################################
 
-python $command_script --wrapper-script $map_script --gwas-dir $sumstats_dir --ld-dir $matrix_dir --output-dir $out_dir --commands-file $command_file --matrix-types sub-sample_1000,sub-sample_5000,sub-sample_10000,sub-sample_50000,sub-sample_100000,sub-sample_200000,sub-sample_300000 --skip-existing --heritability 0.0003
+python $command_script --wrapper-script $map_script --gwas-dir $sumstats_dir --ld-dir $matrix_dir --output-dir $out_dir --commands-file $command_file --matrix-types sub-sample_1000,sub-sample_5000,sub-sample_10000,sub-sample_50000,sub-sample_100000,sub-sample_200000,sub-sample_300000 --skip-existing --heritability 0.0003 --analysis-type fixed
 
 ################################################################################################################
 ################################## Execute Mapping Commands in Parallel ########################################
