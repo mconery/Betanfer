@@ -5,7 +5,7 @@
 #SBATCH -o cleanup_SuSiEx_all_matched.log
 #SBATCH -N 1
 #SBATCH -p batch
-#SBATCH -t 2:00:00
+#SBATCH -t 0:30:00
 
 ################################################################################################################
 ################################################### Load Modules ###############################################
@@ -20,25 +20,22 @@ module load miniforge3
 # Set script location
 cleanup_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/5_Effect-Size_Homogeneity/SuSiEx/cleanup_susiex_meta_junk_files.py"
 
-# Set environment location
-map_enviro="/lustre/orion/bif154/proj-shared/mconery/tools/environments/susiex"
-
-# Set directories
-sumstats_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/meta_analysis_results"
+# Set directories - NOTE: SuSiEx uses step2_results (population subdirectories), NOT meta_analysis_results
+sumstats_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step2_results"
 matrix_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices"
 
 # Base output directory for fine-mapping results
 base_finemap_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/fine-mapping_results"
 
-# Define heritabilities, trait types, and analysis types
+# Define heritabilities and match types for SuSiEx matched analysis
 heritabilities=("5e-5" "3e-4")
 heritability_values=(0.00005 0.0003)
 trait_types=("all" "continuous" "binary")
-analysis_types=("fixed")
 match_types=("matched_to_EUR" "matched_to_AFR")
 
 # Total cleanup jobs: 2 heritabilities × 2 match types = 4
-# (Note: trait_types don't affect output filenames, so we clean all together)
+# Note: SuSiEx uses flat output structure (base_finemap_dir/susiex_results), 
+# NOT analysis_type-based subdirectories like SuSiE/CARMA/RSparsePro
 
 ################################################################################################################
 ############################ Create and Execute Cleanup Jobs in Parallel ######################################
@@ -49,7 +46,6 @@ echo "STARTING SUSIEX FINE-MAPPING JUNK FILE CLEANUP (Matched Effect-Size Analys
 echo "=================================================="
 echo "Start time: $(date)"
 echo "Per-SNP heritabilities: ${heritabilities[@]}"
-echo "Analysis types: ${analysis_types[@]}"
 echo "Match types: ${match_types[@]}"
 echo "Cleanup mode: SAFE MODE (files will NOT be deleted)"
 echo "=================================================="
@@ -66,26 +62,22 @@ echo ""
 # Counter for cleanup jobs
 total_cleanup_jobs=0
 
-# Activate environment before launching cleanup jobs
-source activate $map_enviro
-
 # Create individual cleanup job scripts for parallel execution
 for h_idx in "${!heritabilities[@]}"; do
   h_label=${heritabilities[$h_idx]}
   h_value=${heritability_values[$h_idx]}
   
-  for analysis_type in "${analysis_types[@]}"; do
+  for match_type in "${match_types[@]}"; do
     
-    for match_type in "${match_types[@]}"; do
-      
-      # Define output directory for this configuration
-      h_dir="${analysis_type}_${match_type}_${h_label}"
-      out_dir="${base_finemap_dir}/${h_dir}/susiex_results"
-      
-      # Create job script
-      job_script="${cleanup_jobs_dir}/cleanup_job_${total_cleanup_jobs}.sh"
-      
-      cat > "$job_script" << 'JOBEOF'
+    # For SuSiEx, output is in base_finemap_dir/susiex_results/ (not split by analysis_type)
+    # But we need to scan all matrices for this heritability and match_type
+    h_dir="fixed_${match_type}_${h_label}"
+    out_dir="${base_finemap_dir}/${h_dir}/susiex_results"
+    
+    # Create job script
+    job_script="${cleanup_jobs_dir}/cleanup_job_${total_cleanup_jobs}.sh"
+    
+    cat > "$job_script" << 'JOBEOF'
 #!/bin/bash
 
 set -e
@@ -95,17 +87,17 @@ GWAS_DIR="PLACEHOLDER_GWAS_DIR"
 MATRIX_DIR="PLACEHOLDER_MATRIX_DIR"
 OUTPUT_DIR="PLACEHOLDER_OUTPUT_DIR"
 H_VALUE="PLACEHOLDER_H_VALUE"
-ANALYSIS_TYPE="PLACEHOLDER_ANALYSIS_TYPE"
 MATCH_TYPE="PLACEHOLDER_MATCH_TYPE"
 
 echo "Scanning for junk files in: $OUTPUT_DIR"
+echo "  Heritability: $H_VALUE"
+echo "  Match type: $MATCH_TYPE"
 
 python "$CLEANUP_SCRIPT" \
   --gwas-dir "$GWAS_DIR" \
   --ld-dir "$MATRIX_DIR" \
   --output-dir "$OUTPUT_DIR" \
   --heritability "$H_VALUE" \
-  --analysis-type "$ANALYSIS_TYPE" \
   --filter-keyword "$MATCH_TYPE"
 
 if [ $? -ne 0 ]; then
@@ -113,7 +105,7 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-echo "✓ Cleanup scan completed for ${ANALYSIS_TYPE}_${MATCH_TYPE}_${H_VALUE}"
+echo "✓ Cleanup scan completed for ${MATCH_TYPE} (h²=${H_VALUE})"
 
 JOBEOF
 
@@ -123,15 +115,12 @@ JOBEOF
       sed -i "s|PLACEHOLDER_MATRIX_DIR|$matrix_dir|g" "$job_script"
       sed -i "s|PLACEHOLDER_OUTPUT_DIR|$out_dir|g" "$job_script"
       sed -i "s|PLACEHOLDER_H_VALUE|$h_value|g" "$job_script"
-      sed -i "s|PLACEHOLDER_ANALYSIS_TYPE|$analysis_type|g" "$job_script"
       sed -i "s|PLACEHOLDER_MATCH_TYPE|$match_type|g" "$job_script"
       
       chmod +x "$job_script"
       
       ((total_cleanup_jobs++))
       
-    done
-    
   done
   
 done
@@ -182,4 +171,4 @@ echo ""
 echo "To enable actual deletion, modify the cleanup jobs to use --delete-mode flag"
 echo "and ensure user confirmation is provided interactively."
 echo ""
-echo "Fine-mapping results location: ${base_finemap_dir}"
+echo "SuSiEx fine-mapping results location: ${base_finemap_dir}/susiex_results"
