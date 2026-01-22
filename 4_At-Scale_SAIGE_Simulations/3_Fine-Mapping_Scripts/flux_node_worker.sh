@@ -60,7 +60,6 @@ trap cleanup EXIT
 
 BATCH_FILE=""
 EXECUTE_SCRIPT=""
-MAP_ENVIRO=""
 NODE_ID=${SLURM_NODEID}
 DRY_RUN=false
 TEST_MODE=false
@@ -77,10 +76,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     --execute-script|-c)
       EXECUTE_SCRIPT="$2"
-      shift 2
-      ;;
-    --env|-e)
-      MAP_ENVIRO="$2"
       shift 2
       ;;
     --dry-run|-d)
@@ -150,11 +145,6 @@ if [[ -z "${EXECUTE_SCRIPT}" ]]; then
     exit 1
 fi
 
-if [[ -z "${MAP_ENVIRO}" ]]; then
-    echo "ERROR: --env is required"
-    exit 1
-fi
-
 if [[ ! -f "${BATCH_FILE}" ]]; then
     echo "ERROR: Batch file not found: ${BATCH_FILE}"
     exit 1
@@ -165,10 +155,6 @@ if [[ ! -f "${EXECUTE_SCRIPT}" ]]; then
     exit 1
 fi
 
-if [[ ! -d "${MAP_ENVIRO}" ]]; then
-    echo "ERROR: Conda environment not found: ${MAP_ENVIRO}"
-    exit 1
-fi
 
 ################################################################################
 # CONFIGURATION
@@ -188,7 +174,6 @@ print_status "Cores per job: ${CORES_PER_JOB}"
 print_status "Max concurrent jobs: ${MAX_CONCURRENT}"
 print_status "Batch file: ${BATCH_FILE}"
 print_status "Execution script: ${EXECUTE_SCRIPT}"
-print_status "Conda environment: ${MAP_ENVIRO}"
 
 ################################################################################
 # COUNT COMMANDS
@@ -218,12 +203,6 @@ if [[ "${TEST_MODE}" == "true" ]]; then
     print_status "Running first command only for testing"
 fi
 
-################################################################################
-# SETUP CONDA ENVIRONMENT
-################################################################################
-
-print_status "Activating conda environment..."
-source activate "${MAP_ENVIRO}" 2>&1 | grep -v "^$" | head -3
 
 ################################################################################
 # SETUP BROKER STATE DIRECTORY
