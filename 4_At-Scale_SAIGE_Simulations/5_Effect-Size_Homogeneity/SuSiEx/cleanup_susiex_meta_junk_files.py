@@ -23,7 +23,7 @@ Whitelist generation logic:
 1. Scan population subdirectories in GWAS directory
 2. Parse causal files matching target heritability and filter keyword
 3. Extract pheno_causal, trait_type combinations
-4. For each trait_type × pheno_causal combo, build list of expected outputs
+4. For each trait_type Ã— pheno_causal combo, build list of expected outputs
 5. Expected output filenames: {pheno_causal}.{trait_type}.{matrix_type}.txt
 6. Scan output directory for unexpected files (not in whitelist)
 """
@@ -265,7 +265,7 @@ def delete_files_with_confirmation(junk_files):
     
     if len(junk_files) > 10:
         print(f"  ... and {len(junk_files) - 10} more files")
-    
+        
     deleted_count = 0
     failed_count = 0
     
@@ -274,12 +274,12 @@ def delete_files_with_confirmation(junk_files):
             if os.path.exists(filepath):
                 os.remove(filepath)
                 deleted_count += 1
-                print(f"✓ Deleted: {filepath}")
+                print(f"âœ“ Deleted: {filepath}")
             else:
-                print(f"⚠ File not found: {filepath}")
+                print(f"âš  File not found: {filepath}")
         except Exception as e:
             failed_count += 1
-            print(f"✗ Failed to delete {filepath}: {e}")
+            print(f"âœ— Failed to delete {filepath}: {e}")
     
     print(f"\nDeletion summary:")
     print(f"  Successfully deleted: {deleted_count}")
@@ -355,7 +355,7 @@ def cleanup_susiex(gwas_dir, ld_dir, output_dir, heritability=None, filter_keywo
     print(f"Found {len(junk_files)} potential junk file(s)")
     
     if len(junk_files) == 0:
-        print("✓ No junk files found. Output directory is clean!")
+        print("âœ“ No junk files found. Output directory is clean!")
         print()
         return True
     
