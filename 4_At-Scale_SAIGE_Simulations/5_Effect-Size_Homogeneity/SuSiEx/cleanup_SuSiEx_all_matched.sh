@@ -98,7 +98,8 @@ python "$CLEANUP_SCRIPT" \
   --ld-dir "$MATRIX_DIR" \
   --output-dir "$OUTPUT_DIR" \
   --heritability "$H_VALUE" \
-  --filter-keyword "$MATCH_TYPE"
+  --filter-keyword "$MATCH_TYPE" \
+  --delete-mode
 
 if [ $? -ne 0 ]; then
   echo "ERROR: Cleanup scan failed for $OUTPUT_DIR"
@@ -164,11 +165,3 @@ echo ""
 
 # Cleanup temporary job scripts
 rm -rf "$cleanup_jobs_dir"
-
-echo "All cleanup scans completed in SAFE MODE"
-echo "No files were deleted - all findings are for informational purposes only"
-echo ""
-echo "To enable actual deletion, modify the cleanup jobs to use --delete-mode flag"
-echo "and ensure user confirmation is provided interactively."
-echo ""
-echo "SuSiEx fine-mapping results location: ${base_finemap_dir}/susiex_results"
