@@ -3,7 +3,7 @@
 #SBATCH -A bif154
 #SBATCH -J CARMA_finemap_unified
 #SBATCH -o finemap_CARMA_unified.log
-#SBATCH -N 400
+#SBATCH -N 40
 #SBATCH -p batch
 #SBATCH -t 2:00:00
 
@@ -309,8 +309,7 @@ srun -N ${num_nodes} -n ${num_nodes} \
   bash "${node_script}" \
     --batch-file-prefix "${batch_dir}/carma_finemap_batch_" \
     --batch-file-suffix ".txt" \
-    --execute-script "$map_script" \
-    --env "$map_enviro" 
+    --execute-script "$map_script" 
 
 wait
 
