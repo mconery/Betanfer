@@ -22,8 +22,8 @@ module load flux
 ################################################################################################################
 
 # Set script locations
-map_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/finemap_MultiSuSiE.py"
-command_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/generate_multisusie_commands.py"
+map_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/MultiSuSiE/finemap_MultiSuSiE.py"
+command_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/MultiSuSiE/generate_multisusie_commands.py"
 
 #Set environment location
 map_enviro="/lustre/orion/bif154/proj-shared/mconery/tools/environments/multisusie"
@@ -32,7 +32,7 @@ map_enviro="/lustre/orion/bif154/proj-shared/mconery/tools/environments/multisus
 sumstats_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step2_results"
 matrix_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices/raw_in-sample"
 pheno_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/simulated_phenotypes"
-out_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/fine-mapping_results/sub-sample_LD/multisusie_results"
+out_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/fine-mapping_results/random_sub-sample_LD_3e-4/multisusie_results"
 
 #Set command file
 command_file=$out_dir/"multisusie_commands.txt"
