@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
 """
-Script to identify and remove junk files from SuSiEx fine-mapping output directories.
+Script to identify and remove junk files from MultiSuSiE fine-mapping output directories.
 
-This script scans SuSiEx output directories and removes files that were not
+This script scans MultiSuSiE output directories and removes files that were not
 explicitly generated as final results.
 
 For meta-analysis dropped causal runs:
@@ -79,7 +79,7 @@ def parse_gwas_filename(meta_filename, target_heritability=None):
     """
     Parse GWAS filename to extract components.
     
-    For SuSiEx drop_causal analysis:
+    For MultiSuSiE drop_causal analysis:
     Expected formats:
     - Central pop: Pheno#.#_causal.heritability_#.#.continuous/binary_0.25.chr#.drop_causal.step2.txt
     - Other pops: Pheno#.#_causal.heritability_#.#.continuous/binary_0.25.chr#.step2.txt
@@ -221,7 +221,7 @@ def build_whitelist(gwas_dir, matrix_types, central_pop, target_heritability=Non
         
         # For each matrix type, create expected output filename
         for matrix_type in matrix_types:
-            output_filename = f"{pheno_causal}.{trait_type}.{matrix_type}.txt"
+            output_filename = f"{pheno_causal}.{trait_type}.{matrix_type}.multisusie.txt"
             whitelist.add(output_filename)
     
     return whitelist
@@ -231,7 +231,7 @@ def find_junk_files(output_dir, whitelist):
     """
     Find files in output directory that are not in the whitelist.
     
-    For SuSiEx, looks for unexpected txt files in matrix_type subdirectories.
+    For MultiSuSiE, looks for unexpected txt files in matrix_type subdirectories.
     
     Parameters:
     - output_dir: Output directory to scan
@@ -249,7 +249,7 @@ def find_junk_files(output_dir, whitelist):
     # Find all txt files in output directory and subdirectories
     for root, dirs, files in os.walk(output_dir):
         for filename in files:
-            # Look for txt files (SuSiEx output format)
+            # Look for txt files (MultiSuSiE output format)
             if filename.endswith('.txt'):
                 # Check if file is in whitelist
                 if filename not in whitelist:
@@ -309,20 +309,20 @@ def delete_files_with_confirmation(junk_files):
     return deleted_count
 
 
-def cleanup_susiex_drop_causal(gwas_dir, ld_dir, output_dir, central_pop, heritability=None, delete_mode=False):
+def cleanup_multisusie_drop_causal(gwas_dir, ld_dir, output_dir, central_pop, heritability=None, delete_mode=False):
     """
-    Main cleanup function for SuSiEx drop_causal fine-mapping results.
+    Main cleanup function for MultiSuSiE drop_causal fine-mapping results.
     
     Parameters:
     - gwas_dir: Base directory containing population subdirectories with GWAS stats
     - ld_dir: Directory containing LD matrices
-    - output_dir: SuSiEx output directory to clean
+    - output_dir: MultiSuSiE output directory to clean
     - central_pop: Central population (the one with drop_causal files)
     - heritability: Target heritability value
     - delete_mode: Whether to actually delete files
     """
     print("=" * 80)
-    print("SUSIEX FINE-MAPPING JUNK FILE CLEANUP (DROP_CAUSAL ANALYSIS)")
+    print("MULTISUSIE FINE-MAPPING JUNK FILE CLEANUP (DROP_CAUSAL ANALYSIS)")
     print("=" * 80)
     print(f"GWAS base directory: {gwas_dir}")
     print(f"  (contains population subdirectories with step2_results)")
@@ -412,35 +412,35 @@ def cleanup_susiex_drop_causal(gwas_dir, ld_dir, output_dir, central_pop, herita
 def main():
     """Main function with command line argument parsing."""
     parser = argparse.ArgumentParser(
-        description='Clean up junk files from SuSiEx drop_causal fine-mapping output directories',
+        description='Clean up junk files from MultiSuSiE drop_causal fine-mapping output directories',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 IMPORTANT: This script is specifically for DROP_CAUSAL analysis, where:
 - Central population uses files with .drop_causal in the name
 - Other populations use standard files (without .drop_causal)
 
-For matched_effects analysis, use the standard cleanup_susiex_meta_junk_files.py script.
+For matched_effects analysis, use the standard cleanup_multisusie_meta_junk_files.py script.
 
 EXAMPLES:
 
 Safe mode scan (default, no deletion):
-  python cleanup_susiex_drop_causal_junk_files.py \\
+  python cleanup_multisusie_drop_causal_junk_files.py \\
     --gwas-dir /path/to/step2_results \\
     --ld-dir /path/to/LD_matrices \\
-    --output-dir /path/to/susiex_results \\
+    --output-dir /path/to/multisusie_results \\
     --central-pop EUR \\
     --heritability 0.0003
 
 Delete mode with confirmation:
-  python cleanup_susiex_drop_causal_junk_files.py \\
+  python cleanup_multisusie_drop_causal_junk_files.py \\
     --gwas-dir /path/to/step2_results \\
     --ld-dir /path/to/LD_matrices \\
-    --output-dir /path/to/susiex_results \\
+    --output-dir /path/to/multisusie_results \\
     --central-pop AFR \\
     --delete-mode
 
 List detected matrix types:
-  python cleanup_susiex_drop_causal_junk_files.py \\
+  python cleanup_multisusie_drop_causal_junk_files.py \\
     --ld-dir /path/to/LD_matrices \\
     --list-matrices
 """
@@ -451,7 +451,7 @@ List detected matrix types:
     parser.add_argument('--ld-dir', '-l', required=True,
                        help='Base directory containing LD matrices')
     parser.add_argument('--output-dir', '-o', required=True,
-                       help='SuSiEx output directory to clean')
+                       help='MultiSuSiE output directory to clean')
     parser.add_argument('--central-pop', '-cp', required=True,
                        help='Central population (the one with drop_causal files)')
     parser.add_argument('--heritability', type=float, default=0.0003,
@@ -495,7 +495,7 @@ List detected matrix types:
         return 1
     
     # Run cleanup
-    success = cleanup_susiex_drop_causal(
+    success = cleanup_multisusie_drop_causal(
         gwas_dir=args.gwas_dir,
         ld_dir=args.ld_dir,
         output_dir=args.output_dir,
