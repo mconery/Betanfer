@@ -266,13 +266,6 @@ def delete_files_with_confirmation(junk_files):
     if len(junk_files) > 10:
         print(f"  ... and {len(junk_files) - 10} more files")
     
-    # Ask for confirmation
-    response = input(f"\nPermanently delete these {len(junk_files)} file(s)? (yes/no): ").strip().lower()
-    
-    if response != 'yes':
-        print("Deletion cancelled.")
-        return 0
-    
     deleted_count = 0
     failed_count = 0
     
