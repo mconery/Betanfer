@@ -247,14 +247,14 @@ echo ""
 echo "Creating batched command files using parallel Python splitter..."
 
 # Clean up any existing susie batch files
-rm -f "${batch_dir}"/susie_finemap_batch_*.txt
+rm -f "${command_files_dir}"/susie_finemap_batch_*.txt
 
 #Calculate number of batches
 num_batches=$(( num_nodes * 28 ))
 # Use Python splitter for fast parallel batch creation
 python "${python_splitter}" \
     -i "${master_commands_file}" \
-    -o "${batch_dir}" \
+    -o "${command_files_dir}" \
     -n "${num_batches}" \
     -p "susie_finemap_batch_" \
     -s ".txt"
@@ -265,8 +265,8 @@ if [ $? -ne 0 ]; then
 fi
 
 # Verify batch creation
-num_batch_files=$(ls "${batch_dir}" | grep -c "^susie_finemap_batch_" || true)
-echo "Verified: Created ${num_batch_files} batch files in ${batch_dir}"
+num_batch_files=$(ls "${command_files_dir}" | grep -c "^susie_finemap_batch_" || true)
+echo "Verified: Created ${num_batch_files} batch files in ${command_files_dir}"
 
 if [ ${num_batch_files} -eq 0 ]; then
     echo "ERROR: No batch files were created"
