@@ -244,11 +244,13 @@ echo "Creating batched command files using parallel Python splitter..."
 # Clean up any existing rsparsepro batch files
 rm -f "${batch_dir}"/rsparsepro_finemap_batch_*.txt
 
+#Calculate number of batches
+num_batches=$(( num_nodes * 28 ))
 # Use Python splitter for fast parallel batch creation
 python "${python_splitter}" \
     -i "${master_commands_file}" \
     -o "${batch_dir}" \
-    -n "${num_nodes}" \
+    -n "${num_batches}" \
     -p "rsparsepro_finemap_batch_" \
     -s ".txt"
 
@@ -270,21 +272,74 @@ fi
 ####################################### Execute Commands in Parallel #########################################
 ################################################################################################################
 
-# Activate environment
-source activate $map_enviro
-
-echo "[NODE $(hostname)] Starting node-local Flux execution..."
 echo ""
+echo "Starting flux-based execution of batched RSparsePro fine-mapping commands at $(date)"
 
-# Each node runs the worker script with its assigned batch
-srun -N ${num_nodes} -n ${num_nodes} \
-  --ntasks-per-node=1 \
-  --cpus-per-task=56 \
-  bash "${node_script}" \
-    --batch-file-prefix "${batch_dir}/rsparsepro_finemap_batch_" \
-    --batch-file-suffix ".txt" \
-    --execute-script "$map_script" 
+# Create flux output directory
+flux_output_dir="${base_finemap_dir}/flux_output"
+mkdir -p "$flux_output_dir"
 
-wait
+# Start Flux and submit batch jobs
+srun -N ${num_nodes} -n ${num_nodes} -c 56 flux start bash -c "
+    # Display Flux resource allocation
+    echo \"Flux instance started at \$(date)\"
+    echo \"Available resources:\"
+    flux resource list
+    echo \"\"
+    
+    # Submit all batch files to Flux
+    echo \"Submitting ${num_batch_files} batches to Flux queue...\"
+    batch_count=0
+    for batch in ${command_files_dir}/rsparsepro_finemap_batch_*.sh; do
+        batch_name=\$(basename \${batch} .sh)
+        flux submit -N1 -n1 -c2 \
+            --output=${flux_output_dir}/\${batch_name}.log \
+            bash \${batch}
+        
+        ((batch_count++))
+        
+        # Print progress every 20 batches
+        if [ \$((batch_count % 20)) -eq 0 ]; then
+            echo \"  Submitted \${batch_count}/${num_batch_files} batches\"
+        fi
+    done
+    
+    echo \"All ${num_batch_files} batches submitted to Flux queue at \$(date)\"
+    echo \"\"
+    
+    # Wait for all jobs to complete
+    echo \"Waiting for all batches to complete...\"
+    flux queue drain
+    
+    echo \"\"
+    echo \"All batches completed at \$(date)\"
+    
+    # Display final resource status
+    echo \"Final Flux resource status:\"
+    flux resource list
+"
 
-echo "SUCCESS: All jobs finished!"
+################################################################################################################
+################################## Post-processing and cleanup ##################################################
+################################################################################################################
+
+echo ""
+echo "Post-processing results..."
+
+# Count successful batch completions by checking for output files
+successful_batches=$(ls -1 "${flux_output_dir}"/rsparsepro_finemap_batch_*.log 2>/dev/null | wc -l)
+echo "Successfully completed batches: ${successful_batches}/${num_batch_files}"
+
+# Check for any failed batches
+if [ ${successful_batches} -ne ${num_batch_files} ]; then
+    echo "WARNING: Some batches may have failed. Check logs in ${flux_output_dir}"
+fi
+
+# Cleanup temporary job scripts
+rm -rf "$jobs_dir"
+
+echo ""
+echo "RSparsePro fine-mapping workflow completed at $(date)"
+echo "Batch files retained in: ${command_files_dir}"
+echo "Flux logs available in: ${flux_output_dir}"
+echo "Fine-mapping results in: ${base_finemap_dir}"
