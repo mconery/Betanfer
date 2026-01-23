@@ -3,7 +3,7 @@
 #SBATCH -A bif154
 #SBATCH -J SuSiE_finemap_realistic
 #SBATCH -o finemap_SuSiE_realistic.log
-#SBATCH -N 40
+#SBATCH -N 1
 #SBATCH -p batch
 #SBATCH -t 2:00:00
 
