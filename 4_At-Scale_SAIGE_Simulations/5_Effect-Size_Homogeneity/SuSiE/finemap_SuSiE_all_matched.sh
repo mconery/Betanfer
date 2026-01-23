@@ -254,11 +254,13 @@ echo "Creating batched command files using parallel Python splitter..."
 # Clean up any existing susie batch files
 rm -f "${command_files_dir}"/susie_finemap_matched_batch_*.sh
 
+#Calculate number of batches
+num_batches=$(( num_nodes * 28 ))
 # Use Python splitter for fast parallel batch creation
 python "${python_splitter}" \
     -i "${master_commands_file}" \
     -o "${command_files_dir}" \
-    -n "${num_nodes}" \
+    -n "${num_batches}" \
     -p "susie_finemap_matched_batch_" \
     -s ".sh" 
 
