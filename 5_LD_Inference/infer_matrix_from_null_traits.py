@@ -71,33 +71,33 @@ from extraction_utils import (
 def filter_traits_by_type(indexed_files, trait_type):
     """
     Filter indexed files based on trait type (continuous or binary).
-
+    
     This function identifies trait type by examining the filename for keywords:
     - 'binary' or 'case_control' -> binary traits
     - 'quantitative' or 'continuous' -> continuous traits
-
+    
     Args:
         indexed_files: List of (gz_file, tbi_file) tuples
         trait_type: Filter type - 'all', 'continuous', or 'binary'
-
+    
     Returns:
         Filtered list of (gz_file, tbi_file) tuples
     """
     if trait_type == 'all':
         return indexed_files
-
+    
     filtered = []
-
+    
     for gz_file, tbi_file in indexed_files:
         basename = os.path.basename(gz_file).lower()
-
+        
         # Detect trait type from filename
         is_binary = any(keyword in basename for keyword in ['binary', 'case_control', 'cc'])
         is_continuous = any(keyword in basename for keyword in ['quantitative', 'continuous', 'quant'])
-
+        
         # If trait type not explicitly in filename, try to infer (optional)
         # You may need to adjust this logic based on your naming convention
-
+        
         if trait_type == 'binary' and is_binary:
             filtered.append((gz_file, tbi_file))
         elif trait_type == 'continuous' and is_continuous:
@@ -105,7 +105,7 @@ def filter_traits_by_type(indexed_files, trait_type):
         elif trait_type == 'continuous' and not is_binary and not is_continuous:
             # Default to continuous if type not clear (conservative approach)
             filtered.append((gz_file, tbi_file))
-
+    
     return filtered
 
 def main():
@@ -132,26 +132,26 @@ def main():
                         help="Device for computation [default: cuda]")
     parser.add_argument("--save_binary_prefix", type=str, default=None,
                         help="Optional prefix for PLINK binary format output (.vcor1 and .vcor1.vars)")
-
+    
     args = parser.parse_args()
-
+    
     # Validate inputs
     if not os.path.exists(args.indexed_dir):
         print(f"Error: Indexed directory does not exist: {args.indexed_dir}", file=sys.stderr)
         sys.exit(1)
-
+    
     if not os.path.exists(args.variant_file):
         print(f"Error: Variant file does not exist: {args.variant_file}", file=sys.stderr)
         sys.exit(1)
-
+    
     if args.n_traits <= 0:
         print(f"Error: Number of traits must be positive, got: {args.n_traits}", file=sys.stderr)
         sys.exit(1)
-
+    
     # Create output directory if it doesn't exist
     output_dir = os.path.dirname(os.path.abspath(args.output_file))
     os.makedirs(output_dir, exist_ok=True)
-
+    
     print(f"Creating LD matrix from indexed summary statistics")
     print(f"Input directory: {args.indexed_dir}")
     print(f"Variant file: {args.variant_file}")
@@ -160,34 +160,34 @@ def main():
     print(f"Trait type: {args.trait_type}")
     print(f"Random seed: {args.random_seed}")
     print(f"Device: {args.device}")
-
+    
     # Step 1: Find indexed summary statistics files
     print("\nStep 1: Discovering indexed summary statistics files...")
     indexed_files = find_indexed_sumstats_files(args.indexed_dir)
-
+    
     if not indexed_files:
         print(f"Error: No tabix-indexed files found in {args.indexed_dir}", file=sys.stderr)
         print("Expected to find pairs of .gz and .gz.tbi files.", file=sys.stderr)
         sys.exit(1)
-
+    
     print(f"Found {len(indexed_files)} indexed summary statistics files")
-
+    
     # Show some examples
     print("Sample files:")
     for i, (gz_file, tbi_file) in enumerate(indexed_files[:5]):
         print(f"  {os.path.basename(gz_file)}")
     if len(indexed_files) > 5:
         print(f"  ... and {len(indexed_files) - 5} more files")
-
+    
     # Step 1b: Filter traits by type
     if args.trait_type != "all":
         print(f"\nStep 1b: Filtering for {args.trait_type} traits...")
         indexed_files = filter_traits_by_type(indexed_files, args.trait_type)
-
+        
         if not indexed_files:
             print(f"Error: No {args.trait_type} trait files found after filtering", file=sys.stderr)
             sys.exit(1)
-
+        
         print(f"After filtering: {len(indexed_files)} {args.trait_type} trait files")
         print("Sample files:")
         for i, (gz_file, tbi_file) in enumerate(indexed_files[:5]):
@@ -203,7 +203,7 @@ def main():
     except Exception as e:
         print(f"Error loading variant file: {e}", file=sys.stderr)
         print("Trying alternative approach...", file=sys.stderr)
-
+        
         # Fallback: read file as plain text, one variant per line
         try:
             with open(args.variant_file, 'r') as f:
@@ -213,13 +213,13 @@ def main():
         except Exception as e2:
             print(f"Error with fallback method: {e2}", file=sys.stderr)
             sys.exit(1)
-
+    
     if not variants_to_extract:
         print(f"Error: No variants loaded from {args.variant_file}", file=sys.stderr)
         sys.exit(1)
-
+    
     print(f"Loaded {len(variants_to_extract)} variants to extract")
-
+    
     # Step 3: Create variant position mapping
     print("\nStep 3: Creating variant position mapping...")
     try:
@@ -235,7 +235,7 @@ def main():
     except Exception as e:
         print(f"Error creating variant position mapping: {e}", file=sys.stderr)
         sys.exit(1)
-
+    
     # Step 4: Sample traits
     print(f"\nStep 4: Sampling {args.n_traits} traits...")
     try:
@@ -246,11 +246,11 @@ def main():
             print(f"  {i+1:3d}: {os.path.basename(file_path)}")
         if len(selected_files) > 10:
             print(f"  ... and {len(selected_files) - 10} more files")
-
+    
     except Exception as e:
         print(f"Error sampling traits: {e}", file=sys.stderr)
         sys.exit(1)
-
+    
     # Step 5: Extract betas
     print("\nStep 5: Extracting beta values...")
     try:
@@ -262,15 +262,15 @@ def main():
             variant_map=variant_map
         )
         print(f"Extracted betas: {beta_matrix.shape[0]} variants × {beta_matrix.shape[1]} traits")
-
+        
         # Check for missing data
         missing_fraction = beta_matrix.isna().sum().sum() / (beta_matrix.shape[0] * beta_matrix.shape[1])
         print(f"Missing data fraction: {missing_fraction:.3f}")
-
+        
     except Exception as e:
         print(f"Error extracting beta values: {e}", file=sys.stderr)
         sys.exit(1)
-
+    
     # Step 6: Compute correlation matrix
     print("\nStep 6: Computing LD matrix using beta correlations...")
     try:
@@ -280,11 +280,11 @@ def main():
             save_prefix=args.save_binary_prefix
         )
         print(f"Computed LD matrix: {ld_matrix.shape[0]} × {ld_matrix.shape[1]}")
-
+    
     except Exception as e:
         print(f"Error computing correlation matrix: {e}", file=sys.stderr)
         sys.exit(1)
-
+    
     # Step 7: Save matrix
     print("\nStep 7: Saving LD matrix...")
     try:
@@ -292,19 +292,19 @@ def main():
         import pandas as pd
         variants_list = sorted(variants_to_extract)
         ld_df = pd.DataFrame(ld_matrix, index=variants_list, columns=variants_list)
-
+        
         save_beta_matrix(ld_df, args.output_file, compress=False)
         print(f"Saved LD matrix to: {args.output_file}")
-
+        
         if args.save_binary_prefix:
             print("Also saved binary format:")
             print(f"  Matrix: {args.save_binary_prefix}.vcor1")
             print(f"  Variants: {args.save_binary_prefix}.vcor1.vars")
-
+        
     except Exception as e:
         print(f"Error saving matrix: {e}", file=sys.stderr)
         sys.exit(1)
-
+        
     # Summary
     print(f"\n{'='*60}")
     print("LD MATRIX CREATION COMPLETE")
