@@ -14,7 +14,7 @@
 # Comma-separated population names
 POP_NAMES="AFR,EUR"
 #Enter meta-analysis types
-ANALYSIS_TYPE=fixed
+ANALYSIS_TYPE=random
 
 # Comma-separated population directories matching these names
 POP_DIRS="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step2_results/AFR,/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step2_results/EUR"
@@ -64,12 +64,12 @@ python ${CMD_SCRIPT} \
     --commands_file ${master_commands_file} \
     --analysis_type ${ANALYSIS_TYPE}
 
-if [ ! -f ${COMMANDS_FILE} ] || [ ! -s ${COMMANDS_FILE} ]; then
+if [ ! -f ${master_commands_file} ] || [ ! -s ${master_commands_file} ]; then
     echo "Error: No commands generated or commands file is empty"
     exit 1
 fi
 
-NUM_COMMANDS=$(wc -l < ${COMMANDS_FILE})
+NUM_COMMANDS=$(wc -l $master_commands_file)
 echo "Generated ${NUM_COMMANDS} meta-analysis commands"
 
 ##################################################################################################################
