@@ -40,9 +40,6 @@ base_finemap_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_
 command_files_dir="${base_finemap_dir}/command_files"
 mkdir -p "$command_files_dir"
 
-# Batch configuration
-commands_per_batch=200
-
 # Master commands file
 master_commands_file="${command_files_dir}/master_rsparsepro_drop_commands.txt"
 > "$master_commands_file" # Clear the file if it exists
@@ -267,11 +264,13 @@ echo "Creating batched command files using parallel Python splitter..."
 # Clean up any existing rsparsepro batch files
 rm -f "${command_files_dir}"/rsparsepro_finemap_drop_batch_*.sh
 
+#Calculate number of batches
+num_batches=$(( num_nodes * 28 ))
 # Use Python splitter for fast parallel batch creation
 python "${python_splitter}" \
     -i "${master_commands_file}" \
     -o "${command_files_dir}" \
-    -b ${commands_per_batch} \
+    -n ${num_batches} \
     -p "rsparsepro_finemap_drop_batch_" \
     -s ".sh"
 
