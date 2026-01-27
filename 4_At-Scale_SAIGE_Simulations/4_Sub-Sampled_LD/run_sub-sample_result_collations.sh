@@ -4,7 +4,6 @@
 #SBATCH -J Collate_finemap
 #SBATCH -o run_sub-sample_result_collations.log
 #SBATCH -N 1
-#SBATCH -q debug
 #SBATCH -t 1:00:00
 
 ################################################################################################################
@@ -23,7 +22,7 @@ module load flux
 
 # Define paths - MODIFY THESE TO MATCH YOUR ACTUAL PATHS
 CAUSAL_DIR="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/simulated_phenotypes/causal_variants"
-RESULTS_DIR="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/fine-mapping_results/sub-sample_LD"
+RESULTS_DIR="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/fine-mapping_results/random_sub-sample_LD_3e-4"
 OUTPUT_FILE="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/summary_results/sub-sample_LD.random_homo_3e-4.results_file.txt"
 
 #Fine-mapping collator script
