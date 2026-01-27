@@ -249,7 +249,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Verify batch creation
-num_batch_files=$(ls "${command_files_dir}" | grep -c "^rsparsepro_finemap_batch_" || true)
+num_batch_files=$(ls "${command_files_dir}" | grep -c "^rsparsepro_realistic_finemap_batch_" || true)
 echo "Verified: Created ${num_batch_files} batch files in ${command_files_dir}"
 
 if [ ${num_batch_files} -eq 0 ]; then
