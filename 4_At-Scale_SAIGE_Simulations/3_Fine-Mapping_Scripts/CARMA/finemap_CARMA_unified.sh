@@ -39,9 +39,7 @@ base_finemap_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_
 
 # Command files directory
 command_files_dir="${base_finemap_dir}/command_files"
-batch_dir="${command_files_dir}/node_batches"
 mkdir -p "$command_files_dir"
-mkdir -p $batch_dir
 
 # Master commands file
 master_commands_file="${command_files_dir}/master_carma_commands.txt"
@@ -243,17 +241,17 @@ echo ""
 echo "Creating batched command files using parallel Python splitter..."
 
 # Clean up any existing carma batch files
-rm -f "${batch_dir}"/carma_finemap_batch_*.txt
+rm -f "${command_files_dir}"/carma_finemap_batch_*.txt
 
 #Calculate number of batches
 num_batches=$(( num_nodes * 28 ))
 # Use Python splitter for fast parallel batch creation
 python "${python_splitter}" \
     -i "${master_commands_file}" \
-    -o "${batch_dir}" \
+    -o "${command_files_dir}" \
     -n "${num_batches}" \
     -p "carma_finemap_batch_" \
-    -s ".txt"
+    -s ".sh"
 
 if [ $? -ne 0 ]; then
     echo "ERROR: Python batch splitter failed"
@@ -261,8 +259,8 @@ if [ $? -ne 0 ]; then
 fi
 
 # Verify batch creation
-num_batch_files=$(ls "${batch_dir}" | grep -c "^carma_finemap_batch_" || true)
-echo "Verified: Created ${num_batch_files} batch files in ${batch_dir}"
+num_batch_files=$(ls "${command_files_dir}" | grep -c "^carma_finemap_batch_" || true)
+echo "Verified: Created ${num_batch_files} batch files in ${command_files_dir}"
 
 if [ ${num_batch_files} -eq 0 ]; then
     echo "ERROR: No batch files were created"
