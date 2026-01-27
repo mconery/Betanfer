@@ -39,9 +39,6 @@ base_finemap_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_
 command_files_dir="${base_finemap_dir}/command_files"
 mkdir -p "$command_files_dir"
 
-# Batch configuration
-commands_per_batch=200
-
 # Master commands file
 master_commands_file="${command_files_dir}/master_susiex_drop_commands.txt"
 > "$master_commands_file" # Clear the file if it exists
