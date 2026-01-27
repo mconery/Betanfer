@@ -3,9 +3,10 @@
 #SBATCH -A bif154
 #SBATCH -J SuSiE_finemap_matched
 #SBATCH -o finemap_SuSiE_all_matched.log
-#SBATCH -N 40
+#SBATCH -N 24
 #SBATCH -p batch
 #SBATCH -t 2:00:00
+#SBATCH -q debug
 
 ################################################################################################################
 ################################################### Load Modules ###############################################
