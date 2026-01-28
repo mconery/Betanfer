@@ -26,7 +26,7 @@ plink_dir="/gpfs/arx2/bif154_mde/proj-shared/RITM039091/pgen"
 matrix_dir="${base_dir}/LD_matrices"
 individual_dir="/gpfs/arx2/bif154_mde/proj-shared/MVP_meta-analysis/real_genotypes"
 variant_file="${var_dir}/Pheno1.1_causal.vars"  # Update this path to your variant file
-registry_file="/gpfs/arx2/bif154_mde/proj-shared/RITM039091/pgen/hg19.chunk_register.csv"
+registry_file="/gpfs/arx2/bif154_mde/proj-shared/RITM0309091/pgen/hg19.chunk_register.csv"
 
 # Plink binary directory
 plink_bin_dir="/gpfs/arx2/bif154_mde/proj-shared/tools/bin"
