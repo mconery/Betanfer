@@ -1,8 +1,8 @@
 #!/bin/bash
 
 #SBATCH -A bif154
-#SBATCH -J CARMA_finemap_unified
-#SBATCH -o finemap_CARMA_unified.log
+#SBATCH -J CARMA_cleanup_unified
+#SBATCH -o cleanup_CARMA_unified.log
 #SBATCH -N 1
 #SBATCH -p batch
 #SBATCH -t 2:00:00
