@@ -22,7 +22,7 @@ wrapper_script="${script_dir}/make_matrices.py"
 execution_script="${script_dir}/execute_command.py"
 
 # Files and directories
-plink_dir="/gpfs/arx2/bif154_mde/proj-shared/RITM039091/pgen"
+plink_dir="/gpfs/arx2/bif154_mde/proj-shared/RITM0309091/pgen"
 matrix_dir="${base_dir}/LD_matrices"
 individual_dir="/gpfs/arx2/bif154_mde/proj-shared/MVP_meta-analysis/real_genotypes"
 variant_file="${var_dir}/Pheno1.1_causal.vars"  # Update this path to your variant file
