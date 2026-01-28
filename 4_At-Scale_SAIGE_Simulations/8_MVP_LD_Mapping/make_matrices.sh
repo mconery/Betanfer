@@ -8,7 +8,7 @@
 #SBATCH -q debug
 #SBATCH -t 2:00:00
 
-module load python/3.9-anaconda3
+module load miniforge3
 
 ################################################################# Set files and locations #################################################################
 
