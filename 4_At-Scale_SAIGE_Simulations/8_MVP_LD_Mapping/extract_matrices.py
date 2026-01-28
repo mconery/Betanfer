@@ -231,7 +231,7 @@ def driver(plink_base, variant_file, chr_num, output_dir, output_prefix):
     # Write corrected matrix
     with open(matrix_file, 'w') as f:
         for row in matrix:
-            f.write(' '.join(f'{val:.6f}' for val in row) + '\n')
+            f.write('\t'.join(f'{val:.6f}' for val in row) + '\n')
 
     # Create variant order file
     var_order_file = matrix_prefix + '.variants.txt'
