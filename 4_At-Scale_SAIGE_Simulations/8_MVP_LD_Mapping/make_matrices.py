@@ -310,7 +310,7 @@ def driver(variant_file, output_dir, output_type, ancestry_list, individual_dir,
             else:
                 print(f'NOTE: Single plink file needed for chr{chr_num} ({file_prefix})')
                 chunk_name = register_raw.loc[lower_index, 'Chunk']
-                cmd += f'{plink2} --pfile {plink_dir}{chunk_name} --keep {sample_list_file} --chr {chr_num} --from-bp {min_pos} --to-bp {max_pos} --make-bed --out {plink_dir}{file_prefix}.temp --memory 200000; '
+                cmd += f'{plink2} --pfile {plink_dir}{chunk_name}.dose --keep {sample_list_file} --chr {chr_num} --from-bp {min_pos} --to-bp {max_pos} --make-bed --out {plink_dir}{file_prefix}.temp --memory 200000; '
 
             # Add variant extraction and matrix creation command
             # This will be handled by a python script that processes individual variants
