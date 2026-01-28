@@ -82,7 +82,7 @@ def main(argv):
 
     # Optional arguments
     output_type = options_dict.get('-t', "BOTH")
-    plink_dir = options_dict.get('-p', "/gpfs/arx2/bif154_mde/proj-shared/RITM039091/pgen")
+    plink_dir = options_dict.get('-p', "/gpfs/arx2/bif154_mde/proj-shared/RITM0309091/pgen")
     plink_bin_dir = options_dict.get('-b', "/gpfs/arx2/bif154_mde/proj-shared/tools/bin")
     output_prefix = options_dict.get('-n', 'finemapping')
 
@@ -314,7 +314,7 @@ def driver(variant_file, output_dir, output_type, ancestry_list, individual_dir,
 
             # Add variant extraction and matrix creation command
             # This will be handled by a python script that processes individual variants
-            cmd += f'python3 {os.path.dirname(os.path.realpath(__file__))}/extract_and_make_matrices.py '
+            cmd += f'python3 {os.path.dirname(os.path.realpath(__file__))}/extract_matrices.py '
             cmd += f'-b {plink_dir}{file_prefix}.temp '
             cmd += f'-v {variant_file} '
             cmd += f'-c {chr_num} '

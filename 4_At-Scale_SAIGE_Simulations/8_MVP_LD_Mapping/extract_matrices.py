@@ -1,6 +1,6 @@
 '''
 
-extract_and_make_matrices.py
+extract_matrices.py
 
 This script extracts specific variants from plink bed/bim/fam files and creates
 LD matrices. It handles variant ID matching with allele flipping and reversal.
