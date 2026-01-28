@@ -323,8 +323,13 @@ def driver(variant_file, output_dir, output_type, ancestry_list, individual_dir,
             cmd += f'-o {anc_output_dir} '
             cmd += f'-p {output_prefix}.chr{chr_num}.{ancestry}; '
             
+            # Rename output file extensions
+            cmd += f'mv {anc_output_dir}/{output_prefix}.chr{chr_num}.{ancestry}.ld {anc_output_dir}/{output_prefix}.vcor1;'
+            cmd += f'mv {anc_output_dir}/{output_prefix}.chr{chr_num}.{ancestry}.variants.txt {anc_output_dir}/{output_prefix}.vcor1.vars'
             # Clean up temporary files
             cmd += f'rm {plink_dir}{file_prefix}.temp.*; '
+            cmd += f'rm {anc_output_dir}/{output_prefix}.chr{chr_num}.{ancestry}.log'
+            cmd += f'rm {anc_output_dir}/{output_prefix}.chr{chr_num}.{ancestry}.nosex'
 
             anc_commands.append(cmd)
 
