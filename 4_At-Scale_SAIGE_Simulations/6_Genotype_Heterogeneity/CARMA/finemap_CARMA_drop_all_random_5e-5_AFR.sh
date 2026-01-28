@@ -46,11 +46,9 @@ num_nodes=${SLURM_NNODES}
 # Define heritabilities, trait types, analysis types, and match types
 heritabilities=("5e-5")
 heritability_values=(0.00005)
-trait_types=("all" "continuous" "binary")
-analysis_types=("fixed" "random")
-match_types=("drop_causal_EUR" "drop_causal_AFR")
-
-# Total configurations: 2 heritabilities × 3 trait types × 2 analysis types × 2 match types = 24
+trait_types=("all")
+analysis_types=("random")
+match_types=("drop_causal_AFR")
 
 ################################################################################################################
 ################################## Generate Commands in Parallel Using Flux ##################################
