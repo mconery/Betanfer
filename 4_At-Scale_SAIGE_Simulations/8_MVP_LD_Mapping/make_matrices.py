@@ -302,6 +302,8 @@ def driver(variant_file, output_dir, output_type, ancestry_list, individual_dir,
 
                 # Export files to a merge list
                 temp_chunks = register_raw.loc[lower_index:upper_index, 'Chunk']
+                # Add .dose extension to each chunk name
+                temp_chunks = temp_chunks.astype(str) + '.dose'
                 merge_list_file = plink_dir + file_prefix + '.temp.merge_list.txt'
                 temp_chunks.to_csv(merge_list_file, sep="\t", header=False, index=False, na_rep='NA')
 
