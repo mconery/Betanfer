@@ -8,7 +8,15 @@
 #SBATCH -q debug
 #SBATCH -t 2:00:00
 
+#################################################################### Load Needed Modules #################################################################
+
+module load Core/25.03
+module load r/4.4.1
 module load miniforge3
+module load amd/6.3.1
+module load rocm/6.3.1
+module load hwloc/2.11.1-gpu
+module load flux
 
 ################################################################# Set files and locations #################################################################
 
@@ -23,23 +31,19 @@ execution_script="${script_dir}/execute_command.py"
 
 # Files and directories
 plink_dir="/gpfs/arx2/bif154_mde/proj-shared/RITM0309091/pgen"
-matrix_dir="${base_dir}/LD_matrices"
+matrix_dir="${base_dir}/LD_matrices/mvp_external"
 individual_dir="/gpfs/arx2/bif154_mde/proj-shared/MVP_meta-analysis/real_genotypes"
-variant_file="${var_dir}/Pheno1.1_causal.vars"  # Update this path to your variant file
 registry_file="/gpfs/arx2/bif154_mde/proj-shared/RITM0309091/pgen/hg19.chunk_register.csv"
+command_file="${matrix_dir}/make_matrices.mvp_external.txt"
 
 # Plink binary directory
 plink_bin_dir="/gpfs/arx2/bif154_mde/proj-shared/tools/bin"
-
-# Output prefix for matrices
-output_prefix="finemapping"
 
 # Populations to process (comma-separated)
 populations="AFR,EUR"
 
 # Create matrix directory if it doesn't exist
 mkdir -p "${matrix_dir}"
-mkdir -p "${matrix_dir}/logs"
 
 echo "Starting LD matrix generation"
 echo "Matrix directory: ${matrix_dir}"
@@ -56,10 +60,9 @@ python3 "${wrapper_script}" \
     -a "${populations}" \
     -i "${individual_dir}" \
     -r "${registry_file}" \
-    -c "${matrix_dir}/make_matrices.txt" \
+    -c "${command_file}" \
     -p "${plink_dir}" \
-    -b "${plink_bin_dir}" \
-    -n "${output_prefix}"
+    -b "${plink_bin_dir}"
 
 if [ $? -ne 0 ]; then
     echo "ERROR: Python wrapper script failed"
@@ -68,50 +71,10 @@ fi
 
 echo "Command files generated successfully"
 
-# Read the master command file and execute commands in parallel
-master_command_file="${matrix_dir}/make_matrices.master.txt"
-
-if [ ! -f "${master_command_file}" ]; then
-    echo "ERROR: Master command file not found: ${master_command_file}"
-    exit 1
-fi
-
-# Count the number of commands
-num_commands=$(wc -l < "${master_command_file}")
-echo "JOB SIZE: ${num_commands}"
-
-# Array to hold commands
-declare -a cmd_array=()
-
-# Read commands from file
-while IFS= read -r line; do
-    if [ ! -z "$line" ]; then
-        cmd_array+=("$line")
-    fi
-done < "${master_command_file}"
-
-echo "Read ${#cmd_array[@]} commands from ${master_command_file}"
-
-# Execute commands in parallel using srun
-# Adjust -n1 and -c32 based on your resource allocation
-for (( i=0; i<${#cmd_array[@]}; i++ )); do
-    # Get a simple identifier for the job name
-    job_id=$(printf "%04d" $i)
-    
-    echo "Submitting job ${job_id}/${#cmd_array[@]}"
-    
-    srun -n1 -c8 --exclusive --job-name="${job_id}" bash -c "${cmd_array[$i]}" &
-    
-    # Wait after every 480 tasks to prevent overwhelming the scheduler
-    # Adjust this number based on your resource allocation
-    if [ $((i+1)) -ge 480 ]; then
-        echo "Waiting for batch to complete..."
-        wait
-    fi
-done
-
-echo "Waiting for all remaining jobs to complete..."
-wait
+#Read in the commands
+mapfile -t cmds < ${command_file}
+#Start flux and Run the flux script
+srun -N $NNODES -n $NNODES -c 56 flux start "flux resource list; mapfile -t cmds < ${command_file}; for ((i=0; i<${#cmds[@]}; i++)); do flux submit -N1 -n1 -c56 --output=flux_output/make_matrix_\$i.txt \${cmds[\$i]}; done; flux queue drain;"
 
 echo "All jobs completed"
 echo "LD matrices should be located in: ${matrix_dir}/AFR/ and ${matrix_dir}/EUR/"
