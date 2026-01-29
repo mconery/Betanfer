@@ -324,16 +324,16 @@ def driver(variant_dir, output_dir, output_type, ancestry_list, individual_dir,
                     temp_chunks.to_csv(merge_list_file, sep="\t", header=False, index=False, na_rep='NA')
                     
                     # Add merge command
-                    cmd += f'{plink2} --pmerge-list {merge_list_file} --keep {sample_list_file} --chr {chr_num} --from-bp {min_pos} --to-bp {max_pos} --make-bed --out {plink_dir}{file_prefix}.temp; '
+                    cmd += f'{plink2} --pmerge-list {merge_list_file} --keep {sample_list_file} --chr {chr_num} --from-bp {min_pos} --to-bp {max_pos} --make-bed --out {plink_dir}{file_prefix}.{ancestry}.temp; '
                 else:
                     print(f'NOTE: Single plink file needed for chr{chr_num} ({file_prefix})')
                     chunk_name = register_raw.loc[lower_index, 'Chunk']
-                    cmd += f'{plink2} --pfile {plink_dir}{chunk_name} --keep {sample_list_file} --chr {chr_num} --from-bp {min_pos} --to-bp {max_pos} --make-bed --out {plink_dir}{file_prefix}.temp; '
+                    cmd += f'{plink2} --pfile {plink_dir}{chunk_name} --keep {sample_list_file} --chr {chr_num} --from-bp {min_pos} --to-bp {max_pos} --make-bed --out {plink_dir}{file_prefix}.{ancestry}.temp; '
                 
                 # Add variant extraction and matrix creation command
                 # This will be handled by a python script that processes individual variants
                 cmd += f'python3 {os.path.dirname(os.path.realpath(__file__))}/extract_matrices.py '
-                cmd += f'-b {plink_dir}{file_prefix}.temp '
+                cmd += f'-b {plink_dir}{file_prefix}.{ancestry}.temp '
                 cmd += f'-v {variant_file_path} '
                 cmd += f'-c {chr_num} '
                 cmd += f'-o {anc_output_dir} '
@@ -343,7 +343,7 @@ def driver(variant_dir, output_dir, output_type, ancestry_list, individual_dir,
                 cmd += f'mv {anc_output_dir}/{file_prefix}.ld {anc_output_dir}/{file_prefix}.vcor1;'
                 cmd += f'mv {anc_output_dir}/{file_prefix}.variants.txt {anc_output_dir}/{file_prefix}.vcor1.vars;'
                 # Clean up temporary files
-                cmd += f'rm {plink_dir}{file_prefix}.temp.*; '
+                cmd += f'rm {plink_dir}{file_prefix}.{ancestry}.temp.*; '
                 cmd += f'rm {anc_output_dir}/{file_prefix}.log;'
                 cmd += f'rm {anc_output_dir}/{file_prefix}.nosex'
     
