@@ -23,7 +23,7 @@ module load flux
 # Base directories
 base_dir="/gpfs/arx2/bif154_mde/proj-shared/betanfer_project"
 script_dir="/gpfs/arx2/bif154_mde/proj-shared/betanfer_project/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/8_MVP_LD_Mapping"
-var_dir="/sw/frontier/mde/bif154_mde/betanfer_project/LD_matrices/AFR"
+var_dir="/sw/frontier/mde/bif154_mde/betanfer_project/LD_matrices"
 
 # Script locations
 wrapper_script="${script_dir}/make_matrices.py"
