@@ -24,26 +24,15 @@ import re
 def help(exit_num=1):
     print("""-----------------------------------------------------------------
 ARGUMENTS
-
 -v => Input file of variants for fine-mapping (format: chr:pos:ref:alt) REQUIRED
-
 -o => Base folder in which to output matrix/map files REQUIRED
-
 -a => Ancestry (comma-separated list, e.g., AFR,EUR) REQUIRED
-
 -i => Directory of files specifying individuals for each ancestry (base directory with pop subfolders) REQUIRED
-
 -r => Registry file that lists out the ranges found in each plink segment REQUIRED
-
 -c => File of commands to be submitted to the console REQUIRED
-
 -p => Directory that houses plink files (default is /gpfs/arx2/bif154_mde/proj-shared/RITM039091/pgen) OPTIONAL
-
 -b => Directory containing plink2 binary (default is /gpfs/arx2/bif154_mde/proj-shared/tools/bin) OPTIONAL
-
 -t => Output type (options are Matrix/Map/Both; default is Both) Optional
-
--n => Output name/prefix for the matrices (default is 'finemapping') OPTIONAL
 
 """)
     sys.exit(exit_num)
@@ -84,7 +73,6 @@ def main(argv):
     output_type = options_dict.get('-t', "BOTH")
     plink_dir = options_dict.get('-p', "/gpfs/arx2/bif154_mde/proj-shared/RITM0309091/pgen")
     plink_bin_dir = options_dict.get('-b', "/gpfs/arx2/bif154_mde/proj-shared/tools/bin")
-    output_prefix = options_dict.get('-n', 'finemapping')
 
     # Parse ancestry list
     ancestry_list = [x.strip().upper() for x in ancestry_str.split(',')]
@@ -136,7 +124,7 @@ def main(argv):
 
     # Call driver function
     driver(variant_file, output_dir, output_type, ancestry_list, individual_dir, 
-           register_file, command_file, plink_dir, plink_bin_dir, output_prefix)
+           register_file, command_file, plink_dir, plink_bin_dir)
 
 ###############################################################################
 ############################# HELPFUL FUNCTIONS ##############################
@@ -183,8 +171,8 @@ def flip_alleles(ref, alt):
 ###############################################################################
 
 ## drive the script ##
-def driver(variant_file, output_dir, output_type, ancestry_list, individual_dir, 
-           register_file, command_file, plink_dir, plink_bin_dir, output_prefix):
+def driver(variant_dir, output_dir, output_type, ancestry_list, individual_dir, 
+           register_file, command_file, plink_dir, plink_bin_dir):
 
     # Set plink executables
     plink2 = plink_bin_dir.rstrip('/') + "/plink2"
@@ -194,6 +182,7 @@ def driver(variant_file, output_dir, output_type, ancestry_list, individual_dir,
     output_dir = add_slash(output_dir)
     plink_dir = add_slash(plink_dir)
     individual_dir = add_slash(individual_dir)
+    variant_dir = add_slash(variant_dir)
 
     # Read in the registry file
     register_raw = pd.read_csv(register_file, sep=",")
@@ -203,24 +192,9 @@ def driver(variant_file, output_dir, output_type, ancestry_list, individual_dir,
     
     # Add dose extension to chunk names if not already present
     if 'pgen' in register_raw.columns:
-        register_raw["Chunk"] = register_raw["pgen"].astype(str)
+        register_raw["Chunk"] = register_raw["pgen"].astype(str) + '.dose'
     elif 'Chunk' in register_raw.columns:
-        register_raw["Chunk"] = register_raw["Chunk"].astype(str)
-
-    # Read in the variant file
-    variants_raw = []
-    with open(variant_file) as var_read:
-        for line in var_read.readlines():
-            line = line.strip()
-            if not line or line.startswith('#'):
-                continue
-            parsed = parse_variant_id(line)
-            if parsed:
-                variants_raw.append(parsed)
-    
-    if not variants_raw:
-        print("ERROR: No valid variants found in variant file.")
-        sys.exit(1)
+        register_raw["Chunk"] = register_raw["Chunk"].astype(str) + '.dose'
 
     # Create a list to hold all commands across all ancestries
     all_commands = []
@@ -229,6 +203,22 @@ def driver(variant_file, output_dir, output_type, ancestry_list, individual_dir,
     for ancestry in ancestry_list:
         
         print(f"\nProcessing ancestry: {ancestry}")
+        
+        # Get the variant directory for this ancestry
+        anc_variant_dir = variant_dir + ancestry + "/"
+        if not exists(anc_variant_dir):
+            print(f"WARNING: Variant directory not found for {ancestry}: {anc_variant_dir}")
+            print(f"Skipping {ancestry}")
+            continue
+        
+        # Get list of variant files for this ancestry (*.vars files)
+        variant_files = [f for f in os.listdir(anc_variant_dir) if f.endswith('.vars')]
+        if not variant_files:
+            print(f"WARNING: No .vars files found in {anc_variant_dir}")
+            print(f"Skipping {ancestry}")
+            continue
+        
+        print(f"Found {len(variant_files)} variant files for {ancestry}")
         
         # Create ancestry-specific output subdirectory
         anc_output_dir = output_dir + ancestry + "/"
@@ -246,92 +236,114 @@ def driver(variant_file, output_dir, output_type, ancestry_list, individual_dir,
         # Create a blank list that will hold the commands for this ancestry
         anc_commands = []
 
-        # Group variants by chromosome for efficient plink file selection
-        variants_by_chr = {}
-        for variant in variants_raw:
-            chr_num = variant[0]
-            if chr_num not in variants_by_chr:
-                variants_by_chr[chr_num] = []
-            variants_by_chr[chr_num].append(variant)
-
-        # Process each chromosome
-        for chr_num in sorted(variants_by_chr.keys()):
-            chr_variants = variants_by_chr[chr_num]
+        # Process each variant file for this ancestry
+        for variant_file in sorted(variant_files):
+            # Extract the file prefix (remove .vars extension)
+            file_prefix = variant_file.replace('.vars', '')
             
-            # Find the range of variants for this chromosome
-            positions = [v[1] for v in chr_variants]
-            min_pos = min(positions)
-            max_pos = max(positions)
-
-            # Identify the plink files that are needed for this chromosome
-            temp1 = register_raw[register_raw['Chr'] == chr_num]
-            if temp1.empty:
-                print(f"WARNING: No plink files found for chromosome {chr_num}. Skipping.")
+            # Full path to variant file
+            variant_file_path = anc_variant_dir + variant_file
+            
+            print(f"  Processing variant file: {variant_file}")
+            
+            # Read in the variant file for this phenotype
+            variants_raw = []
+            with open(variant_file_path) as var_read:
+                for line in var_read.readlines():
+                    line = line.strip()
+                    if not line or line.startswith('#'):
+                        continue
+                    parsed = parse_variant_id(line)
+                    if parsed:
+                        variants_raw.append(parsed)
+            
+            if not variants_raw:
+                print(f"    WARNING: No valid variants found in {variant_file}")
                 continue
-
-            # Find the chunk that contains min_pos
-            temp2 = temp1[temp1['Start'] <= min_pos]
-            if temp2.empty:
-                temp2 = temp1.iloc[0, :]
-            else:
-                temp2 = temp2.loc[temp2.index[-1], :]
-
-            # Find the chunk that contains max_pos
-            temp3 = temp1[temp1['End'] >= max_pos]
-            if temp3.empty:
-                temp3 = temp1.iloc[len(temp1)-1, :]
-            else:
-                temp3 = temp3.loc[temp3.index[0], :]
-
-            # Create indices for plink files to use
-            lower_index = temp1[temp1['Chunk'] == temp2['Chunk']].index[0] if isinstance(temp2, pd.Series) else temp2.name
-            upper_index = temp1[temp1['Chunk'] == temp3['Chunk']].index[0] if isinstance(temp3, pd.Series) else temp3.name
             
-            plink_count = upper_index - lower_index + 1
+            print(f"    Found {len(variants_raw)} variants")
 
-            # Create file prefix
-            file_prefix = f"{output_prefix}.chr{chr_num}.{ancestry}"
+            # Group variants by chromosome for efficient plink file selection
+            variants_by_chr = {}
+            for variant in variants_raw:
+                chr_num = variant[0]
+                if chr_num not in variants_by_chr:
+                    variants_by_chr[chr_num] = []
+                variants_by_chr[chr_num].append(variant)
 
-            # Create command string for this chromosome's variants
-            cmd = f'echo "START: {file_prefix} `date`"; '
-            cmd += f'echo "HOST: {file_prefix} $HOSTNAME"; '
-
-            # Build plink command
-            if plink_count > 1:
-                print(f'NOTE: Merging {plink_count} plink files for chr{chr_num} ({file_prefix})')
-
-                # Export files to a merge list
-                temp_chunks = register_raw.loc[lower_index:upper_index, 'Chunk']
-                # Add .dose extension to each chunk name
-                temp_chunks = temp_chunks.astype(str) + '.dose'
-                merge_list_file = plink_dir + file_prefix + '.temp.merge_list.txt'
-                temp_chunks.to_csv(merge_list_file, sep="\t", header=False, index=False, na_rep='NA')
-
-                # Add merge command
-                cmd += f'{plink2} --pmerge-list {merge_list_file} --keep {sample_list_file} --chr {chr_num} --from-bp {min_pos} --to-bp {max_pos} --make-bed --out {plink_dir}{file_prefix}.temp --memory 200000; '
-            else:
-                print(f'NOTE: Single plink file needed for chr{chr_num} ({file_prefix})')
-                chunk_name = register_raw.loc[lower_index, 'Chunk']
-                cmd += f'{plink2} --pfile {plink_dir}{chunk_name}.dose --keep {sample_list_file} --chr {chr_num} --from-bp {min_pos} --to-bp {max_pos} --make-bed --out {plink_dir}{file_prefix}.temp --memory 200000; '
-
-            # Add variant extraction and matrix creation command
-            # This will be handled by a python script that processes individual variants
-            cmd += f'python3 {os.path.dirname(os.path.realpath(__file__))}/extract_matrices.py '
-            cmd += f'-b {plink_dir}{file_prefix}.temp '
-            cmd += f'-v {variant_file} '
-            cmd += f'-c {chr_num} '
-            cmd += f'-o {anc_output_dir} '
-            cmd += f'-p {output_prefix}.chr{chr_num}.{ancestry}; '
-            
-            # Rename output file extensions
-            cmd += f'mv {anc_output_dir}/{output_prefix}.chr{chr_num}.{ancestry}.ld {anc_output_dir}/{output_prefix}.vcor1;'
-            cmd += f'mv {anc_output_dir}/{output_prefix}.chr{chr_num}.{ancestry}.variants.txt {anc_output_dir}/{output_prefix}.vcor1.vars;'
-            # Clean up temporary files
-            cmd += f'rm {plink_dir}{file_prefix}.temp.*; '
-            cmd += f'rm {anc_output_dir}/{output_prefix}.chr{chr_num}.{ancestry}.log;'
-            cmd += f'rm {anc_output_dir}/{output_prefix}.chr{chr_num}.{ancestry}.nosex'
-
-            anc_commands.append(cmd)
+            # Process each chromosome
+            for chr_num in sorted(variants_by_chr.keys()):
+                chr_variants = variants_by_chr[chr_num]
+                
+                # Find the range of variants for this chromosome
+                positions = [v[1] for v in chr_variants]
+                min_pos = min(positions)
+                max_pos = max(positions)
+                
+                # Identify the plink files that are needed for this chromosome
+                temp1 = register_raw[register_raw['Chr'] == chr_num]
+                if temp1.empty:
+                    print(f"WARNING: No plink files found for chromosome {chr_num}. Skipping.")
+                    continue
+                
+                # Find the chunk that contains min_pos
+                temp2 = temp1[temp1['Start'] <= min_pos]
+                if temp2.empty:
+                    temp2 = temp1.iloc[0, :]
+                else:
+                    temp2 = temp2.loc[temp2.index[-1], :]
+                
+                # Find the chunk that contains max_pos
+                temp3 = temp1[temp1['End'] >= max_pos]
+                if temp3.empty:
+                    temp3 = temp1.iloc[len(temp1)-1, :]
+                else:
+                    temp3 = temp3.loc[temp3.index[0], :]
+                
+                # Create indices for plink files to use
+                lower_index = temp1[temp1['Chunk'] == temp2['Chunk']].index[0] if isinstance(temp2, pd.Series) else temp2.name
+                upper_index = temp1[temp1['Chunk'] == temp3['Chunk']].index[0] if isinstance(temp3, pd.Series) else temp3.name
+                
+                plink_count = upper_index - lower_index + 1
+                                
+                # Create command string for this chromosome's variants
+                cmd = f'echo "START: {file_prefix} `date`"; '
+                cmd += f'echo "HOST: {file_prefix} $HOSTNAME"; '
+                
+                # Build plink command
+                if plink_count > 1:
+                    print(f'NOTE: Merging {plink_count} plink files for chr{chr_num} ({file_prefix})')
+                    
+                    # Export files to a merge list
+                    temp_chunks = register_raw.loc[lower_index:upper_index, 'Chunk']
+                    merge_list_file = plink_dir + file_prefix + '.temp.merge_list.txt'
+                    temp_chunks.to_csv(merge_list_file, sep="\t", header=False, index=False, na_rep='NA')
+                    
+                    # Add merge command
+                    cmd += f'{plink2} --pmerge-list {merge_list_file} --keep {sample_list_file} --chr {chr_num} --from-bp {min_pos} --to-bp {max_pos} --make-bed --out {plink_dir}{file_prefix}.temp --memory 200000; '
+                else:
+                    print(f'NOTE: Single plink file needed for chr{chr_num} ({file_prefix})')
+                    chunk_name = register_raw.loc[lower_index, 'Chunk']
+                    cmd += f'{plink2} --pfile {plink_dir}{chunk_name} --keep {sample_list_file} --chr {chr_num} --from-bp {min_pos} --to-bp {max_pos} --make-bed --out {plink_dir}{file_prefix}.temp --memory 200000; '
+                
+                # Add variant extraction and matrix creation command
+                # This will be handled by a python script that processes individual variants
+                cmd += f'python3 {os.path.dirname(os.path.realpath(__file__))}/extract_matrices.py '
+                cmd += f'-b {plink_dir}{file_prefix}.temp '
+                cmd += f'-v {variant_file} '
+                cmd += f'-c {chr_num} '
+                cmd += f'-o {anc_output_dir} '
+                cmd += f'-p {file_prefix}; '
+                
+                # Rename output file extensions
+                cmd += f'mv {anc_output_dir}/{file_prefix}.ld {anc_output_dir}/{file_prefix}.vcor1;'
+                cmd += f'mv {anc_output_dir}/{file_prefix}.variants.txt {anc_output_dir}/{file_prefix}.vcor1.vars;'
+                # Clean up temporary files
+                cmd += f'rm {plink_dir}{file_prefix}.temp.*; '
+                cmd += f'rm {anc_output_dir}/{file_prefix}.log;'
+                cmd += f'rm {anc_output_dir}/{file_prefix}.nosex'
+    
+                anc_commands.append(cmd)
 
         # Write ancestry-specific command file
         anc_command_file = output_dir + f"make_matrices.{ancestry}.txt"
