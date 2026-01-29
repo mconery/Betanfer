@@ -324,11 +324,11 @@ def driver(variant_dir, output_dir, output_type, ancestry_list, individual_dir,
                     temp_chunks.to_csv(merge_list_file, sep="\t", header=False, index=False, na_rep='NA')
                     
                     # Add merge command
-                    cmd += f'{plink2} --pmerge-list {merge_list_file} --keep {sample_list_file} --chr {chr_num} --from-bp {min_pos} --to-bp {max_pos} --make-bed --out {plink_dir}{file_prefix}.temp --memory 200000; '
+                    cmd += f'{plink2} --pmerge-list {merge_list_file} --keep {sample_list_file} --chr {chr_num} --from-bp {min_pos} --to-bp {max_pos} --make-bed --out {plink_dir}{file_prefix}.temp; '
                 else:
                     print(f'NOTE: Single plink file needed for chr{chr_num} ({file_prefix})')
                     chunk_name = register_raw.loc[lower_index, 'Chunk']
-                    cmd += f'{plink2} --pfile {plink_dir}{chunk_name} --keep {sample_list_file} --chr {chr_num} --from-bp {min_pos} --to-bp {max_pos} --make-bed --out {plink_dir}{file_prefix}.temp --memory 200000; '
+                    cmd += f'{plink2} --pfile {plink_dir}{chunk_name} --keep {sample_list_file} --chr {chr_num} --from-bp {min_pos} --to-bp {max_pos} --make-bed --out {plink_dir}{file_prefix}.temp; '
                 
                 # Add variant extraction and matrix creation command
                 # This will be handled by a python script that processes individual variants
