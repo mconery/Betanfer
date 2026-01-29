@@ -74,6 +74,7 @@ echo "Command files generated successfully"
 #Read in the commands
 mapfile -t cmds < ${command_file}
 #Start flux and Run the flux script
+NNODES=${SLURM_NNODES}
 srun -N $NNODES -n $NNODES -c 56 flux start "flux resource list; mapfile -t cmds < ${command_file}; for ((i=0; i<${#cmds[@]}; i++)); do flux submit -N1 -n1 -c56 --output=flux_output/make_matrix_\$i.txt \${cmds[\$i]}; done; flux queue drain;"
 
 echo "All jobs completed"
