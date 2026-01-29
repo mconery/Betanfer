@@ -334,7 +334,7 @@ def driver(variant_dir, output_dir, output_type, ancestry_list, individual_dir,
                 # This will be handled by a python script that processes individual variants
                 cmd += f'python3 {os.path.dirname(os.path.realpath(__file__))}/extract_matrices.py '
                 cmd += f'-b {plink_dir}{file_prefix}.temp '
-                cmd += f'-v {variant_file} '
+                cmd += f'-v {variant_file_path} '
                 cmd += f'-c {chr_num} '
                 cmd += f'-o {anc_output_dir} '
                 cmd += f'-p {file_prefix}; '
