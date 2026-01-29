@@ -3,7 +3,7 @@
 #SBATCH -A bif154_mde
 #SBATCH -J make_matrices
 #SBATCH -o make_matrices.log
-#SBATCH -N 40
+#SBATCH -N 300
 #SBATCH -p batch-spi
 #SBATCH -q debug
 #SBATCH -t 2:00:00
