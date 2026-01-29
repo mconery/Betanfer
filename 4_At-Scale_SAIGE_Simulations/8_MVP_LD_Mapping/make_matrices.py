@@ -239,9 +239,15 @@ def driver(variant_dir, output_dir, output_type, ancestry_list, individual_dir,
             # Extract the file prefix (remove .vars extension)
             file_prefix = variant_file.replace('.vars', '')
             
+            # Check if output files already exist
+            vcor1_file = anc_output_dir + file_prefix + '.vcor1'
+            vars_file = anc_output_dir + file_prefix + '.vcor1.vars'
+            if exists(vcor1_file) and exists(vars_file):
+                print(f"    NOTE: Output files already exist for {file_prefix}. Skipping.")
+                continue
+            
             # Full path to variant file
             variant_file_path = anc_variant_dir + variant_file
-            
             print(f"  Processing variant file: {variant_file}")
             
             # Read in the variant file for this phenotype
@@ -342,15 +348,6 @@ def driver(variant_dir, output_dir, output_type, ancestry_list, individual_dir,
                 cmd += f'rm {anc_output_dir}/{file_prefix}.nosex'
     
                 anc_commands.append(cmd)
-
-        # Write ancestry-specific command file
-        anc_command_file = output_dir + f"make_matrices.{ancestry}.txt"
-        with open(anc_command_file, 'w') as f:
-            for cmd in anc_commands:
-                f.write(cmd + '\n')
-        
-        print(f"Wrote {len(anc_commands)} commands to {anc_command_file}")
-        all_commands.extend(anc_commands)
 
     # Write master command file
     master_command_file = output_dir + "make_matrices.master.txt"
