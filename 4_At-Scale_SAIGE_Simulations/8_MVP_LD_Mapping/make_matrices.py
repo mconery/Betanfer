@@ -18,13 +18,12 @@ import getopt
 from os.path import exists
 import os
 import pandas as pd
-import re
 
 # Define help function to be called if there is a problem
 def help(exit_num=1):
     print("""-----------------------------------------------------------------
 ARGUMENTS
--v => Input file of variants for fine-mapping (format: chr:pos:ref:alt) REQUIRED
+-v => Input directory of variant files for fine-mapping (variant format: chr:pos:ref:alt) REQUIRED
 -o => Base folder in which to output matrix/map files REQUIRED
 -a => Ancestry (comma-separated list, e.g., AFR,EUR) REQUIRED
 -i => Directory of files specifying individuals for each ancestry (base directory with pop subfolders) REQUIRED
@@ -59,7 +58,7 @@ def main(argv):
 
     ## Required arguments
     try:
-        variant_file = options_dict['-v']
+        variant_dir = options_dict['-v']
         output_dir = options_dict['-o']
         ancestry_str = options_dict['-a']
         individual_dir = options_dict['-i']
@@ -95,8 +94,8 @@ def main(argv):
         sys.exit(1)
 
     # Confirm that the file locs exist
-    if exists(variant_file) == False:
-        print("ERROR: Input file of variants does not exist.")
+    if exists(variant_dir) == False:
+        print("ERROR: Input directory of variant files does not exist.")
         sys.exit(1)
 
     if exists(individual_dir) == False:
@@ -123,7 +122,7 @@ def main(argv):
     print("Acceptable Inputs Given")
 
     # Call driver function
-    driver(variant_file, output_dir, output_type, ancestry_list, individual_dir, 
+    driver(variant_dir, output_dir, output_type, ancestry_list, individual_dir, 
            register_file, command_file, plink_dir, plink_bin_dir)
 
 ###############################################################################
@@ -176,7 +175,6 @@ def driver(variant_dir, output_dir, output_type, ancestry_list, individual_dir,
 
     # Set plink executables
     plink2 = plink_bin_dir.rstrip('/') + "/plink2"
-    plink1 = plink_bin_dir.rstrip('/') + "/plink"
 
     # Add slashes to directories
     output_dir = add_slash(output_dir)

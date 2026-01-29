@@ -48,14 +48,14 @@ mkdir -p "${matrix_dir}"
 echo "Starting LD matrix generation"
 echo "Matrix directory: ${matrix_dir}"
 echo "Populations: ${populations}"
-echo "Variant file: ${variant_file}"
+echo "Variant directory: ${var_dir}"
 
 ###########################################################################################################################################################
 
 # Call python wrapper script with given parameters
 # This will generate make_matrices.AFR.txt, make_matrices.EUR.txt, and make_matrices.master.txt
 python3 "${wrapper_script}" \
-    -v "${variant_file}" \
+    -v "${var_dir}" \
     -o "${matrix_dir}" \
     -a "${populations}" \
     -i "${individual_dir}" \
