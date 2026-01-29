@@ -348,6 +348,9 @@ def driver(variant_dir, output_dir, output_type, ancestry_list, individual_dir,
                 cmd += f'rm {anc_output_dir}/{file_prefix}.nosex'
     
                 anc_commands.append(cmd)
+        
+        #Add ancestry commands to all commands
+        all_commands.extend(anc_commands)
 
     # Write master command file
     master_command_file = output_dir + "make_matrices.master.txt"
