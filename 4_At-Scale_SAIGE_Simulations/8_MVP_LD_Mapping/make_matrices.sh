@@ -34,7 +34,7 @@ plink_dir="/gpfs/arx2/bif154_mde/proj-shared/RITM0309091/pgen"
 matrix_dir="${base_dir}/LD_matrices/mvp_external"
 individual_dir="/gpfs/arx2/bif154_mde/proj-shared/MVP_meta-analysis/real_genotypes"
 registry_file="/gpfs/arx2/bif154_mde/proj-shared/RITM0309091/pgen/hg19.chunk_register.csv"
-command_file="${matrix_dir}/make_matrices.mvp_external.txt"
+command_file="${matrix_dir}/make_matrices.master.txt"
 
 # Plink binary directory
 plink_bin_dir="/gpfs/arx2/bif154_mde/proj-shared/tools/bin"

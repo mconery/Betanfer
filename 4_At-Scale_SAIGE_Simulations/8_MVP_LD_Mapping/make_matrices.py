@@ -353,7 +353,7 @@ def driver(variant_dir, output_dir, output_type, ancestry_list, individual_dir,
         all_commands.extend(anc_commands)
 
     # Write master command file
-    master_command_file = output_dir + "make_matrices.master.txt"
+    master_command_file = command_file
     with open(master_command_file, 'w') as f:
         for cmd in all_commands:
             f.write(cmd + '\n')
