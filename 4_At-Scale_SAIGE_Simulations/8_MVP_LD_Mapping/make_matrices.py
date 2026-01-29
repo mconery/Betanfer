@@ -319,7 +319,7 @@ def driver(variant_dir, output_dir, output_type, ancestry_list, individual_dir,
                     print(f'NOTE: Merging {plink_count} plink files for chr{chr_num} ({file_prefix})')
                     
                     # Export files to a merge list
-                    temp_chunks = register_raw.loc[lower_index:upper_index, 'Chunk']
+                    temp_chunks = plink_dir + register_raw.loc[lower_index:upper_index, 'Chunk'].astype(str)
                     merge_list_file = plink_dir + file_prefix + '.temp.merge_list.txt'
                     temp_chunks.to_csv(merge_list_file, sep="\t", header=False, index=False, na_rep='NA')
                     
