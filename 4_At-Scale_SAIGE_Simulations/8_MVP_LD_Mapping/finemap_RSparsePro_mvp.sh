@@ -89,7 +89,7 @@ for h_idx in "${!heritabilities[@]}"; do
     
         for analysis_type in "${analysis_types[@]}"; do
             # Define matrix types for this configuration
-            matrix_types="beta-inferred_realistic_0_0kb,beta-inferred_realistic_5e-4_0kb,beta-inferred_realistic_5e-4_100kb,beta-inferred_realistic_5e-4_250kb,beta-inferred_realistic_5e-4_500kb,beta-inferred_realistic_5e-6_0kb,beta-inferred_realistic_5e-6_100kb,beta-inferred_realistic_5e-6_250kb,beta-inferred_realistic_5e-6_500kb,beta-inferred_realistic_5e-8_0kb,beta-inferred_realistic_5e-8_100kb,beta-inferred_realistic_5e-8_250kb,beta-inferred_realistic_5e-8_500kb"
+            matrix_types="mvp_external"
 
             # Define output directory
             h_dir="${analysis_type}_homo_${h_label}"
