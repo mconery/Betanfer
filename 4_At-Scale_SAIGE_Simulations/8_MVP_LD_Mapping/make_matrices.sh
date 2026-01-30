@@ -113,7 +113,7 @@ fi
 
 #Start flux and Run the flux script
 NNODES=${SLURM_NNODES}
-srun -N $NNODES -n $NNODES -c 56 flux start "flux resource list; batch_count=0; for batch in ${command_files_dir}/make_matrix_*.sh; do batch_name=\$(basename \${batch} .sh); flux submit -N1 -n1 -c56 --output=flux_output/\${batch_name}.log bash \${batch}; if [ \$((batch_count % 20)) -eq 0 ]; then echo \"  Submitted \${batch_count}/${num_batch_files} batches\" fi; done; flux queue drain;"
+srun -N $NNODES -n $NNODES -c 56 flux start "flux resource list; batch_count=0; for batch in ${command_files_dir}/make_matrix_*.sh; do batch_name=\$(basename \${batch} .sh); flux submit -N1 -n1 -c56 --output=flux_output/\${batch_name}.log bash \${batch}; ((batch_count++)); if [ \$((batch_count % 20)) -eq 0 ]; then echo \"  Submitted \${batch_count}/${num_batch_files} batches\"; fi; done; flux queue drain;"
 
 echo "All jobs completed"
 echo "LD matrices should be located in: ${matrix_dir}/AFR/ and ${matrix_dir}/EUR/"
