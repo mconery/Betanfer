@@ -1,10 +1,10 @@
 #!/bin/bash
 
-#SBATCH -A bif154
+#SBATCH -A bif154_mde
 #SBATCH -J CARMA_finemap_mvp
 #SBATCH -o finemap_CARMA_mvp.log
 #SBATCH -N 40
-#SBATCH -p batch
+#SBATCH -p batch-spi
 #SBATCH -t 2:00:00
 
 ################################################################################################################
