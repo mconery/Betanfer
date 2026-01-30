@@ -3,7 +3,7 @@
 #SBATCH -A bif154
 #SBATCH -J Collate_finemap_parallel
 #SBATCH -o run_result_collations.log
-#SBATCH -N 20
+#SBATCH -N 24
 #SBATCH -p extended
 #SBATCH -t 8:00:00
 
