@@ -197,24 +197,7 @@ fi
 ############################################### Load Conda Environment #########################################
 ################################################################################################################
 
-##### START OF SBCAST AND CONDA-UNPACK #####
-#Set variables
-NNODES=${SLURM_NNODES}
-# Move a copy of the env to the NVMe on each node
-echo "copying ${ENV_NAME} to each node in the job"
-sbcast -pf ${TAR_DIR}/${TAR_FILE} /mnt/bb/${USER}/${TAR_FILE}
-if [ ! "$?" == "0" ]; then
-    # CHECK EXIT CODE. When SBCAST fails, it may leave partial files on the compute nodes, and if you continue to launch srun,
-    # your application may pick up partially complete shared library files, which would give you confusing errors.
-    echo "SBCAST failed!"
-    exit 1
-fi
-
-# Untar the environment file (only need 1 task per node to do this)
-srun -N ${NNODES} --ntasks-per-node 1 mkdir -p /mnt/bb/${USER}/${ENV_NAME}
-echo "untaring ${ENV_NAME}"
-srun -N ${NNODES} --ntasks-per-node 1 tar -xzf /mnt/bb/${USER}/${TAR_FILE} -C /mnt/bb/${USER}/${ENV_NAME}
-##### END OF SBCAST AND CONDA-UNPACK #####
+source activate ${TAR_DIR}/${ENV_NAME}
 
 ################################################################################################################
 ####################################### Execute Commands in Parallel #########################################
