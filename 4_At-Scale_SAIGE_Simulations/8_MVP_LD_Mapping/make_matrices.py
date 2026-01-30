@@ -240,8 +240,8 @@ def driver(variant_dir, output_dir, output_type, ancestry_list, individual_dir,
             file_prefix = variant_file.replace('.vars', '')
             
             # Check if output files already exist
-            vcor1_file = anc_output_dir + file_prefix + '.vcor1'
-            vars_file = anc_output_dir + file_prefix + '.vcor1.vars'
+            vcor1_file = anc_output_dir + file_prefix + '.unphased.vcor1'
+            vars_file = anc_output_dir + file_prefix + '.unphased.vcor1.vars'
             if exists(vcor1_file) and exists(vars_file):
                 print(f"    NOTE: Output files already exist for {file_prefix}. Skipping.")
                 continue
@@ -340,8 +340,8 @@ def driver(variant_dir, output_dir, output_type, ancestry_list, individual_dir,
                 cmd += f'-p {file_prefix}; '
                 
                 # Rename output file extensions
-                cmd += f'mv {anc_output_dir}/{file_prefix}.ld {anc_output_dir}/{file_prefix}.vcor1;'
-                cmd += f'mv {anc_output_dir}/{file_prefix}.variants.txt {anc_output_dir}/{file_prefix}.vcor1.vars;'
+                cmd += f'mv {anc_output_dir}/{file_prefix}.ld {anc_output_dir}/{file_prefix}.unphased.vcor1;'
+                cmd += f'mv {anc_output_dir}/{file_prefix}.variants.txt {anc_output_dir}/{file_prefix}.unphased.vcor1.vars;'
                 # Clean up temporary files
                 cmd += f'rm {plink_dir}{file_prefix}.{ancestry}.temp.*; '
                 cmd += f'rm {anc_output_dir}/{file_prefix}.log;'
