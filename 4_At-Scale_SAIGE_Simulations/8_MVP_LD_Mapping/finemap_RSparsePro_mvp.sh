@@ -23,7 +23,7 @@ module load flux
 ################################################################################################################
 
 # Set script locations
-map_script="/gpfs/arx2/bif154_mde/proj-shared/betanfer_project/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/RSparsePro/finemap_RSparsePro.sh"
+map_script="/gpfs/arx2/bif154_mde/proj-shared/betanfer_project/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/8_MVP_LD_Mapping/finemap_RSparsePro.sh"
 command_script="/gpfs/arx2/bif154_mde/proj-shared/betanfer_project/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/RSparsePro/generate_rsparsepro_commands.py"
 python_splitter="/gpfs/arx2/bif154_mde/proj-shared/betanfer_project/Meta_Fine-Mapping/5_LD_Inference/split_commands_parallel.py"
 node_script="/gpfs/arx2/bif154_mde/proj-shared/betanfer_project/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/flux_node_worker.sh"
