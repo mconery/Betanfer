@@ -204,7 +204,7 @@ echo "Start time: $(date)"
 
 # Loop through all individual command files and append to master file in sequence
 # This avoids the race condition by processing files sequentially AFTER all parallel jobs complete
-ls "${command_files_dir}" | grep carma | grep -v batch | grep realistic | grep -v master | while read command_file; do
+ls "${command_files_dir}" | grep carma | grep -v batch | grep mvp | grep -v master | while read command_file; do
     if [[ -f "${command_files_dir}/$command_file" ]] && [[ -s "${command_files_dir}/$command_file" ]]; then
         num_lines=$(wc -l < "${command_files_dir}/$command_file")
         grep -v "^#" "${command_files_dir}/$command_file" >> "$master_commands_file"
