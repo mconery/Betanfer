@@ -28,6 +28,7 @@ var_dir="/sw/frontier/mde/bif154_mde/betanfer_project/LD_matrices"
 # Script locations
 wrapper_script="${script_dir}/make_matrices.py"
 execution_script="${script_dir}/execute_command.py"
+python_splitter="/gpfs/arx2/bif154_mde/proj-shared/betanfer_project/Meta_Fine-Mapping/5_LD_Inference/split_commands_parallel.py"
 
 # Files and directories
 plink_dir="/gpfs/arx2/bif154_mde/proj-shared/RITM0309091/pgen"
@@ -35,6 +36,7 @@ matrix_dir="${base_dir}/LD_matrices/mvp_external"
 individual_dir="/gpfs/arx2/bif154_mde/proj-shared/MVP_meta-analysis/real_genotypes"
 registry_file="/gpfs/arx2/bif154_mde/proj-shared/RITM0309091/pgen/hg19.chunk_register.csv"
 command_file="${matrix_dir}/make_matrices.master.txt"
+command_files_dir="${base_dir}/LD_matrices/command_files"
 
 # Plink binary directory
 plink_bin_dir="/gpfs/arx2/bif154_mde/proj-shared/tools/bin"
@@ -71,11 +73,47 @@ fi
 
 echo "Command files generated successfully"
 
-#Read in the commands
-mapfile -t cmds < ${command_file}
+################################################################################################################
+################################## Create batched command files ################################################
+################################################################################################################
+
+echo ""
+echo "Creating batched command files using parallel Python splitter..."
+
+# Clean up any existing susie batch files
+rm -f "${command_files_dir}"/make_matrix__*.sh
+
+#Calculate number of batches
+num_batches=$(( num_nodes * 28 ))
+# Use Python splitter for fast parallel batch creation
+python "${python_splitter}" \
+    -i "${command_file}" \
+    -o "${command_files_dir}" \
+    -b 1 \
+    -p "make_matrix_" \
+    -s ".sh"
+
+if [ $? -ne 0 ]; then
+    echo "ERROR: Python batch splitter failed"
+    exit 1
+fi
+
+# Verify batch creation
+num_batch_files=$(ls "${command_files_dir}" | grep -c "^make_matrix_" || true)
+echo "Verified: Created ${num_batch_files} batch files in ${command_files_dir}"
+
+if [ ${num_batch_files} -eq 0 ]; then
+    echo "ERROR: No batch files were created"
+    exit 1
+fi
+
+################################################################################################################
+####################################### Execute Commands in Parallel #########################################
+################################################################################################################
+
 #Start flux and Run the flux script
 NNODES=${SLURM_NNODES}
-srun -N $NNODES -n $NNODES -c 56 flux start "flux resource list; mapfile -t cmds < ${command_file}; for ((i=0; i<${#cmds[@]}; i++)); do flux submit -N1 -n1 -c56 --output=flux_output/make_matrix_\$i.txt \${cmds[\$i]}; done; flux queue drain;"
+srun -N $NNODES -n $NNODES -c 56 flux start "flux resource list; batch_count=0; for batch in ${command_files_dir}/make_matrix_*.sh; do batch_name=\$(basename \${batch} .sh); flux submit -N1 -n1 -c56 --output=flux_output/\${batch_name}.log bash \${batch}; if [ \$((batch_count % 20)) -eq 0 ]; then echo \"  Submitted \${batch_count}/${num_batch_files} batches\" fi; done; flux queue drain;"
 
 echo "All jobs completed"
 echo "LD matrices should be located in: ${matrix_dir}/AFR/ and ${matrix_dir}/EUR/"
