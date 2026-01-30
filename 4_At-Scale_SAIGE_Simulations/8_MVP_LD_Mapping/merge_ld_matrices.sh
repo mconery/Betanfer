@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH -A bif154
+#SBATCH -A bif154_mde
 #SBATCH -J merge_ld_matrices
 #SBATCH -o merge_ld_matrices.log
 #SBATCH -N 60
