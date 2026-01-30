@@ -24,7 +24,7 @@ module load flux
 ################################################################################################################
 
 # Set script locations
-map_script="/gpfs/arx2/bif154_mde/proj-shared/betanfer_project/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/SuSiEx/finemap_SuSiEx.py"
+map_script="/gpfs/arx2/bif154_mde/proj-shared/betanfer_project/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/8_MVP_LD_Mapping/finemap_SuSiEx.py"
 command_script="/gpfs/arx2/bif154_mde/proj-shared/betanfer_project/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/SuSiEx/generate_susiex_commands.py"
 python_splitter="/gpfs/arx2/bif154_mde/proj-shared/betanfer_project/Meta_Fine-Mapping/5_LD_Inference/split_commands_parallel.py"
 
