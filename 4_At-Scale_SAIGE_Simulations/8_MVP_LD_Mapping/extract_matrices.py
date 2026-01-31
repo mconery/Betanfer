@@ -228,29 +228,61 @@ def driver(plink_base, variant_file, chr_num, output_dir, output_prefix):
             matrix[i, :] *= -1
             matrix[:, i] *= -1
             
-    # Check for NA values in any row (which also means that column has NAs)
-    valid_variants = []
-    for i in range(n_vars):
-        if not np.isnan(matrix[i, :]).all():
-            valid_variants.append(i)
+    # Keep track of which variants are still valid (use their current indices)
+    valid_indices = list(range(n_vars))
+    removed_variants = []
     
-    n_removed = n_vars - len(valid_variants)
-    if n_removed > 0:
-        print(f"Removing {n_removed} variants with NA values")
+    # Continue until no NAs remain
+    iteration = 0
+    while True:
+        # Check if there are any NAs in the current matrix subset
+        current_matrix = matrix[np.ix_(valid_indices, valid_indices)]
         
-        # Subset the matrix to keep only valid variants (both rows and columns)
-        matrix = matrix[np.ix_(valid_variants, valid_variants)]
+        if not np.isnan(current_matrix).any():
+            print(f"No NA values remaining after {iteration} iterations")
+            break
         
-        # Update plink_to_original_idx to only include valid variants
-        # Create new mapping with updated indices
-        new_plink_to_original_idx = {}
-        for new_idx, old_idx in enumerate(valid_variants):
-            new_plink_to_original_idx[new_idx] = plink_to_original_idx[old_idx]
+        iteration += 1
         
-        plink_to_original_idx = new_plink_to_original_idx
-        n_vars = len(valid_variants)
+        # Count NA values for each variant (row/column)
+        na_counts = {}
+        for i, idx in enumerate(valid_indices):
+            # Count NAs in this row of the subsetted matrix
+            na_count = np.isnan(current_matrix[i, :]).sum()
+            na_counts[idx] = na_count
         
-        print(f"Retained {n_vars} variants after NA removal")   
+        # Find variant with maximum NA count
+        max_na_idx = max(na_counts, key=na_counts.get)
+        max_na_count = na_counts[max_na_idx]
+        
+        # Get variant info for logging
+        orig_var, _ = plink_to_original_idx[max_na_idx]
+        var_id = f'{orig_var[0]}:{orig_var[1]}:{orig_var[2]}:{orig_var[3]}'
+        
+        print(f"Iteration {iteration}: Removing variant {var_id} with {max_na_count} NA values")
+        
+        # Remove this variant from valid list
+        valid_indices.remove(max_na_idx)
+        removed_variants.append((var_id, max_na_count))
+    
+    if removed_variants:
+        print(f"\nRemoved {len(removed_variants)} total variants with NA values:")
+        for var_id, na_count in removed_variants:
+            print(f"  {var_id}: {na_count} NAs")
+    
+    # Subset the matrix to keep only valid variants
+    matrix = matrix[np.ix_(valid_indices, valid_indices)]
+    
+    # Update plink_to_original_idx to only include valid variants
+    # Create new mapping with updated indices
+    new_plink_to_original_idx = {}
+    for new_idx, old_idx in enumerate(valid_indices):
+        new_plink_to_original_idx[new_idx] = plink_to_original_idx[old_idx]
+    
+    plink_to_original_idx = new_plink_to_original_idx
+    n_vars = len(valid_indices)
+    
+    print(f"\nRetained {n_vars} of {len(variant_to_plink_idx)} variants after NA removal")
 
     # Write corrected matrix
     with open(matrix_file, 'w') as f:
