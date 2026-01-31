@@ -231,7 +231,7 @@ def driver(plink_base, variant_file, chr_num, output_dir, output_prefix):
     # Check for NA values in any row (which also means that column has NAs)
     valid_variants = []
     for i in range(n_vars):
-        if not np.isnan(matrix[i, :]).any():
+        if not np.isnan(matrix[i, :]).all():
             valid_variants.append(i)
     
     n_removed = n_vars - len(valid_variants)
