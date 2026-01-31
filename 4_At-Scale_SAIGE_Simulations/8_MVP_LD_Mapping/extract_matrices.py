@@ -227,6 +227,30 @@ def driver(plink_base, variant_file, chr_num, output_dir, output_prefix):
         if plink_to_original_idx[i][1]:  # If flipped
             matrix[i, :] *= -1
             matrix[:, i] *= -1
+            
+    # Check for NA values in any row (which also means that column has NAs)
+    valid_variants = []
+    for i in range(n_vars):
+        if not np.isnan(matrix[i, :]).any():
+            valid_variants.append(i)
+    
+    n_removed = n_vars - len(valid_variants)
+    if n_removed > 0:
+        print(f"Removing {n_removed} variants with NA values")
+        
+        # Subset the matrix to keep only valid variants (both rows and columns)
+        matrix = matrix[np.ix_(valid_variants, valid_variants)]
+        
+        # Update plink_to_original_idx to only include valid variants
+        # Create new mapping with updated indices
+        new_plink_to_original_idx = {}
+        for new_idx, old_idx in enumerate(valid_variants):
+            new_plink_to_original_idx[new_idx] = plink_to_original_idx[old_idx]
+        
+        plink_to_original_idx = new_plink_to_original_idx
+        n_vars = len(valid_variants)
+        
+        print(f"Retained {n_vars} variants after NA removal")   
 
     # Write corrected matrix
     with open(matrix_file, 'w') as f:
