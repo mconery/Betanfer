@@ -205,6 +205,7 @@ def load_gwas_data_to_common_variants(gwas_file: str, detected_cols: Dict[str, s
         gwas_df = pd.read_csv(gwas_file, sep='\t')
     except:
         gwas_df = pd.read_csv(gwas_file, sep=' ')
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
     snp_col = detected_cols['snp']
     if snp_col is None or snp_col not in gwas_df.columns:
         raise ValueError(f'SNP column not found in GWAS file: {gwas_file}')
