@@ -41,7 +41,7 @@ def parse_arguments():
     
     # Boolean flags
     parser.add_argument('--estimate_residual_variance', action='store_true', help='Estimate residual variance')
-    parser.add_argument('--standardize', action='store_true', default=True, help='Standardize inputs')
+    parser.add_argument('--no_standardize', action='store_true', default=False, help='Do not standardize inputs') 
     
     # Optional parameters
     parser.add_argument('--prior_weights', default=None, help='Prior weights for variants')
@@ -215,7 +215,7 @@ def load_gwas_data_to_common_variants(gwas_file: str, detected_cols: Dict[str, s
     # Filter to common variants
     gwas_sub = gwas_df[gwas_df[snp_col].isin(common_variants)]
     if gwas_sub.empty:
-        raise ValueError(f'No overlapping variants found in GWAS and common variant set')
+        raise ValueError('No overlapping variants found in GWAS and common variant set')
     
     # Order by common_variants to ensure consistent ordering across populations
     gwas_sub = gwas_sub.set_index(snp_col).reindex(common_variants).reset_index()
@@ -470,7 +470,7 @@ def run_multisusie(gwas_files, ld_files, pheno_files, ancestry_labels, args):
         max_iter=args.max_iter,
         tol=args.tol,
         estimate_residual_variance=args.estimate_residual_variance,
-        standardize=args.standardize,
+        standardize=(not args.no_standardize), 
         prior_weights=prior_weights,
         coverage=args.coverage,
         min_abs_corr=args.min_purity
