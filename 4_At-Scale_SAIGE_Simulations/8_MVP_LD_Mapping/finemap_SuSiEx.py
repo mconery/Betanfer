@@ -477,6 +477,7 @@ def filter_and_deduplicate_gwas(gwas_file, variant_ids, temp_dir="temp_gwas"):
         except:
             # Try space separator
             df = pd.read_csv(gwas_file, sep=' ')
+            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         
         original_count = len(df)
         print(f"[GWAS FILTER] Original file has {original_count} variants")
