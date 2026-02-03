@@ -203,6 +203,7 @@ def load_gwas_data_to_common_variants(gwas_file: str, detected_cols: Dict[str, s
     """Load GWAS data filtered to match common variants across all populations."""
     try:
         gwas_df = pd.read_csv(gwas_file, sep='\t')
+        print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
     except:
         gwas_df = pd.read_csv(gwas_file, sep=' ')
         print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
