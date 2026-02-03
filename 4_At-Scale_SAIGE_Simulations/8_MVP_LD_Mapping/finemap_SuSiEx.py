@@ -180,7 +180,7 @@ def delete_bin4_files(ld_bin_files):
 
         if os.path.exists(binf):
 
-            #os.remove(binf) # Uncomment to actually delete files
+            os.remove(binf) # Uncomment to actually delete files
 
             print(f"Deleted: {binf}")
 
@@ -198,7 +198,7 @@ def delete_ref_bim_files(ref_bim_files):
 
         if os.path.exists(bim_file):
 
-            #os.remove(bim_file) # Uncomment to actually delete files
+            os.remove(bim_file) # Uncomment to actually delete files
 
             print(f"Deleted: {bim_file}")
 
@@ -246,7 +246,7 @@ def delete_susiex_output_files(output_file):
 
             try:
 
-                #os.remove(susiex_file)
+                os.remove(susiex_file)
 
                 print(f"Deleted: {susiex_file}")
 
@@ -567,7 +567,7 @@ def cleanup_temp_gwas_files(temp_gwas_files):
     for temp_file in temp_gwas_files:
         if os.path.exists(temp_file):
             try:
-                #os.remove(temp_file)
+                os.remove(temp_file)
                 print(f"Deleted: {temp_file}")
                 deleted_count += 1
             except Exception as e:
@@ -834,17 +834,16 @@ def generate_plink_ref_bim_file(ld_prefix, vars_file, chrom, bp_start, bp_end, p
 
                 if os.path.exists(temp_file):
 
-                    #os.remove(temp_file)
-                    pass
+                    os.remove(temp_file)
+
             # Remove .bed and .fam files as SuSiEx only needs .bim
 
             for temp_file in [f"{ref_output}.bed", f"{ref_output}.fam"]:
 
                 if os.path.exists(temp_file):
 
-                    #os.remove(temp_file)
-                    pass
-                    
+                    os.remove(temp_file)
+
             return ref_bim_file
 
         else:
@@ -985,8 +984,7 @@ def generate_plink_frequency_file(ld_prefix, vars_file, chrom, bp_start, bp_end,
 
                 if os.path.exists(temp_file):
 
-                    #os.remove(temp_file)
-                    pass
+                    os.remove(temp_file)
 
             return freq_file
 
@@ -1591,7 +1589,7 @@ def cleanup_frequency_files(frq_files):
 
         if os.path.exists(frq_file):
 
-            #os.remove(frq_file)
+            os.remove(frq_file)
 
             print(f"Deleted: {frq_file}")
 
