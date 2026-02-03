@@ -402,6 +402,61 @@ def run_multisusie(gwas_files, ld_files, pheno_files, ancestry_labels, args):
             prior_weights = np.array([float(w.strip()) for w in args.prior_weights.split(',')])
         print(f"Using prior weights: {prior_weights.shape if hasattr(prior_weights, 'shape') else len(prior_weights)} elements")
     
+    print("\n=== PRE-FLIGHT DATA VALIDATION ===")
+
+    for i, ancestry in enumerate(ancestry_labels):
+        print(f"\nPopulation {i+1} ({ancestry}):")
+    
+        # Beta
+        beta = b_list[i]
+        beta_nan = np.sum(np.isnan(beta))
+        beta_inf = np.sum(np.isinf(beta))
+        print(f"  Beta - NaN: {beta_nan}, Inf: {beta_inf}, "
+              f"Range: [{np.nanmin(beta):.6f}, {np.nanmax(beta):.6f}]")
+    
+        # SE
+        se = s_list[i]
+        se_nan = np.sum(np.isnan(se))
+        se_inf = np.sum(np.isinf(se))
+        se_zero = np.sum(se <= 0)
+        se_min = np.nanmin(se)
+        print(f"  SE   - NaN: {se_nan}, Inf: {se_inf}, <=0: {se_zero}, "
+              f"Min: {se_min:.6e}")
+    
+        # LD
+        R = R_list[i]
+        ld_nan = np.sum(np.isnan(R))
+        ld_inf = np.sum(np.isinf(R))
+        ld_diag_min = np.min(np.diag(R))
+        ld_diag_max = np.max(np.diag(R))
+        print(f"  LD   - NaN: {ld_nan}, Inf: {ld_inf}, "
+              f"Diag range: [{ld_diag_min:.6f}, {ld_diag_max:.6f}]")
+    
+        # varY
+        vY = varY_list[i]
+        print(f"  varY: {vY:.6f}, "
+              f"Valid: {not (np.isnan(vY) or np.isinf(vY) or vY <= 0)}")
+    
+    # rho
+    rho_nan = np.sum(np.isnan(rho_matrix))
+    rho_inf = np.sum(np.isinf(rho_matrix))
+    print(f"\nRho matrix - NaN: {rho_nan}, Inf: {rho_inf}, "
+          f"shape: {rho_matrix.shape}")
+    
+    has_issues = False
+    for i in range(len(ancestry_labels)):
+        if (np.any(np.isnan(b_list[i])) or np.any(np.isinf(b_list[i])) or
+            np.any(np.isnan(s_list[i])) or np.any(np.isinf(s_list[i])) or
+            np.any(s_list[i] <= 0) or
+            np.any(np.isnan(R_list[i])) or np.any(np.isinf(R_list[i])) or
+            np.isnan(varY_list[i]) or np.isinf(varY_list[i]) or varY_list[i] <= 0):
+            has_issues = True
+    
+    if has_issues or rho_nan > 0 or rho_inf > 0:
+        raise ValueError("DATA VALIDATION FAILED: Found NaN, Inf, or invalid values in input data")
+    
+    print("\n✓ All data validation checks passed")
+    
     # Run MultiSuSiE with timing
     start_time = time.time()
     result = MultiSuSiE.multisusie_rss(
