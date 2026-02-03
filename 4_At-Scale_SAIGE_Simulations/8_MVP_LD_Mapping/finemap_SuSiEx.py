@@ -474,6 +474,7 @@ def filter_and_deduplicate_gwas(gwas_file, variant_ids, temp_dir="temp_gwas"):
         # Try reading with tab separator first
         try:
             df = pd.read_csv(gwas_file, sep='\t')
+            print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
         except:
             # Try space separator
             df = pd.read_csv(gwas_file, sep=' ')
