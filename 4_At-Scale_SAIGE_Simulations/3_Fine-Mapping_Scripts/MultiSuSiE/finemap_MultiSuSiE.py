@@ -105,9 +105,11 @@ def load_phenotype_data(pheno_file: str, ancestry_label: str) -> Tuple[int, floa
     # Try different separators
     try:
         pheno_df = pd.read_csv(pheno_file, sep='\t')
+        print("####################################################################################")
     except:
         try:
             pheno_df = pd.read_csv(pheno_file, sep=' ')
+            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         except Exception as e:
             raise ValueError(f"ERROR: Could not read phenotype file {pheno_file}: {e}")
     
@@ -203,10 +205,8 @@ def load_gwas_data_to_common_variants(gwas_file: str, detected_cols: Dict[str, s
     """Load GWAS data filtered to match common variants across all populations."""
     try:
         gwas_df = pd.read_csv(gwas_file, sep='\t')
-        print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
     except:
         gwas_df = pd.read_csv(gwas_file, sep=' ')
-        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
     snp_col = detected_cols['snp']
     if snp_col is None or snp_col not in gwas_df.columns:
         raise ValueError(f'SNP column not found in GWAS file: {gwas_file}')
