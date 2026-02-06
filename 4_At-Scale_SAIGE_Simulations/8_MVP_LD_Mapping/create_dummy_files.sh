@@ -101,7 +101,7 @@ for heritability in "${heritabilities[@]}"; do
             --commands_file "$repair_commands_file" \
             --populations "$populations" \
             --matrix_types "$matrix_types" \
-            --method "$method_name"
+            --method "$method"
 
         if [[ $? -ne 0 ]]; then
             echo "❌ ERROR: Failed to generate commands for heritability: $heritability"
