@@ -19,7 +19,7 @@ def read_vars_file(vars_file):
 
 def combine_variant_sets(vars_files, mode="union"):
     """
-    vars_files: list of paths (one per population)
+    vars_files: list of paths
     mode: 'union' or 'intersection'
     returns: sorted list of variant IDs
     """
@@ -156,13 +156,13 @@ def parse_args():
     p = argparse.ArgumentParser(
         description=(
             "Create dummy fine-mapping results for failed loci.\n"
-            "Accepts comma-delimited GWAS files and variant files.\n"
+            "Accepts a single GWAS file with one or more variant files.\n"
             "Combines variants by union (default) or intersection."
         )
     )
     p.add_argument(
-        "--gwas_files", "-g", required=True,
-        help="Comma-delimited list of GWAS summary statistics files"
+        "--gwas_file", "-g", required=True,
+        help="GWAS summary statistics file (single file only)"
     )
     p.add_argument(
         "--vars_files", "-v", required=True,
@@ -180,9 +180,9 @@ def parse_args():
     p.add_argument(
         "--populations", "-p", default="",
         help=(
-            "Comma-delimited population labels; must match number of GWAS "
-            "and vars files. If omitted and there is exactly one GWAS and "
-            "one vars file, a single 'Z' column is written."
+            "Comma-delimited population labels; must match number of variant files "
+            "if provided. If omitted and there is exactly one variant file, "
+            "a single 'Z' column is written."
         )
     )
     p.add_argument(
@@ -207,12 +207,14 @@ def parse_args():
 def main():
     args = parse_args()
 
-    gwas_files = [g.strip() for g in args.gwas_files.split(",") if g.strip()]
-    vars_files = [v.strip() for v in args.vars_files.split(",") if v.strip()]
+    # Single GWAS file
+    gwas_file = args.gwas_file.strip()
+    if not gwas_file:
+        raise ValueError("GWAS file path cannot be empty")
 
-    if len(gwas_files) == 0:
-        raise ValueError("No valid paths given in --gwas_files")
-    if len(vars_files) == 0:
+    # Parse variant files
+    vars_files = [v.strip() for v in args.vars_files.split(",") if v.strip()]
+    if not vars_files:
         raise ValueError("No valid paths given in --vars_files")
 
     # Parse populations; may be empty string
@@ -220,33 +222,33 @@ def main():
     single_no_pop = False
 
     if len(pop_raw) == 0:
-        # Special case: one GWAS + one vars => allow no population name
-        if len(gwas_files) == 1 and len(vars_files) == 1:
+        # Special case: single variant file, no populations => column named 'Z'
+        if len(vars_files) == 1:
             single_no_pop = True
             labels = ["SINGLE"]  # internal label, will be written as 'Z'
         else:
             raise ValueError(
-                "No populations provided, but multiple GWAS/vars files given; "
-                "please supply one population name per GWAS/vars."
+                "No populations provided, but multiple variant files given; "
+                "please supply one population name per variant file."
             )
     else:
         labels = pop_raw
 
-    if not (len(labels) == len(gwas_files) == len(vars_files)):
+    # Validate counts match
+    if len(labels) != len(vars_files):
         raise ValueError(
-            "Number of populations, GWAS files, and vars files must match.\n"
-            f"Got {len(labels)} populations, {len(gwas_files)} GWAS files, "
-            f"{len(vars_files)} vars files."
+            "Number of populations must match number of variant files.\n"
+            f"Got {len(labels)} populations and {len(vars_files)} variant files."
         )
 
     # Combine variants over all vars_files
     variant_ids = combine_variant_sets(vars_files, mode=args.variant_mode)
 
-    # Build Z dict
+    # Build Z dict: use the single GWAS file for all populations
     z_dict = {}
     if args.calculate_z:
-        for label, gwas_file in zip(labels, gwas_files):
-            snp_col = detect_snp_column(gwas_file)
+        snp_col = detect_snp_column(gwas_file)
+        for label in labels:
             z_vals = load_z_scores(gwas_file, snp_col, variant_ids)
             z_dict[label] = z_vals
     else:
