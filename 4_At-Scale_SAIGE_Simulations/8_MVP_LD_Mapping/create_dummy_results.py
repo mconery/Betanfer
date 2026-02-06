@@ -116,10 +116,12 @@ def write_dummy_results(
     z_dict,
     single_no_pop_name=False,
     create_timing=False,
+    method_name="multisusie",
 ):
     """
     z_dict: mapping from label -> list of Zs (same length as variant_ids)
     single_no_pop_name: if True, write a single column 'Z' instead of 'Z_label'
+    method_name: name for timing file header (e.g., "susie", "multisusie")
     """
     df = pd.DataFrame({"VARIANT_ID": variant_ids})
 
@@ -145,8 +147,9 @@ def write_dummy_results(
         timing_dir = os.path.join(out_dir, "timing")
         os.makedirs(timing_dir, exist_ok=True)
         timing_file = os.path.join(timing_dir, os.path.basename(output_file))
+        header = f"{method_name}_time_seconds"
         with open(timing_file, "w") as f:
-            f.write("multisusie_time_seconds\nNA\n")
+            f.write(f"{header}\nNA\n")
 
 
 def parse_args():
@@ -180,6 +183,14 @@ def parse_args():
             "Comma-delimited population labels; must match number of GWAS "
             "and vars files. If omitted and there is exactly one GWAS and "
             "one vars file, a single 'Z' column is written."
+        )
+    )
+    p.add_argument(
+        "--method", default="multisusie",
+        help=(
+            "Name of the fine-mapping method; used for timing file header "
+            "(default: multisusie). Timing file will contain "
+            "'<method>_time_seconds' as header."
         )
     )
     p.add_argument(
@@ -249,6 +260,7 @@ def main():
         z_dict=z_dict,
         single_no_pop_name=single_no_pop,
         create_timing=args.create_timing,
+        method_name=args.method,
     )
 
 
