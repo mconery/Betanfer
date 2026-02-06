@@ -130,7 +130,7 @@ def find_expected_output_files(gwas_files: List[Tuple[str, Dict]],
         
         # Find corresponding .vars file
         ld_prefix = meta['pheno_causal']
-        vars_file = os.path.join(ld_base, 'mvp_external', pop, 
+        vars_file = os.path.join(ld_base, pop, 
                                 f"{ld_prefix}.*.vars")
         vars_matches = glob.glob(vars_file)
         if vars_matches:
