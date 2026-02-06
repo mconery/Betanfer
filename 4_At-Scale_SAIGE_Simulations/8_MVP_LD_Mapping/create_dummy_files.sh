@@ -9,6 +9,10 @@
 # It mirrors the directory structure and configurations from mapping script.
 ################################################################################
 
+#Load modules
+module load Core/25.03
+module load miniforge3
+
 # Set script locations
 command_generator="/gpfs/arx2/bif154_mde/proj-shared/betanfer_project/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/8_MVP_LD_Mapping/create_dummy_commands.py"
 
@@ -43,7 +47,7 @@ echo "Base results directory: $base_finemap_dir"
 echo "Output directory: $repair_files_dir"
 echo "Populations: $populations"
 echo "Matrix types: $matrix_types"
-echo "Method: $method_name"
+echo "Methods: ${methods[@]}"
 echo "Heritabilities: ${heritabilities[@]}"
 echo "================================================================================"
 echo ""
