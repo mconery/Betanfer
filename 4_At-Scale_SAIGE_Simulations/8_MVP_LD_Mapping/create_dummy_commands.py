@@ -194,6 +194,10 @@ def generate_dummy_commands(missing_files: List[Dict],
     """
     commands = []
     
+    #Get directory of current script
+    script_path = Path(__file__).resolve()      # full path to this .py file
+    script_dir  = script_path.parent            # directory containing this file
+    
     for spec in missing_files:
         gwas_files_dict = spec['gwas_files']
         vars_files_dict = spec['vars_files']
@@ -214,7 +218,7 @@ def generate_dummy_commands(missing_files: List[Dict],
         pop_labels = ",".join(populations)
         
         cmd = (
-            f"python create_dummy_results.py \\\n"
+            f"python {script_dir}/create_dummy_results.py \\\n"
             f"  --gwas_file '{gwas_files}' \\\n"
             f"  --vars_files '{vars_files}' \\\n"
             f"  --output_file '{output_file}' \\\n"
