@@ -30,7 +30,7 @@ RESULTS_BASE_DIR="/gpfs/arx2/bif154_mde/proj-shared/betanfer_project/fine-mappin
 OUTPUT_BASE_DIR="/gpfs/arx2/bif154_mde/proj-shared/betanfer_project/summary_results"
 
 # Fine-mapping collator script
-COLLATE_SCRIPT="/gpfs/arx2/bif154_mde/proj-shared/betanfer_project/Meta_Fine-Mapping/fine_mapping_collator.py"
+COLLATE_SCRIPT="/gpfs/arx2/bif154_mde/proj-shared/betanfer_project/Meta_Fine-Mapping/4_At-Scale_SAIGE_Simulations/8_MVP_LD_Mapping/fine_mapping_collator.py"
 
 # Flux output directory
 FLUX_OUTPUT_DIR="${OUTPUT_BASE_DIR}/flux_logs"
