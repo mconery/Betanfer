@@ -292,8 +292,8 @@ def main():
             pos1 = var_pos_map[v1]
             pos2 = var_pos_map[v2]
             
-            # Check if both variants in pair are within causal_distance
-            if (abs(pos1 - causal_pos) <= causal_distance and 
+            # Check if at least one variant in pair are within causal_distance
+            if (abs(pos1 - causal_pos) <= causal_distance or 
                 abs(pos2 - causal_pos) <= causal_distance):
                 valid_pairs.append((v1, v2))
         
