@@ -37,7 +37,7 @@ Options:
 --max_dist Maximum distance of variant pairs (default: 1Mb; optional)
 --causal_dist Maximum distance from causal variant to tested pairs (default: 500kb; optional)
 --effect_size Per-allele effect size (default: 0.1; optional)
---keep_conv Keep file naming convention (default: 1000G..txt; optional)
+--keep_conv Keep file naming convention (default: 1000G.<POP>.txt; optional)
 --plink_conv Plink file naming convention (default: _10k_sample.bed; optional)
 --random_seed Random seed (default: 5; optional)
 --threads Number of threads (default: all available; optional)
@@ -72,7 +72,7 @@ def main():
     case_prob = 0.5
     trait_type = 'continuous'
     effect_size = 0.1
-    keep_conv = "1000G..txt"
+    keep_conv = "1000G.<POP>.txt"
     plink_conv = "_10k_sample.bed"
     random_seed = 5
     n_workers = os.cpu_count()
@@ -173,7 +173,7 @@ def main():
     #Extract population name
     if keep_file: #Checks for whether keep file given
         #Collect population name if filtering
-        keep_name_remnant = keep_conv.split("<>")
+        keep_name_remnant = keep_conv.split("<POP>")
         pop_name = os.path.basename(keep_file)
         for remnant in keep_name_remnant:
             pop_name = pop_name.replace(remnant, "")
