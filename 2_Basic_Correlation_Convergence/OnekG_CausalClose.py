@@ -73,7 +73,7 @@ def main():
     trait_type = 'continuous'
     effect_size = 0.1
     keep_conv = "1000G.<POP>.txt"
-    plink_conv = "_10k_sample.bed"
+    plink_conv = "<CHROMOSOME>_10k_sample.bed"
     random_seed = 5
     n_workers = os.cpu_count()
 
