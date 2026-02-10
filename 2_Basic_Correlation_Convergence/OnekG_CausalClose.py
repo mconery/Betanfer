@@ -164,7 +164,7 @@ def main():
         sys.exit(2)
 
     #Extract chromosome
-    plink_name_remnant = plink_conv.split("<>")
+    plink_name_remnant = plink_conv.split("<CHROMOSOME>")
     chromo = os.path.basename(plink_path)
     for remnant in plink_name_remnant:
         chromo = chromo.replace(remnant, "")
