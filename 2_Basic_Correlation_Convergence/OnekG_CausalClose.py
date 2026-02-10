@@ -156,12 +156,11 @@ def main():
         sys.exit(2)
 
     #Check naming conventions for needed parameters
-    if '<>' not in keep_conv and keep_file:
-        print("ERROR: Invalid keep file naming convention given. Convention must include <>.")
+    if '<POP>' not in keep_conv and keep_file:
+        print("ERROR: Invalid keep file naming convention given. Convention must include <POP>.")
         sys.exit(2)
-
-    if '<>' not in plink_conv and keep_file:
-        print("ERROR: Invalid plink file naming convention given. Convention must include <>.")
+    if '<CHROMOSOME>' not in plink_conv and keep_file:
+        print("ERROR: Invalid plink file naming convention given. Convention must include <CHROMOSOME>.")
         sys.exit(2)
 
     #Extract chromosome
