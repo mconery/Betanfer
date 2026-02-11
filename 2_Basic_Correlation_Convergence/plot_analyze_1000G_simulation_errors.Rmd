@@ -10,9 +10,12 @@ This section of the code reads in the file and makes the function that makes the
 #Set plot directories
 library(ggplot2)
 library(dplyr)
+library(ggpubr)
 
 #Set results file
 results_file="C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/1000G_Simulations/genotype_beta_correlation_deviation_metrics.csv"
+#Output directory
+out_dir<- "C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Figures/Correlation_Structure"
 #Read in the results file
 input_df <- read.csv(results_file)
 #Set factors for buckets
@@ -20,13 +23,14 @@ input_df$bucket_range <- factor(input_df$bucket_range, levels = c("0.0-1.0","0.0
 
 #Set function
 plot_simulation_results <- function(inp_df, 
-                                   x_var, 
-                                   y_var, 
-                                   color_var = NULL,
+                                   x_var, x_label,
+                                   y_var, y_label,
+                                   color_var = NULL, color_var_label = NULL,
                                    filter_bucket = "overall",
                                    filter_trait_type = NULL,
                                    filter_n_causal = NULL,
-                                   facet_var = NULL, plot_title=NULL) {
+                                   facet_var = NULL, plot_title=NULL,
+                                   save_path = NULL) {
   # Read results data
   df <- inp_df
   
@@ -44,12 +48,14 @@ plot_simulation_results <- function(inp_df,
   # Create base plot
   p <- ggplot(df, aes_string(x = x_var, y = y_var, color = color_var)) +
     geom_point(alpha = 0.7, size = 2) +
-    theme_minimal() +
+    theme_pubr(base_size = 12) +
     labs(
       title = plot_title,
-      x = gsub("_", " ", toupper(x_var)),
-      y = gsub("_", " ", toupper(y_var))
-    )
+      x = x_label,
+      y = y_label
+    ) + theme(legend.position = "right") + 
+    labs(color = color_var_label)
+    
   
   # Faceting
   if (!is.null(facet_var)) {
@@ -64,67 +70,59 @@ plot_simulation_results <- function(inp_df,
   }
   
   print(p)
+  #Save if requested
+  if (!(is.null(save_path))) {
+    ggsave(
+      filename   = save_path,
+      plot       = p,
+      width      = 200,
+      height     = 80,
+      units      = "mm",
+      dpi        = 300,       # or 600 if required
+      compression = "lzw"     # optional, shrinks file size
+    )
+  }
+
 }
 
 ```
-# 2) Make basic plot of continuous traits ====
+# 2) Make basic plot colored by # of causal variants ====
 ```{r}
 
-plot_simulation_results(input_df, x_var="n_traits", y_var="mae", color_var="n_causal", filter_bucket = "overall", filter_trait_type = "continuous", 
-                        plot_title="Continuous Traits", facet_var="population")
+plot_simulation_results(input_df, x_var="n_traits", y_var="mae", color_var="n_causal", filter_bucket = "overall", 
+                        facet_var="population", x_label="# Traits", y_label="Mean Absolute Error (MAE)", color_var_label="# Causal\nVariants",
+                        save_path = paste(out_dir, "MAE.by_trait.colored_num_causal.tiff", sep = "/"))
 
 ```
-# 3) Make Basic Plot of Binary Traits Colored by Case Proportion====
+# 3) Make basic plot colored by effect size ====
 ```{r}
 
-plot_simulation_results(input_df, x_var="n_traits", y_var="mae", color_var="case_prob", filter_bucket = "overall", filter_trait_type = "binary", 
-                        plot_title="Binary Traits", facet_var="population")
+plot_simulation_results(input_df, x_var="n_traits", y_var="mae", color_var="effect_size", filter_bucket = "overall", 
+                        facet_var="population", x_label="# Traits", y_label="Mean Absolute Error (MAE)", color_var_label="Causal\nVariant\nEffect\nSize",
+                        save_path = paste(out_dir, "MAE.by_trait.colored_effect_size.tiff", sep = "/"))
 
 ```
-# 4) Make Plot of All Simulations with 0 Causal Variants ====
+
+# 4) Make Plot of Genotype Correlation Buckets ====
 ```{r}
 
-plot_simulation_results(input_df, x_var="n_traits", y_var="mae", color_var="trait_type", filter_bucket = "overall", filter_n_causal = 0, 
-                        plot_title="Continuous and Binary Traits with 0 Causal Variants", facet_var="population")
+plot_simulation_results(input_df, x_var="bucket_range", y_var="mae", color_var="n_traits", filter_bucket = "geno_corr", filter_trait_type = "continuous",
+                        facet_var="population", x_label = "Genotype Correlation", y_label="Mean Absolute Error (MAE)", color_var_label="# Traits",
+                        save_path = paste(out_dir, "MAE.by_genotype_bucket.colored_traits.tiff", sep = "/"))
 
 ```
-# 5) Make Plot of All Traits with 0 Causal variants and Binary Traits limited to Variant Pairs for which all betas were calculable ====
-```{r}
-#Filter for overall rows where beta correlations are based off of all simulated traits (there were no calculation errors)
-full_calc_df <-input_df %>% filter((trait_type == "continuous" & bucket_type=="overall") | (trait_type == "binary" & bucket_type=="overall_filtered"))
-plot_simulation_results(full_calc_df, x_var="n_traits", y_var="mae", color_var="trait_type", filter_n_causal=0,
-                        plot_title="No Causality Continuous and Binary Traits of Full-Trait Variant Pairs", facet_var="population", filter_bucket = NULL)
 
-```
-# 6) Make Plot of Genotype Correlation Buckets ====
-```{r}
-
-plot_simulation_results(input_df, x_var="bucket_range", y_var="mae", color_var="n_traits", filter_bucket = "geno_corr", filter_trait_type = "continuous", 
-                        plot_title="Continuous Traits Split by Genotype Correlation", facet_var="population")
-
-```
-# 7) Make Plot of MAF Buckets ====
+# 5) Make Plot of MAF Buckets ====
 ```{r}
 
 plot_simulation_results(input_df, x_var="bucket_range", y_var="mae", color_var="n_traits", filter_bucket = "maf", filter_trait_type = "continuous", 
-                        plot_title="Continuous Traits with 0 Causal Variants Split by MAF", filter_n_causal = 0, facet_var="population")
+                        filter_n_causal = 0, facet_var="population",
+                        x_label = "Minor Allele Frequency (MAF)", y_label="Mean Absolute Error (MAE)", color_var_label="# Traits",
+                        save_path = paste(out_dir, "MAE.by_maf_bucket.colored_traits.tiff", sep = "/"))
 
 ```
-# 8) Make Binary Trait Plot Colored by Effect Size ====
-```{r}
 
-plot_simulation_results(input_df, x_var="n_traits", y_var="mae", color_var="effect_size", filter_bucket = "overall", filter_trait_type = "binary", 
-                        plot_title="Binary Traits", facet_var="population")
-
-```
-# 9) Make Binary Trait Plot Colored by Number of Causal Variants ====
-```{r}
-
-plot_simulation_results(input_df, x_var="n_traits", y_var="mae", color_var="n_causal", filter_bucket = "overall", filter_trait_type = "binary", 
-                        plot_title="Binary Traits", facet_var="population")
-
-```
-# 10) Make Table of Continuous Trait Standard Errors ====
+# 6) Make Table of Continuous Trait Standard Errors ====
 ```{r}
 #Set output file location
 out_file <- "C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/1000G_Simulations/correlation_error_standard_deviations.csv"
@@ -158,7 +156,7 @@ if (!is.null(filter_n_causal)) {
 }
 
 # Create base plot
-p <- ggplot(df %>% filter(population=="AFR"), aes_string(x = x_var, y = y_var, color = color_var)) +
+p <- ggplot(df %>% filter(population=="ALL"), aes_string(x = x_var, y = y_var, color = color_var)) +
   geom_point(alpha = 0.7, size = 2) +
   theme_minimal() +
   labs(
@@ -182,8 +180,6 @@ p <- p + scale_x_continuous(labels = scales::comma) +
                 legend.justification = c(1, 1),
                 legend.background = element_rect(fill = "white", color = "black", size = 0.25))
 
-ggsave("C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Figures/Correlation_Structure/high-res-convergence.jpeg", plot = p, width = 2.25, height = 3, units = "in",dpi = 300)
-
-
+ggsave("C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Figures/Correlation_Structure/MAE.high-res.ALL_pop_only.jpeg", plot = p, width = 2.25, height = 3, units = "in",dpi = 300)
 
 ```
