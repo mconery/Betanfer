@@ -163,7 +163,12 @@ def main():
     if low_ld_threshold >= high_ld_threshold:
         print("ERROR: --low_ld_threshold must be less than --high_ld_threshold")
         sys.exit(1)
-    
+        
+    #Validate trait subset
+    if trait_subset < 0 or trait_subset > 1:
+        print("ERROR: --trait_subset must be between 0 and 1")
+        sys.exit(1)
+        
     #Validate number of workers
     if n_workers > os.cpu_count():
         print(f"ERROR: Selected number of threads exceeds cores per node. Threads must be less than {os.cpu_count()}.")
