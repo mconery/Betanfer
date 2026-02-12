@@ -210,7 +210,7 @@ def main():
         pop_name='ALL'
     
     #Create output file name
-    out_file_name = f"{chromo}.{pop_name}.{n_traits}_traits.{n_pairs}_pairs.{trait_type}{'_' + str(case_prob) if trait_type == 'binary' else ''}.ld_based_low{low_ld_threshold}_high{high_ld_threshold}_{effect_size}.csv"
+    out_file_name = f"{chromo}.{pop_name}.{n_traits}_traits.{n_pairs}_pairs.{trait_type}{'_' + str(case_prob) if trait_type == 'binary' else ''}.subset_{trait_subset}.{'variable' if variable_effects else 'fixed'}_{effect_size}.csv"
     output_path = os.path.join(outdir, out_file_name)
     
     #Check if output file exists and exit if it does
