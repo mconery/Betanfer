@@ -37,6 +37,7 @@ Options:
   --low_ld_threshold  Maximum absolute LD for 'not in LD' variants (default: 0.01; optional)
   --high_ld_threshold Minimum absolute LD for 'in LD' variants (default: 0.1; optional)
   --effect_size       Per-allele effect size (default: 0.1; optional)
+  --trait_subset      Subset of traits to have causal effects (default 0; optional)
   --keep_conv         Keep file naming convention (default: 1000G.<POP>.txt; optional)
   --plink_conv        Plink file naming convention (default: <CHROMOSOME>_10k_sample.bed; optional)
   --random_seed       Random seed (default: 5; optional)
@@ -77,6 +78,7 @@ def main():
     plink_conv = "<CHROMOSOME>_10k_sample.bed"
     random_seed = 5
     variable_effects = None
+    trait_subset = 0
     n_workers = os.cpu_count()
     
     for o, a in opts:
