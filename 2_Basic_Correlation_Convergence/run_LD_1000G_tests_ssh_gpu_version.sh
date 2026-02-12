@@ -32,13 +32,13 @@ cd ../../script_logs
 
 #Create lists of commands
 >multinode_1000G_simulations.gpu.commands.txt
-for pop in EUR AFR ALL; do
+for pop in EUR AFR ALL; do for n_trait in 50 100 200 300 400 500 1000; do
 	temp="python $onekg_script --plink $plink_dir/chr"$chromosome"_10k_sample.bed --pairs=10000 --traits=$n_trait --outdir=$out_dir --keep=$keep_dir/1000G.$pop.txt --trait_type=$trait_type --low_ld_threshold=0.01 --high_ld_threshold=0.1"
-	for effect_size in 0.1 0.5 1 2; do
+	for effect_size in 0.1 0.5 1 2 10 100 1000; do
 		temp_e="$temp"" --effect_size=$effect_size"
 		echo $temp_e >> multinode_1000G_simulations.gpu.commands.txt
 	done 
-done
+done; done
 
 # Get the number of nodes
 num_nodes=$(cat ${PBS_NODEFILE} | wc -l)
