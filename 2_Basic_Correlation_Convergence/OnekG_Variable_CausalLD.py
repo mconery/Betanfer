@@ -76,6 +76,7 @@ def main():
     keep_conv = "1000G.<POP>.txt"
     plink_conv = "<CHROMOSOME>_10k_sample.bed"
     random_seed = 5
+    variable_effects = None
     n_workers = os.cpu_count()
     
     for o, a in opts:
