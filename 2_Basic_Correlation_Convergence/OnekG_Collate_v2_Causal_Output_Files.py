@@ -101,7 +101,7 @@ def process_file(file_path):
         if effect_segment_idx is None:
             raise ValueError(f"No fixed_/variable_ segment found in filename: {fname}")
         
-        effect_part = parts[effect_segment_idx]
+        effect_part = '.'.join(parts[effect_segment_idx:])
         if effect_part.startswith('fixed_'):
             meta['effect_model'] = 'fixed'
             effect_val = effect_part.replace('fixed_', '')
