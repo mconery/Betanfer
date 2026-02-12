@@ -58,7 +58,7 @@ def main():
             ["help", "plink=", "pairs=", "traits=", "keep=", "outdir=",
              "trait_type=", "case_prob=", "keep_conv=", "plink_conv=",
              "low_ld_threshold=", "high_ld_threshold=", "effect_size=", 
-             "random_seed=", "threads="]
+             "random_seed=", "trait_subset=", "variable_effects=", "threads="]
         )
     except getopt.GetoptError as err:
         print(str(err))
