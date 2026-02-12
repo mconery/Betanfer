@@ -9,7 +9,7 @@ selection based script.
 ***Run in Conda finemap environment***
 
 Modified to handle new naming convention:
-chr#.POP.#_traits.trait_type.subset_<trait_subset>.<fixed or variable>_<effect_size>.csv
+chr#.POP.#_traits.#_pairs.trait_type.subset_<trait_subset>.<fixed or variable>_<effect_size>.csv
 
 '''
 
@@ -46,7 +46,7 @@ def process_file(file_path):
         parts = fname.split('.')
         
         # Basic components
-        chrom, pop, n_traits, trait_type_part = parts[0], parts[1], parts[2], parts[3]
+        chrom, pop, n_traits, n_pairs, trait_type_part = parts[0], parts[1], parts[2], parts[3], parts[4]
         
         # Initialize metadata dictionary with new structure
         meta = {
