@@ -323,70 +323,85 @@ def main():
 
     # Extract genotype data for eligible variants only
     eligible_geno_data = geno_data[:, eligible_indices].astype(np.float32)
-
-    # Handle missing data by mean imputation for GPU processing
-    print("NOTE: Imputing missing genotypes with variant means...")
-    col_means = np.nanmean(eligible_geno_data, axis=0)
-    for i in range(eligible_geno_data.shape[1]):
-        mask = np.isnan(eligible_geno_data[:, i])
-        eligible_geno_data[mask, i] = col_means[i]
-
-    # Standardize genotypes (mean-center and scale by std)
-    print("NOTE: Standardizing genotypes...")
-    means = np.mean(eligible_geno_data, axis=0)
-    stds = np.std(eligible_geno_data, axis=0)
-    stds[stds < 1e-6] = 1  # Avoid division by zero
-    eligible_geno_data = (eligible_geno_data - means) / stds
-
+    
     # Create SYCL queues for all GPUs
     context = dpctl.SyclContext(available_gpus)
     queues = [dpctl.SyclQueue(context, gpu) for gpu in available_gpus]
-
+    
     def calculate_correlation_matrix_gpu(X, queues, chunk_size=500):
         """
-        Calculate correlation matrix using GPU acceleration
-        X: standardized genotype matrix (samples x variants)
+        Calculate Pearson correlation matrix using GPU acceleration
+        with pairwise deletion for missing values.
+    
+        X: genotype matrix (samples x variants), may contain NaNs
         Returns: correlation matrix (variants x variants)
         """
-        n_variants = X.shape[1]
-        n_samples = X.shape[0]
-        
-        # Correlation of standardized variables is just (X^T @ X) / (n-1)
-        # We'll compute this in blocks to manage memory
-        
-        # Initialize correlation matrix on CPU
+        n_samples, n_variants = X.shape
+    
+        # Precompute masks and masked data on CPU once
+        # mask: 1 where non-missing, 0 where NaN
+        mask = ~np.isnan(X)
+        X_filled = np.where(mask, X, 0).astype(np.float32)
+        mask = mask.astype(np.float32)
+    
         corr_matrix = np.full((n_variants, n_variants), np.nan, dtype=np.float32)
-        
-        # Split computation into chunks
         n_chunks = int(np.ceil(n_variants / chunk_size))
-        
+    
         print(f"NOTE: Computing correlation matrix in {n_chunks} row chunks across {len(queues)} GPUs")
-        
         for chunk_idx in range(n_chunks):
             start_idx = chunk_idx * chunk_size
             end_idx = min((chunk_idx + 1) * chunk_size, n_variants)
-            
-            # Select which GPU to use (round-robin)
+    
             queue = queues[chunk_idx % len(queues)]
-            
-            # Transfer data to GPU
-            X_chunk = dpnp.asarray(X[:, start_idx:end_idx], dtype=dpnp.float32, sycl_queue=queue)
-            X_full = dpnp.asarray(X, dtype=dpnp.float32, sycl_queue=queue)
-            
-            # Compute correlations: (X_chunk^T @ X_full) / (n_samples - 1)
-            corr_chunk = dpnp.matmul(X_chunk.T, X_full) / (n_samples - 1)
-            
-            # Transfer back to CPU
-            corr_matrix[start_idx:end_idx, :] = corr_chunk.asnumpy()
-            
+    
+            # Move chunk and full matrices for this queue
+            X_chunk = dpnp.asarray(X_filled[:, start_idx:end_idx], dtype=dpnp.float32, sycl_queue=queue)
+            M_chunk = dpnp.asarray(mask[:, start_idx:end_idx], dtype=dpnp.float32, sycl_queue=queue)
+            X_full  = dpnp.asarray(X_filled, dtype=dpnp.float32, sycl_queue=queue)
+            M_full  = dpnp.asarray(mask, dtype=dpnp.float32, sycl_queue=queue)
+    
+            # Pairwise counts n_ij (number of samples with both non-missing)
+            N = dpnp.matmul(M_chunk.T, M_full)  # (chunk_size x n_variants)
+    
+            # Sums of x and y over non-missing
+            sum_x  = dpnp.matmul(X_chunk.T, M_full)      # (chunk_size x n_variants)
+            sum_y  = dpnp.matmul(M_chunk.T, X_full)      # (chunk_size x n_variants)
+    
+            # Sums of squares
+            sum_x2 = dpnp.matmul((X_chunk * X_chunk).T, M_full)
+            sum_y2 = dpnp.matmul(M_chunk.T, (X_full * X_full))
+    
+            # Sum of products
+            sum_xy = dpnp.matmul(X_chunk.T, X_full)
+    
+            # Means
+            mean_x = sum_x / N
+            mean_y = sum_y / N
+    
+            # Variances and covariance (pairwise)
+            var_x = sum_x2 - (sum_x * sum_x) / N
+            var_y = sum_y2 - (sum_y * sum_y) / N
+            cov_xy = sum_xy - (sum_x * sum_y) / N
+    
+            # Pearson r with safeguards
+            denom = dpnp.sqrt(var_x * var_y)
+            with dpnp.errstate(divide='ignore', invalid='ignore'):
+                r = cov_xy / denom
+    
+            # Enforce minimum n_ij and valid denom
+            min_n = 10  # or whatever threshold you prefer
+            r = dpnp.where((N < min_n) | (denom <= 0), dpnp.nan, r)
+    
+            corr_matrix[start_idx:end_idx, :] = r.asnumpy()
+    
             if (chunk_idx + 1) % 10 == 0 or (chunk_idx + 1) == n_chunks:
                 print(f"NOTE: Completed {chunk_idx + 1}/{n_chunks} chunks ({100*(chunk_idx+1)/n_chunks:.1f}%)")
-        
+    
         return corr_matrix
-
+    
     # Calculate full correlation matrix on GPU
     all_corr_matrix = calculate_correlation_matrix_gpu(eligible_geno_data, queues, chunk_size=500)
-
+    
     print("NOTE: Correlation matrix calculation complete")
 
     ###############################################################################
@@ -458,7 +473,7 @@ def main():
 
     print(f"\nNOTE: Sampling {n_pairs} pairs total ({n_pairs // 5} from each bucket)...")
 
-    pairs_per_bucket = n_pairs // 5
+    pairs_per_bucket = n_pairs // len(ld_buckets)
     selected_pairs_list = []
 
     for lower, upper, label in ld_buckets:
