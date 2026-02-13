@@ -35,6 +35,7 @@ Options:
   --outdir             Output directory (required)
   --keep               File with individuals to keep (optional)
   --causal_maf_threshold  Minimum MAF for causal variant selection (default: 0.25; optional)
+  --pair_maf_threshold  Minimum MAF for variants retained for pairs (default: 0.05; optional)
   --trait_proportion   Proportion of traits affected by causal variant (default: 1.0; optional)
   --effect_size        Per-allele effect size (default: 0.1; optional)
   --keep_conv          Keep file naming convention (default: 1000G.<POP>.txt; optional)
@@ -68,6 +69,7 @@ def main():
     keep_file = None
     outdir = None
     causal_maf_threshold = 0.25
+    pair_maf_threshold = 0.05
     trait_proportion = 1.0
     effect_size = 0.1
     keep_conv = "1000G.<POP>.txt"
@@ -91,6 +93,8 @@ def main():
             outdir = a
         elif o == "--causal_maf_threshold":
             causal_maf_threshold = float(a)
+        elif o == "--pair_maf_threshold":
+            pair_maf_threshold = float(a)
         elif o == "--trait_proportion":
             trait_proportion = float(a)
         elif o == "--effect_size":
@@ -131,11 +135,15 @@ def main():
     random_seed = check_int(random_seed, "random seed")
     n_workers = check_int(n_workers, "number of threads")
     causal_maf_threshold = float(causal_maf_threshold)
+    pair_maf_threshold = float(pair_maf_threshold)
     trait_proportion = float(trait_proportion)
 
-    # Validate MAF threshold
+    # Validate MAF thresholds
     if causal_maf_threshold < 0 or causal_maf_threshold > 0.5:
         print("ERROR: --causal_maf_threshold must be between 0 and 0.5")
+        sys.exit(1)
+    if pair_maf_threshold < 0 or pair_maf_threshold > 0.5:
+        print("ERROR: --pair_maf_threshold must be between 0 and 0.5")
         sys.exit(1)
 
     # Validate trait proportion
@@ -276,6 +284,7 @@ def main():
 
     print(f"NOTE: Selecting causal variant with MAF >= {causal_maf_threshold}...")
     eligible_causal = np.where(maf_values >= causal_maf_threshold)[0]
+    eligible_pair = np.where(maf_values >= pair_maf_threshold)[0]
 
     if len(eligible_causal) == 0:
         print(f"ERROR: No variants with MAF >= {causal_maf_threshold}")
@@ -292,10 +301,11 @@ def main():
     ###############################################################################
 
     print("NOTE: Identifying non-causal variants...")
-    non_causal_indices = np.where(variant_ids != causal_var)[0]
+    eligible_pair_variant_ids = variant_ids[eligible_pair]
+    non_causal_indices = np.where(eligible_pair_variant_ids != causal_var)[0]
     non_causal_vars = variant_ids[non_causal_indices]
-    print(f"NOTE: Found {len(non_causal_vars)} non-causal variants")
-
+    print(f"NOTE: Found {len(non_causal_vars)} non-causal variants passing MAF threshold of {pair_maf_threshold}")    
+    
     print("NOTE: Creating all possible pairs from non-causal variants...")
     all_possible_pairs = []
     for i in range(len(non_causal_vars)):
