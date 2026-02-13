@@ -34,7 +34,7 @@ Options:
   --traits             Number of traits to simulate (required)
   --outdir             Output directory (required)
   --keep               File with individuals to keep (optional)
-  --causal_maf_threshold  Minimum MAF for causal variant selection (default: 0.05; optional)
+  --causal_maf_threshold  Minimum MAF for causal variant selection (default: 0.25; optional)
   --trait_proportion   Proportion of traits affected by causal variant (default: 1.0; optional)
   --effect_size        Per-allele effect size (default: 0.1; optional)
   --keep_conv          Keep file naming convention (default: 1000G..txt; optional)
