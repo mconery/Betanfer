@@ -70,8 +70,8 @@ def main():
     causal_maf_threshold = 0.25
     trait_proportion = 1.0
     effect_size = 0.1
-    keep_conv = "1000G..txt"
-    plink_conv = "_10k_sample.bed"
+    keep_conv = "1000G.<POP>.txt"
+    plink_conv = "<CHROMOSOME>_10k_sample.bed"
     random_seed = 5
     n_workers = os.cpu_count()
 
@@ -154,16 +154,16 @@ def main():
         sys.exit(2)
 
     # Check naming conventions for needed parameters
-    if '' not in keep_conv and keep_file:
+    if '<POP>' not in keep_conv and keep_file:
         print("ERROR: Invalid keep file naming convention given. Convention must include .")
         sys.exit(2)
 
-    if '' not in plink_conv and keep_file:
+    if '<CHROMOSOME>' not in plink_conv and keep_file:
         print("ERROR: Invalid plink file naming convention given. Convention must include .")
         sys.exit(2)
 
     # Extract chromosome
-    plink_name_remnant = plink_conv.split("")
+    plink_name_remnant = plink_conv.split("<CHROMOSOME>")
     chromo = os.path.basename(plink_path)
     for remnant in plink_name_remnant:
         chromo = chromo.replace(remnant, "")
@@ -171,7 +171,7 @@ def main():
     # Extract population name
     if keep_file:  # Checks for whether keep file given
         # Collect population name if filtering
-        keep_name_remnant = keep_conv.split("")
+        keep_name_remnant = keep_conv.split("<POP>")
         pop_name = os.path.basename(keep_file)
         for remnant in keep_name_remnant:
             pop_name = pop_name.replace(remnant, "")
