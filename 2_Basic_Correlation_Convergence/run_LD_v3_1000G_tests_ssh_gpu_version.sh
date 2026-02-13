@@ -32,7 +32,7 @@ cd ../../script_logs
 #Create lists of commands
 >multinode_1000G_simulations.gpu.commands.txt
 for pop in ALL; do for trait_proportion in 0.001 0.01 0.1 0.9 0.99 0.999; do 
-	temp="python $onekg_script --plink $plink_dir/chr"$chromosome"_10k_sample.bed --pairs=100000 --traits=$n_trait --trait_proportion $trait_proportion --outdir=$out_dir --keep=$keep_dir/1000G.$pop.txt --threads=16"
+	temp="python $onekg_script --plink $plink_dir/chr"$chromosome"_10k_sample.bed --pairs=10000 --traits=$n_trait --trait_proportion $trait_proportion --outdir=$out_dir --keep=$keep_dir/1000G.$pop.txt --threads=16"
 	for effect_size in 0.1 1 10 100; do
 		temp_e="$temp"" --effect_size=$effect_size"
 		echo $temp_e >> multinode_1000G_simulations.gpu.commands.txt
