@@ -51,7 +51,7 @@ def process_file(file_path):
         chrom = parts[0]             # e.g. "chr1"
         pop = parts[1]               # e.g. "EUR"
         n_traits = parts[2]          # e.g. "10_traits"
-        trait_type_part = parts[3]   # e.g. "binary_0.5" or "quant"
+        n_pairs = parts[3]
 
         # Initialize metadata dictionary
         meta = {
@@ -67,6 +67,10 @@ def process_file(file_path):
 
         # Parse trait type and case probability (if binary)
         # e.g. "binary_0.5" or "quant"
+        if not parts[5].startswith("maf"):
+            trait_type_part = '.'.join(parts[4:6])
+        else:
+            trait_type_part = parts[4]
         if '_' in trait_type_part:
             meta['trait_type'], case_prob = trait_type_part.split('_', 1)
             meta['case_prob'] = float(case_prob)
