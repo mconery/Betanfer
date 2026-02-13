@@ -214,7 +214,7 @@ def main():
     available_gpus, gpu_enabled = select_gpu_devices()
 
     # Adjust random seed so that different regions are picked for each simulation in a given pop
-    random_seed = random_seed + n_traits + round(effect_size * 10)
+    random_seed = random_seed + n_traits + round(effect_size * 10) + round(trait_proportion * 10)
 
     # Set random seeds
     np.random.seed(random_seed)
