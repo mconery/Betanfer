@@ -307,87 +307,91 @@ def main():
     print(f"NOTE: Selected causal variant {causal_var} at position {causal_pos} with MAF {causal_maf:.4f}")
 
     ###############################################################################
-    ########## NEW STEP 4: GPU-ACCELERATED ALL-PAIRS GENOTYPE CORRELATION ########
+    ########## STEP 4: CPU-BASED ALL-PAIRS GENOTYPE CORRELATION ##################
     ###############################################################################
-
-    print("NOTE: Calculating genotype correlations for all possible variant pairs on GPUs...")
-    print("WARNING: This is computationally intensive and may take significant time")
-
+    
+    print("NOTE: Calculating genotype correlations for all possible variant pairs on CPUs...")
+    print("NOTE: Using pairwise-complete observations (no imputation required)")
+    
     # Get indices of eligible variants (passing pair MAF threshold, excluding causal)
     eligible_indices = np.where((maf_values >= pair_maf_threshold) & (variant_ids != causal_var))[0]
     eligible_variant_ids = variant_ids[eligible_indices]
     n_eligible = len(eligible_indices)
-
+    
     print(f"NOTE: Computing correlations for {n_eligible} eligible variants")
     print(f"NOTE: Total possible pairs: {n_eligible * (n_eligible - 1) // 2:,}")
-
+    
     # Extract genotype data for eligible variants only
     eligible_geno_data = geno_data[:, eligible_indices].astype(np.float32)
-
-    # Handle missing data by mean imputation for GPU processing
-    print("NOTE: Imputing missing genotypes with variant means...")
-    col_means = np.nanmean(eligible_geno_data, axis=0)
-    for i in range(eligible_geno_data.shape[1]):
-        mask = np.isnan(eligible_geno_data[:, i])
-        eligible_geno_data[mask, i] = col_means[i]
-
-    # Standardize genotypes (mean-center and scale by std)
-    print("NOTE: Standardizing genotypes...")
-    means = np.mean(eligible_geno_data, axis=0)
-    stds = np.std(eligible_geno_data, axis=0)
-    stds[stds < 1e-6] = 1  # Avoid division by zero
-    eligible_geno_data = (eligible_geno_data - means) / stds
-
-    # Create SYCL queues for all GPUs
-    context = dpctl.SyclContext(available_gpus)
-    queues = [dpctl.SyclQueue(context, gpu) for gpu in available_gpus]
-
-    def calculate_correlation_matrix_gpu(X, queues, chunk_size=500):
-        """
-        Calculate correlation matrix using GPU acceleration
-        X: standardized genotype matrix (samples x variants)
-        Returns: correlation matrix (variants x variants)
-        """
-        n_variants = X.shape[1]
-        n_samples = X.shape[0]
+    
+    def calculate_pairwise_correlation(g1, g2, min_samples=10):
+        """Calculate correlation between two genotype vectors with missing data"""
+        valid_mask = ~(np.isnan(g1) | np.isnan(g2))
+        n_valid = np.sum(valid_mask)
         
-        # Correlation of standardized variables is just (X^T @ X) / (n-1)
-        # We'll compute this in blocks to manage memory
+        if n_valid < min_samples:
+            return np.nan
         
-        # Initialize correlation matrix on CPU
-        corr_matrix = np.full((n_variants, n_variants), np.nan, dtype=np.float32)
+        g1_valid = g1[valid_mask]
+        g2_valid = g2[valid_mask]
         
-        # Split computation into chunks
-        n_chunks = int(np.ceil(n_variants / chunk_size))
+        return np.corrcoef(g1_valid, g2_valid)[0, 1]
+    
+    def calculate_correlation_chunk_cpu(indices, geno_data, chunk_id, total_chunks):
+        """Calculate correlations for a chunk of variant pairs"""
+        chunk_results = []
         
-        print(f"NOTE: Computing correlation matrix in {n_chunks} row chunks across {len(queues)} GPUs")
-        
-        for chunk_idx in range(n_chunks):
-            start_idx = chunk_idx * chunk_size
-            end_idx = min((chunk_idx + 1) * chunk_size, n_variants)
+        for i in indices:
+            for j in range(i + 1, geno_data.shape[1]):
+                corr_val = calculate_pairwise_correlation(geno_data[:, i], geno_data[:, j])
+                
+                if not np.isnan(corr_val):
+                    chunk_results.append({
+                        'idx1': i,
+                        'idx2': j,
+                        'geno_corr': corr_val,
+                        'abs_geno_corr': abs(corr_val)
+                    })
             
-            # Select which GPU to use (round-robin)
-            queue = queues[chunk_idx % len(queues)]
-            
-            # Transfer data to GPU
-            X_chunk = dpnp.asarray(X[:, start_idx:end_idx], dtype=dpnp.float32, sycl_queue=queue)
-            X_full = dpnp.asarray(X, dtype=dpnp.float32, sycl_queue=queue)
-            
-            # Compute correlations: (X_chunk^T @ X_full) / (n_samples - 1)
-            corr_chunk = dpnp.matmul(X_chunk.T, X_full) / (n_samples - 1)
-            
-            # Transfer back to CPU
-            corr_matrix[start_idx:end_idx, :] = corr_chunk.asnumpy()
-            
-            if (chunk_idx + 1) % 10 == 0 or (chunk_idx + 1) == n_chunks:
-                print(f"NOTE: Completed {chunk_idx + 1}/{n_chunks} chunks ({100*(chunk_idx+1)/n_chunks:.1f}%)")
+            # Progress update
+            if (i + 1) % 100 == 0:
+                print(f"NOTE: Chunk {chunk_id}/{total_chunks} - Processed {i + 1} variants")
         
-        return corr_matrix
-
-    # Calculate full correlation matrix on GPU
-    all_corr_matrix = calculate_correlation_matrix_gpu(eligible_geno_data, queues, chunk_size=500)
-
-    print("NOTE: Correlation matrix calculation complete")
+        return chunk_results
+    
+    # Parallelize across CPUs using multithreading
+    print(f"NOTE: Using {n_workers} CPU threads for correlation calculations")
+    
+    # Split work by assigning different starting indices to each thread
+    variant_chunks = np.array_split(np.arange(n_eligible - 1), n_workers)
+    
+    all_pairs_with_corr = []
+    with ThreadPoolExecutor(max_workers=n_workers) as executor:
+        futures = []
+        for chunk_id, chunk in enumerate(variant_chunks):
+            futures.append(
+                executor.submit(calculate_correlation_chunk_cpu, 
+                              chunk, eligible_geno_data, 
+                              chunk_id + 1, len(variant_chunks))
+            )
+        
+        for future in futures:
+            all_pairs_with_corr.extend(future.result())
+    
+    print(f"NOTE: Extracted {len(all_pairs_with_corr):,} valid variant pairs")
+    
+    # Add variant IDs to results
+    for pair in all_pairs_with_corr:
+        pair['var1'] = eligible_variant_ids[pair['idx1']]
+        pair['var2'] = eligible_variant_ids[pair['idx2']]
+        # Convert to original indices
+        pair['idx1'] = eligible_indices[pair['idx1']]
+        pair['idx2'] = eligible_indices[pair['idx2']]
+    
+    # Convert to DataFrame
+    pairs_df = pd.DataFrame(all_pairs_with_corr)
+    
+    print("NOTE: Correlation calculation complete")
 
     ###############################################################################
     ########## NEW STEP 5: CREATE PAIR INDEX AND EXTRACT CORRELATIONS ###########
