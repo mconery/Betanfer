@@ -394,39 +394,6 @@ def main():
     print("NOTE: Correlation calculation complete")
 
     ###############################################################################
-    ########## NEW STEP 5: CREATE PAIR INDEX AND EXTRACT CORRELATIONS ###########
-    ###############################################################################
-
-    print("NOTE: Extracting upper triangle correlations...")
-
-    # Create list of all pairs with their correlations
-    all_pairs_with_corr = []
-
-    # Only iterate over upper triangle (i < j) to avoid duplicates
-    for i in range(n_eligible):
-        for j in range(i + 1, n_eligible):
-            corr_val = all_corr_matrix[i, j]
-            if not np.isnan(corr_val):  # Only keep valid correlations
-                all_pairs_with_corr.append({
-                    'var1': eligible_variant_ids[i],
-                    'var2': eligible_variant_ids[j],
-                    'geno_corr': corr_val,
-                    'abs_geno_corr': abs(corr_val),
-                    'idx1': eligible_indices[i],
-                    'idx2': eligible_indices[j]
-                })
-        
-        # Progress update every 1000 variants
-        if (i + 1) % 1000 == 0:
-            print(f"NOTE: Processed {i + 1}/{n_eligible} variants for pair extraction")
-
-    print(f"NOTE: Extracted {len(all_pairs_with_corr):,} valid variant pairs")
-
-    # Convert to DataFrame for easier manipulation
-    import pandas as pd
-    pairs_df = pd.DataFrame(all_pairs_with_corr)
-
-    ###############################################################################
     ########## NEW STEP 6: STRATIFY PAIRS INTO LD BUCKETS ########################
     ###############################################################################
 
