@@ -385,8 +385,7 @@ def main():
     
             # Pearson r with safeguards
             denom = dpnp.sqrt(var_x * var_y)
-            with dpnp.errstate(divide='ignore', invalid='ignore'):
-                r = cov_xy / denom
+            r = cov_xy / denom
     
             # Enforce minimum n_ij and valid denom
             min_n = 10  # or whatever threshold you prefer
