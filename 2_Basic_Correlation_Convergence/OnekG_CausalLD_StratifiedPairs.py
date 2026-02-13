@@ -581,7 +581,11 @@ def main():
     chunk_count = 20
     var_chunks = np.array_split(variant_indices, chunk_count)
     var_chunks = [np.array_split(x, len(available_gpus)) for x in var_chunks]
-
+    
+    # Create SYCL queues for all GPUs
+    context = dpctl.SyclContext(available_gpus)
+    queues = [dpctl.SyclQueue(context, gpu) for gpu in available_gpus]
+    
     print(f"NOTE: Using {len(available_gpus)} GPUs for multi-thread regressions")
 
     for i in range(len(var_chunks)):
