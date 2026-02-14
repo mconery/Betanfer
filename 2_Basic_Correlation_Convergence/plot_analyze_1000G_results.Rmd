@@ -1,0 +1,394 @@
+---
+title: "plot_1000G_results"
+output: html_document
+date: "2025-04-23"
+---
+
+# 1) Read in Files ====
+This section of the code reads in the files.
+```{r}
+#Set plot directories
+library(ggplot2)
+library(dplyr)
+library(ggpubr)
+
+#Set results file
+basic_results_file="C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/1000G_Simulations/master.results.csv.gz"
+causal_results_file="C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/1000G_Simulations/master.causal.results.csv.gz"
+causal_v2_results_file="C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/1000G_Simulations/master.causal_v2.results.csv.gz"
+causal_v3_results_file="C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/1000G_Simulations/master.causal_v3.results.csv.gz"
+causal_v4_results_file="C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/1000G_Simulations/master.causal_v4.results.csv.gz"
+#Output directory
+out_dir<- "C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Figures/Correlation_Structure"
+#Read in the results file
+basic_df <- read.csv(basic_results_file)
+causal_df <- read.csv(causal_results_file)
+causal_v2_df <- read.csv(causal_v2_results_file)
+causal_v3_df <- read.csv(causal_v3_results_file)
+causal_v4_df <- read.csv(causal_v4_results_file)
+
+```
+
+# 2) Make plot of basic results colored by # of traits ====
+```{r}
+set.seed(5)
+
+sample_size=120000
+p <- basic_df %>% 
+  filter(population == "ALL") %>% 
+  sample_n(sample_size) %>% #Sample 120,000 rows for illustrative purposes
+  arrange(n_traits, descending=FALSE) %>%
+  ggplot(mapping = aes(x=geno_corr, y=beta_corr, colour = n_traits)) +
+    geom_point(alpha = 0.7, size = 2) + 
+  geom_abline(
+    intercept = 0,   # y = x
+    slope = 1, linewidth = 1.5,
+    color = "lightgrey", alpha = 0.5,
+    linetype = "dashed"
+  ) +
+    theme_pubr(base_size = 18) + theme(legend.position = "right") + 
+  labs(
+      x = "Genotype Correlation",
+      y = "Beta Correlation",
+      color = "# Traits"
+    ) + xlim(-1,1) + ylim(-1,1)
+
+print(p)
+#Save figure
+ggsave(
+      filename   = paste(out_dir, "Correlations.null.colored_traits.tiff", sep = "/"),
+      plot       = p,
+      width      = 160,
+      height     = 140,
+      units      = "mm",
+      dpi        = 300,       # or 600 if required
+      compression = "lzw"     # optional, shrinks file size
+    )
+
+```
+# 3) Make plot of causal results colored by traits ====
+```{r}
+set.seed(5)
+p <- causal_df %>% 
+  filter(population == "ALL") %>% 
+  sample_n(sample_size) %>% #Sample 120,000 rows for illustrative purposes
+  arrange(n_traits, descending=FALSE) %>%
+  ggplot(mapping = aes(x=geno_corr, y=beta_corr, colour = n_traits)) +
+  geom_abline(
+    intercept = 0,   # y = x
+    slope = 1, linewidth = 1.5,
+    color = "lightgrey",
+    linetype = "dashed"
+  ) +
+    geom_point(alpha = 0.7, size = 2) +
+    theme_pubr(base_size = 14) + theme(legend.position = "right") + 
+  labs(
+      x = "Genotype Correlation",
+      y = "Beta Correlation",
+      color = "# Traits"
+    ) + xlim(-1,1) + ylim(-1,1)
+
+print(p)
+
+```
+
+# 4) Make plot of causal results colored by |LD x Effect Size| ====
+```{r}
+set.seed(5)
+causal_df %>% 
+  filter(population == "ALL", n_traits==1000, effect_size==1000) %>%
+  mutate(ld_effect=(ld_var1_causal * effect_size), 
+                     abs_ld_effect=abs(ld_effect)) %>%
+  arrange(abs_ld_effect, descending=FALSE) %>%
+  ggplot(mapping = aes(x=geno_corr, y=beta_corr, colour = abs_ld_effect)) +
+  geom_abline(
+    intercept = 0,   # y = x
+    slope = 1, linewidth = 1.5,
+    color = "lightgrey",
+    linetype = "dashed"
+  ) +
+    geom_point(alpha = 0.7, size = 2) +
+    theme_pubr(base_size = 12) + theme(legend.position = "right") + 
+  labs(
+      x = "Genotype Correlation",
+      y = "Beta Correlation",
+      color = "|LD x Effect Size|"
+    )
+
+```
+
+# 5) Make plot of v2 causal results colored by Proportion of Traits with Causal Effects ====
+```{r}
+set.seed(5)
+causal_v2_df %>% 
+  filter(population == "ALL", n_traits==1000) %>%
+  mutate(ld_effect=(ld_var1_causal * effect_size), 
+                     abs_ld_effect=abs(ld_effect)) %>%
+  arrange(abs_ld_effect, descending=FALSE) %>%
+  ggplot(mapping = aes(x=geno_corr, y=beta_corr, colour = trait_subset)) +
+  geom_abline(
+    intercept = 0,   # y = x
+    slope = 1, linewidth = 1.5,
+    color = "lightgrey",
+    linetype = "dashed"
+  ) +
+    geom_point(alpha = 0.7, size = 2) +
+    theme_pubr(base_size = 12) + theme(legend.position = "right") + 
+  labs(
+      x = "Genotype Correlation",
+      y = "Beta Correlation",
+      color = "Proportion\nTraits\nwith\ncausal\neffects"
+    )
+
+```
+# 6) Make plot of v2 causal results colored by Tagged LD Effect where only 10% of Traits have Causal Effects ====
+```{r}
+set.seed(5)
+causal_v2_df %>% 
+  filter(population == "ALL", n_traits==1000, trait_subset==0.01) %>%
+  mutate(ld_effect=(ld_var1_causal * effect_size), 
+                     abs_ld_effect=abs(ld_effect)) %>%
+  arrange(abs_ld_effect, descending=FALSE) %>%
+  ggplot(mapping = aes(x=geno_corr, y=beta_corr, colour = abs_ld_effect)) +
+  geom_abline(
+    intercept = 0,   # y = x
+    slope = 1, linewidth = 1.5,
+    color = "lightgrey",
+    linetype = "dashed"
+  ) +
+    geom_point(alpha = 0.7, size = 2) +
+    theme_pubr(base_size = 12) + theme(legend.position = "right") + 
+  labs(
+      x = "Genotype Correlation",
+      y = "Beta Correlation",
+      color = "|LD x Effect Size|"
+    )
+
+```
+
+# 7) Make plot of v2 causal results colored by Proportion of Traits with Causal Effects and Fixed Effect Size of 0.1 ====
+```{r}
+set.seed(5)
+causal_v2_df %>% 
+  filter(population == "ALL", n_traits==1000, effect_size==0.1) %>%
+  mutate(ld_effect=(ld_var1_causal * effect_size), 
+                     abs_ld_effect=abs(ld_effect),
+         trait_subset_factor=as.factor(trait_subset)) %>%
+  arrange(abs_ld_effect, descending=FALSE) %>%
+  ggplot(mapping = aes(x=geno_corr, y=beta_corr, colour = trait_subset_factor)) +
+  geom_abline(
+    intercept = 0,   # y = x
+    slope = 1, linewidth = 1.5,
+    color = "lightgrey",
+    linetype = "dashed"
+  ) +
+    geom_point(alpha = 0.7, size = 2) +
+    theme_pubr(base_size = 12) + theme(legend.position = "right") + 
+  labs(
+      x = "Genotype Correlation",
+      y = "Beta Correlation",
+      color = "Proportion\nTraits\nwith\ncausal\neffects"
+    )
+
+```
+
+# 8) Make plot of v2 causal results colored by Proportion of Traits with Causal Effects and Fixed Effect Size of 10 ====
+```{r}
+set.seed(5)
+causal_v2_df %>% 
+  filter(population == "ALL", n_traits==1000, effect_size==10) %>%
+  mutate(ld_effect=(ld_var1_causal * effect_size), 
+                     abs_ld_effect=abs(ld_effect),
+         trait_subset_factor=as.factor(trait_subset)) %>%
+  arrange(abs_ld_effect, descending=FALSE) %>%
+  ggplot(mapping = aes(x=geno_corr, y=beta_corr, colour = trait_subset_factor)) +
+  geom_abline(
+    intercept = 0,   # y = x
+    slope = 1, linewidth = 1.5,
+    color = "lightgrey",
+    linetype = "dashed"
+  ) +
+    geom_point(alpha = 0.7, size = 2) +
+    theme_pubr(base_size = 12) + theme(legend.position = "right") + 
+  labs(
+      x = "Genotype Correlation",
+      y = "Beta Correlation",
+      color = "Proportion\nTraits\nwith\ncausal\neffects"
+    )
+
+```
+
+# 9) Make plot of v3 causal results colored by Tagged LD Effect where only 10% of Traits have Causal Effects ====
+```{r}
+set.seed(5)
+causal_v3_df %>% filter(trait_proportion == 0.1 & effect_size <= 10) %>%
+  mutate(ld_effect=((ld_var1_causal+ld_var2_causal) * effect_size), 
+                     abs_ld_effect=abs(ld_effect), 
+         abs_geno_corr=abs(geno_corr), abs_beta_corr=abs(beta_corr)) %>%
+  arrange(abs_ld_effect, descending=FALSE) %>%
+  ggplot(mapping = aes(x=abs_geno_corr, y=abs_beta_corr, colour = abs_ld_effect)) +
+  geom_abline(
+    intercept = 0,   # y = x
+    slope = 1, linewidth = 1.5,
+    color = "lightgrey",
+    linetype = "dashed"
+  ) +
+    geom_point(alpha = 0.7, size = 2) +
+    theme_pubr(base_size = 12) + theme(legend.position = "right") + 
+  labs(
+      x = "|Genotype Correlation|",
+      y = "|Beta Correlation|",
+      color = "|LD x Effect Size|"
+    )
+
+```
+
+# 10) Make plot of v3 causal results colored by Proportion of Traits with Causal Effects and Fixed Effect Size of 10 ====
+```{r}
+set.seed(5)
+causal_v3_df %>% 
+  filter(population == "ALL", n_traits==1000, effect_size==10) %>%
+  mutate(ld_effect=(ld_var1_causal * effect_size), 
+                     abs_ld_effect=abs(ld_effect),
+         abs_geno_corr=abs(geno_corr), abs_beta_corr=abs(beta_corr),
+         trait_subset_factor=as.factor(trait_subset)) %>%
+  arrange(abs_ld_effect, descending=FALSE) %>%
+  ggplot(mapping = aes(x=abs_geno_corr, y=abs_beta_corr, colour = trait_subset_factor)) +
+  geom_abline(
+    intercept = 0,   # y = x
+    slope = 1, linewidth = 1.5,
+    color = "lightgrey",
+    linetype = "dashed"
+  ) +
+    geom_point(alpha = 0.7, size = 2) + facet_wrap(~trait_subset_factor, scales = "free_x") +
+    theme_pubr(base_size = 12) + theme(legend.position = "right") + 
+  scale_x_continuous(breaks = c(0,0.5,1), labels=c(0,0.5,1), limits = c(0,1)) + 
+  scale_y_continuous(breaks = c(0,0.5,1), labels=c(0,0.5,1), limits = c(0,1)) + 
+  labs(
+      x = "|Genotype Correlation|",
+      y = "|Beta Correlation|",
+      color = "% Traits\nwith\nCausal\nEffects"
+    )
+
+```
+
+# 11) Make plot of v4 causal results colored by Tagged LD Effect where only 10% of Traits have Causal Effects ====
+```{r}
+set.seed(5)
+p <- causal_v4_df %>% filter(trait_proportion == 0.1 & effect_size == 1) %>%
+  mutate(ld_effect=((ld_var1_causal+ld_var2_causal) * effect_size), 
+                     abs_ld_effect=abs(ld_effect), 
+         abs_geno_corr=abs(geno_corr), abs_beta_corr=abs(beta_corr)) %>%
+  arrange(abs_ld_effect, descending=FALSE) %>%
+  ggplot(mapping = aes(x=abs_geno_corr, y=abs_beta_corr, colour = abs_ld_effect)) +
+    geom_point(alpha = 0.7, size = 2) +
+  geom_abline(
+    intercept = 0,   # y = x
+    slope = 1, linewidth = 1.5,
+    color = "lightgrey", alpha = 0.5,
+    linetype = "dashed"
+  ) +
+    theme_pubr(base_size = 18) + theme(legend.position = "right") + 
+  labs(
+      x = "|Genotype Correlation|",
+      y = "|Beta Correlation|",
+      color = "|LD x Effect Size|"
+    ) 
+print(p)
+
+ggsave(
+      filename   = paste(out_dir, "Correlations.10pct_causal.effect_1.colored_tagged_effect.tiff", sep = "/"),
+      plot       = p,
+      width      = 200,
+      height     = 140,
+      units      = "mm",
+      dpi        = 300,       # or 600 if required
+      compression = "lzw"     # optional, shrinks file size
+)
+
+```
+
+# 12) Make plot of v4 causal results colored by Proportion of Traits with Causal Effects and Fixed Effect Size of 10 ====
+```{r}
+set.seed(5)
+p <- causal_v4_df %>% 
+  filter(population == "ALL", n_traits==1000, effect_size==1) %>%
+  mutate(ld_effect=(ld_var1_causal * effect_size), 
+                     abs_ld_effect=abs(ld_effect), trait_subset_log=log10(trait_subset),
+         abs_geno_corr=abs(geno_corr), abs_beta_corr=abs(beta_corr),
+         trait_subset_factor=as.factor(trait_subset)) %>%
+  arrange(abs_ld_effect, descending=FALSE) %>%
+  ggplot(mapping = aes(x=abs_geno_corr, y=abs_beta_corr, colour = trait_subset_log)) +
+    geom_point(alpha = 0.7, size = 2) + facet_wrap(~trait_subset_factor, scales = "free_x") +
+  geom_abline(
+    intercept = 0,   # y = x
+    slope = 1, linewidth = 1.5,
+    color = "lightgrey", alpha = 0.5,
+    linetype = "dashed"
+  ) +
+    theme_pubr(base_size = 18) + theme(legend.position = "right") + 
+  theme(legend.position = NULL) + 
+  scale_x_continuous(breaks = c(0,0.5,1), labels=c(0,0.5,1), limits = c(0,1)) + 
+  scale_y_continuous(breaks = c(0,0.5,1), labels=c(0,0.5,1), limits = c(0,1)) +
+  scale_color_continuous(breaks = log10(c(0.001, 0.01, 0.1, 1)), labels=c(0.001, 0.01, 0.1, 1), limits=log10(c(0.001,1))) +
+  labs(
+      x = "|Genotype Correlation|",
+      y = "|Beta Correlation|",
+      color = "% Traits\nwith\nCausal\nEffects"
+    )
+
+print(p)
+
+ggsave(
+      filename   = paste(out_dir, "Correlations.effect_1.facet_causal_proportion.tiff", sep = "/"),
+      plot       = p,
+      width      = 240,
+      height     = 140,
+      units      = "mm",
+      dpi        = 300,       # or 600 if required
+      compression = "lzw"     # optional, shrinks file size
+)
+
+```
+
+# 12) Make plot of v4 causal results colored by Proportion of Traits with Causal Effects and Fixed Effect Size of 10 ====
+```{r}
+set.seed(5)
+p <- causal_v4_df %>% 
+  filter(population == "ALL", n_traits==1000, effect_size==1, trait_proportion <= 0.1) %>%
+  mutate(ld_effect=(ld_var1_causal * effect_size), 
+                     abs_ld_effect=abs(ld_effect), trait_subset_log=log10(trait_subset),
+         abs_geno_corr=abs(geno_corr), abs_beta_corr=abs(beta_corr),
+         trait_subset_factor=as.factor(trait_subset)) %>%
+  arrange(abs_ld_effect, descending=FALSE) %>%
+  ggplot(mapping = aes(x=abs_geno_corr, y=abs_beta_corr, colour = trait_subset_log)) +
+    geom_point(alpha = 0.7, size = 2) + facet_wrap(~trait_subset_factor, scales = "free_x", ncol=1) +
+geom_abline(
+    intercept = 0,   # y = x
+    slope = 1, linewidth = 1.5,
+    color = "lightgrey", alpha = 0.5,
+    linetype = "dashed"
+  ) +
+    theme_pubr(base_size = 22) + theme(legend.position = "right") + 
+  scale_x_continuous(breaks = c(0,0.5,1), labels=c(0,0.5,1), limits = c(0,1)) + 
+  scale_y_continuous(breaks = c(0,0.5,1), labels=c(0,0.5,1), limits = c(0,1)) + 
+  scale_color_continuous(breaks = log10(c(0.001, 0.01, 0.1)), labels=c(0.001, 0.01, 0.1)) + 
+  labs(
+      x = "|Genotype Correlation|",
+      y = "|Beta Correlation|",
+      color = "% Traits\nwith\nCausal\nEffects"
+    )
+
+print(p)
+
+ggsave(
+      filename   = paste(out_dir, "Correlations.effect_1.facet_causal_proportion_partial.tiff", sep = "/"),
+      plot       = p,
+      width      = 200,
+      height     = 300,
+      units      = "mm",
+      dpi        = 300,       # or 600 if required
+      compression = "lzw"     # optional, shrinks file size
+)
+
+```
