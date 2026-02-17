@@ -240,17 +240,17 @@ def compute_stats_from_accum(accum):
     Compute final summary statistics from an accumulator.
 
     Returns:
-        Dictionary with cs_coverage, cs_precision, variant_auprc,
+        Dictionary with cs_power, cs_coverage, variant_auprc,
         mean_cs_size, mean_execution_time_seconds, n_replicates.
     """
     a = accum
 
-    # Credible-set coverage
-    coverage = (a['sum_causal_in_cs'] / a['sum_causal_variant_count']
+    # Credible-set power
+    power = (a['sum_causal_in_cs'] / a['sum_causal_variant_count']
                 if a['sum_causal_variant_count'] > 0 else np.nan)
 
     # Credible-set precision
-    precision = (a['sum_cs_with_causal'] / a['sum_num_cs']
+    coverage = (a['sum_cs_with_causal'] / a['sum_num_cs']
                  if a['sum_num_cs'] > 0 else np.nan)
 
     # Mean credible set size (weighted by number of CS per replicate)
@@ -297,8 +297,8 @@ def compute_stats_from_accum(accum):
         auprc = np.nan
 
     return {
+        'cs_power': round(power, 6) if pd.notna(power) else np.nan,
         'cs_coverage': round(coverage, 6) if pd.notna(coverage) else np.nan,
-        'cs_precision': round(precision, 6) if pd.notna(precision) else np.nan,
         'variant_auprc': round(auprc, 6) if pd.notna(auprc) else np.nan,
         'mean_cs_size': round(mean_cs_size, 3) if pd.notna(mean_cs_size) else np.nan,
         'mean_execution_time_seconds': round(mean_exec_time, 3) if pd.notna(mean_exec_time) else np.nan,
