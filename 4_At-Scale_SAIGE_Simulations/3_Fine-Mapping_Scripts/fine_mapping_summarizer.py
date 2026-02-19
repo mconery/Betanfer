@@ -49,8 +49,27 @@ SIMPLE_SUM_COLS = [
     'causal_variant_count', 'causal_in_credible_sets',
     'num_credible_sets', 'credible_sets_with_causal',
     'weighted_cs_size', 'exec_time_clean', 'exec_time_valid',
-    'total_variants'
+    'total_variants', "failed_locus"
 ]
+
+#Create a function to identify if a locus failed based on the causal_variant_pips column
+def is_failed_locus(pips_str: str) -> bool:
+    """
+    Return True if this locus failed, defined as causal_variant_pips being
+    a comma-delimited list of 'nan' (e.g., 'nan', 'nan,nan', etc.).
+    """
+    if pd.isna(pips_str):
+        return False  # treat missing as not-a-failure for safety
+    
+    parts = [p.strip().lower() for p in str(pips_str).split(',')]
+    # Drop empty tokens
+    parts = [p for p in parts if p != '']
+    
+    if not parts:
+        return False
+    
+    # All entries must be 'nan' (optionally allow 'na' if you ever use that)
+    return all(p in ('nan', 'na') for p in parts)
 
 
 def parse_filename(filename):
@@ -109,6 +128,7 @@ def make_default_accum():
         'total_causal_pips': 0,
         'causal_pip_ge': np.zeros(100, dtype=np.int64),
         'non_causal_pip_ge': np.zeros(100, dtype=np.int64),
+        'sum_failed_loci': 0, 
     }
 
 
@@ -147,6 +167,7 @@ def process_files(input_dir):
         df['weighted_cs_size'] = df['avg_variants_per_cs'] * df['num_credible_sets']
         df['exec_time_clean'] = df['execution_time_seconds'].fillna(0.0)
         df['exec_time_valid'] = df['execution_time_seconds'].notna().astype(int)
+        df['failed_locus'] = df['causal_variant_pips'].apply(is_failed_locus).astype(int)
 
         # GroupBy at granular level: simple column sums
         grouped_sums = df.groupby(GRANULAR_COLS)[SIMPLE_SUM_COLS].sum()
@@ -189,6 +210,7 @@ def process_files(input_dir):
             g['count_exec_time'] += int(row['exec_time_valid'])
             g['sum_total_variants'] += int(row['total_variants'])
             g['n_replicates'] += int(grouped_counts.loc[idx])
+            g['sum_failed_loci'] += int(row['failed_locus'])
 
             nc_row = grouped_nc.loc[idx]
             g['non_causal_pip_ge'] += nc_row.values.astype(np.int64)
@@ -231,6 +253,7 @@ def aggregate_accumulators(granular_acc, group_col_indices):
         g['total_causal_pips'] += accum['total_causal_pips']
         g['causal_pip_ge'] += accum['causal_pip_ge']
         g['non_causal_pip_ge'] += accum['non_causal_pip_ge']
+        g['sum_failed_loci'] += accum['sum_failed_loci']
 
     return dict(coarse_acc)
 
@@ -302,7 +325,8 @@ def compute_stats_from_accum(accum):
         'variant_auprc': round(auprc, 6) if pd.notna(auprc) else np.nan,
         'mean_cs_size': round(mean_cs_size, 3) if pd.notna(mean_cs_size) else np.nan,
         'mean_execution_time_seconds': round(mean_exec_time, 3) if pd.notna(mean_exec_time) else np.nan,
-        'n_replicates': a['n_replicates']
+        'n_replicates': a['n_replicates'],
+        'n_failed_loci': a['sum_failed_loci']
     }
 
 
