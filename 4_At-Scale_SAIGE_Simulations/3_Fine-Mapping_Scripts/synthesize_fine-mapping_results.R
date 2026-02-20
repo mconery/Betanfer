@@ -3357,3 +3357,302 @@ ggsave(file.path(metrics_scatterplot_dir, "mean_cs_size.by_trait_types.homo.fixe
        p_cs_size_by_trait_types_homo_fixed_5e5_1000, width = 14, height = 10, dpi = 300)
 
 cat("\nScatter plots complete!\n")
+
+# ---------------------------------------------------------------------
+# Also generate the same plots for snp_heritability = 3e-4 (where applicable)
+# ---------------------------------------------------------------------
+cat("\n--- Repeating selected plots for snp_heritability = 3e-4 ---\n")
+
+# Coverage vs Power plots (repeat several key views for h2 = 3e-4)
+cat("  - Coverage vs Power: Homogenous h2=3e-4, Fixed-effects, 2000 all traits...\n")
+p_cvp_homo_fixed_3e4_2000 <- plot_coverage_vs_power_filtered(
+  method_df,
+  gwas_meta_type = "fixed",
+  snp_heritability = 3e-4,
+  n_traits_filter = 2000,
+  simulation_type = "homo",
+  matrix_type_filter = "all",
+  title_suffix = "\nHomogenous Heritability, Fixed-Effects GWAS, h²=3e-4, 2000 All Traits"
+)
+ggsave(file.path(coverage_power_dir, "coverage_vs_power.homo.fixed_3e-4.2000_all_traits.png"),
+       p_cvp_homo_fixed_3e4_2000, width = 10, height = 8, dpi = 300)
+
+cat("  - Coverage vs Power: Matched effects h2=3e-4, Fixed-effects, 2000 all traits...\n")
+p_cvp_matched_fixed_3e4_2000 <- plot_coverage_vs_power_filtered(
+  method_df,
+  gwas_meta_type = "fixed",
+  snp_heritability = 3e-4,
+  n_traits_filter = 2000,
+  simulation_type = "matched_to",
+  matrix_type_filter = "all",
+  title_suffix = "\nHomogenous Effect Sizes, Fixed-Effects GWAS, h²=3e-4, 2000 All Traits"
+)
+ggsave(file.path(coverage_power_dir, "coverage_vs_power.matched_effects.fixed_3e-4.2000_all_traits.png"),
+       p_cvp_matched_fixed_3e4_2000, width = 10, height = 8, dpi = 300)
+
+cat("  - Coverage vs Power: Homogenous h2=3e-4, Fixed-effects, 1000 all traits...\n")
+p_cvp_homo_fixed_3e4_1000 <- plot_coverage_vs_power_filtered(
+  method_df,
+  gwas_meta_type = "fixed",
+  snp_heritability = 3e-4,
+  n_traits_filter = 1000,
+  simulation_type = "homo",
+  matrix_type_filter = "all",
+  title_suffix = "\nHomogenous Heritability, Fixed-Effects GWAS, h²=3e-4, 1000 All Traits"
+)
+ggsave(file.path(coverage_power_dir, "coverage_vs_power.homo.fixed_3e-4.1000_all_traits.png"),
+       p_cvp_homo_fixed_3e4_1000, width = 10, height = 8, dpi = 300)
+
+cat("  - Coverage vs Power: Matched effects h2=3e-4, Fixed-effects, 1000 all traits...\n")
+p_cvp_matched_fixed_3e4_1000 <- plot_coverage_vs_power_filtered(
+  method_df,
+  gwas_meta_type = "fixed",
+  snp_heritability = 3e-4,
+  n_traits_filter = 1000,
+  simulation_type = "matched_to",
+  matrix_type_filter = "all",
+  title_suffix = "\nHomogenous Effect Sizes, Fixed-Effects GWAS, h²=3e-4, 1000 All Traits"
+)
+ggsave(file.path(coverage_power_dir, "coverage_vs_power.matched_effects.fixed_3e-4.1000_all_traits.png"),
+       p_cvp_matched_fixed_3e4_1000, width = 10, height = 8, dpi = 300)
+
+cat("  - Coverage vs Power: Homogenous h2=3e-4, Fixed-effects, 4000 all traits...\n")
+p_cvp_homo_fixed_3e4_4000 <- plot_coverage_vs_power_filtered(
+  method_df,
+  gwas_meta_type = "fixed",
+  snp_heritability = 3e-4,
+  n_traits_filter = 4000,
+  simulation_type = "homo",
+  matrix_type_filter = "all",
+  title_suffix = "\nHomogenous Heritability, Fixed-Effects GWAS, h²=3e-4, 4000 All Traits"
+)
+ggsave(file.path(coverage_power_dir, "coverage_vs_power.homo.fixed_3e-4.4000_all_traits.png"),
+       p_cvp_homo_fixed_3e4_4000, width = 10, height = 8, dpi = 300)
+
+# Faceted coverage vs power (trait/causal) for h2 = 3e-4
+cat("  - Faceted coverage vs power (h2=3e-4), 2000 and 1000 traits...\n")
+p_cvp_faceted_homo_fixed_3e4_2000 <- plot_coverage_vs_power_faceted(
+  trait_causal_method_df,
+  gwas_meta_type = "fixed",
+  snp_heritability = 3e-4,
+  n_traits_filter = 2000,
+  simulation_type = "homo",
+  matrix_type_filter = "all",
+  title_suffix = "\nHomogenous Heritability, Fixed-Effects GWAS, h²=3e-4, 2000 All Traits"
+)
+ggsave(file.path(coverage_power_dir, "coverage_vs_power.faceted.homo.fixed_3e-4.2000_all_traits.png"),
+       p_cvp_faceted_homo_fixed_3e4_2000, width = 14, height = 8, dpi = 300)
+
+p_cvp_faceted_matched_fixed_3e4_2000 <- plot_coverage_vs_power_faceted(
+  trait_causal_method_df,
+  gwas_meta_type = "fixed",
+  snp_heritability = 3e-4,
+  n_traits_filter = 2000,
+  simulation_type = "matched_to",
+  matrix_type_filter = "all",
+  title_suffix = "\nHomogenous Effect Sizes, Fixed-Effects GWAS, h²=3e-4, 2000 All Traits"
+)
+ggsave(file.path(coverage_power_dir, "coverage_vs_power.faceted.matched_effects.fixed_3e-4.2000_all_traits.png"),
+       p_cvp_faceted_matched_fixed_3e4_2000, width = 14, height = 8, dpi = 300)
+
+p_cvp_faceted_homo_fixed_3e4_1000 <- plot_coverage_vs_power_faceted(
+  trait_causal_method_df,
+  gwas_meta_type = "fixed",
+  snp_heritability = 3e-4,
+  n_traits_filter = 1000,
+  simulation_type = "homo",
+  matrix_type_filter = "all",
+  title_suffix = "\nHomogenous Heritability, Fixed-Effects GWAS, h²=3e-4, 1000 All Traits"
+)
+ggsave(file.path(coverage_power_dir, "coverage_vs_power.faceted.homo.fixed_3e-4.1000_all_traits.png"),
+       p_cvp_faceted_homo_fixed_3e4_1000, width = 14, height = 8, dpi = 300)
+
+p_cvp_faceted_matched_fixed_3e4_1000 <- plot_coverage_vs_power_faceted(
+  trait_causal_method_df,
+  gwas_meta_type = "fixed",
+  snp_heritability = 3e-4,
+  n_traits_filter = 1000,
+  simulation_type = "matched_to",
+  matrix_type_filter = "all",
+  title_suffix = "\nHomogenous Effect Sizes, Fixed-Effects GWAS, h²=3e-4, 1000 All Traits"
+)
+ggsave(file.path(coverage_power_dir, "coverage_vs_power.faceted.matched_effects.fixed_3e-4.1000_all_traits.png"),
+       p_cvp_faceted_matched_fixed_3e4_1000, width = 14, height = 8, dpi = 300)
+
+# Realistic LD performance and CS/failure plots for h2 = 3e-4
+cat("  - Performance and CS/failure (realistic LD) for h2=3e-4...\n")
+p_perf_realistic_homo_fixed_3e4 <- plot_performance_realistic_ld(
+  method_df,
+  gwas_meta_type = "fixed",
+  snp_heritability = 3e-4
+)
+ggsave(file.path(coverage_power_dir, "performance_realistic_ld.homo.fixed_3e-4.png"),
+       p_perf_realistic_homo_fixed_3e4, width = 18, height = 8, dpi = 300)
+
+p_cs_failure_realistic_homo_fixed_3e4 <- plot_cs_size_failure_realistic_ld(
+  method_df,
+  gwas_meta_type = "fixed",
+  snp_heritability = 3e-4
+)
+ggsave(file.path(coverage_power_dir, "cs_size_failure_realistic_ld.homo.fixed_3e-4.png"),
+       p_cs_failure_realistic_homo_fixed_3e4, width = 14, height = 8, dpi = 300)
+
+# Performance vs number of traits for h2 = 3e-4
+cat("  - Performance vs n_traits for h2=3e-4...\n")
+p_perf_ntraits_homo_fixed_3e4 <- plot_performance_vs_ntraits(
+  method_df,
+  gwas_meta_type = "fixed",
+  snp_heritability = 3e-4,
+  simulation_type = "homo",
+  trait_types = "all"
+)
+ggsave(file.path(performance_ntraits_dir, "performance_vs_ntraits.homo.fixed_3e-4.png"),
+       p_perf_ntraits_homo_fixed_3e4, width = 14, height = 12, dpi = 300)
+
+p_perf_ntraits_by_trait_type_homo_fixed_3e4 <- plot_performance_vs_ntraits_by_trait_type(
+  method_df,
+  gwas_meta_type = "fixed",
+  snp_heritability = 3e-4,
+  simulation_type = "homo"
+)
+ggsave(file.path(performance_ntraits_dir, "performance_vs_ntraits_by_trait_type.homo.fixed_3e-4.png"),
+       p_perf_ntraits_by_trait_type_homo_fixed_3e4, width = 18, height = 12, dpi = 300)
+
+p_perf_ntraits_by_trait_type_drop_fixed_3e4 <- plot_performance_vs_ntraits_by_trait_type(
+  method_df,
+  gwas_meta_type = "fixed",
+  snp_heritability = 3e-4,
+  simulation_type = "drop_causal",
+  average_across_populations = TRUE
+)
+ggsave(file.path(performance_ntraits_dir, "performance_vs_ntraits_by_trait_type.drop_causal.fixed_3e-4.png"),
+       p_perf_ntraits_by_trait_type_drop_fixed_3e4, width = 18, height = 12, dpi = 300)
+
+# Failure rate vs n_traits for h2 = 3e-4
+cat("  - Failure rate vs n_traits for h2=3e-4...\n")
+p_failure_rate_ntraits_by_trait_type_homo_fixed_3e4 <- plot_failure_rate_vs_ntraits_by_trait_type(
+  method_df,
+  gwas_meta_type = "fixed",
+  snp_heritability = 3e-4,
+  simulation_type = "homo"
+)
+ggsave(file.path(performance_ntraits_dir, "failure_rate_vs_ntraits_by_trait_type.homo.fixed_3e-4.png"),
+       p_failure_rate_ntraits_by_trait_type_homo_fixed_3e4, width = 18, height = 8, dpi = 300)
+
+p_failure_rate_ntraits_by_trait_type_drop_fixed_3e4 <- plot_failure_rate_vs_ntraits_by_trait_type(
+  method_df,
+  gwas_meta_type = "fixed",
+  snp_heritability = 3e-4,
+  simulation_type = "drop_causal",
+  average_across_populations = TRUE
+)
+ggsave(file.path(performance_ntraits_dir, "failure_rate_vs_ntraits_by_trait_type.drop_causal.fixed_3e-4.png"),
+       p_failure_rate_ntraits_by_trait_type_drop_fixed_3e4, width = 18, height = 8, dpi = 300)
+
+# Metric barplot (execution time) for h2 = 3e-4 (raw in-sample)
+cat("  - Execution time barplot for h2=3e-4...\n")
+p_execution_time_3e4 <- plot_metric_barplot(
+  method_df,
+  metric = "mean_execution_time_seconds",
+  gwas_meta_type = "fixed",
+  simulation_type = "homo",
+  snp_heritability = 3e-4,
+  n_traits_filter = 1000,
+  matrix_type_filter = "all",
+  ld_construction_filter = "raw_in-sample"
+)
+ggsave(file.path(metrics_barplot_dir, "execution_times.raw_in-sample.fixed_3e-4.png"),
+       p_execution_time_3e4, width = 18, height = 12, dpi = 300)
+
+# Metric scatterplots for h2 = 3e-4
+cat("  - Metric scatterplots for h2=3e-4...\n")
+p_auprc_scatter_3e4 <- plot_metric_scatterplot(
+  method_df,
+  metric = "variant_auprc",
+  gwas_meta_type = "fixed",
+  simulation_type = "homo",
+  snp_heritability = 3e-4,
+  n_traits_filter = 1000,
+  matrix_type_filter = "all"
+)
+ggsave(file.path(metrics_scatterplot_dir, "variant_auprc.homo.fixed_3e-4.1000_all_traits.png"),
+       p_auprc_scatter_3e4, width = 12, height = 10, dpi = 300)
+
+p_cs_size_scatter_3e4 <- plot_metric_scatterplot(
+  method_df,
+  metric = "mean_cs_size",
+  gwas_meta_type = "fixed",
+  simulation_type = "homo",
+  snp_heritability = 3e-4,
+  n_traits_filter = 1000,
+  matrix_type_filter = "all"
+)
+ggsave(file.path(metrics_scatterplot_dir, "mean_cs_size.homo.fixed_3e-4.1000_all_traits.png"),
+       p_cs_size_scatter_3e4, width = 12, height = 10, dpi = 300)
+
+p_auprc_scatter_matched_3e4 <- plot_metric_scatterplot(
+  method_df,
+  metric = "variant_auprc",
+  gwas_meta_type = "fixed",
+  simulation_type = "matched_to",
+  snp_heritability = 3e-4,
+  n_traits_filter = 1000,
+  matrix_type_filter = "all",
+  average_across_populations = TRUE
+)
+ggsave(file.path(metrics_scatterplot_dir, "variant_auprc.matched_to.fixed_3e-4.1000_all_traits.png"),
+       p_auprc_scatter_matched_3e4, width = 12, height = 10, dpi = 300)
+
+p_cs_size_scatter_matched_3e4 <- plot_metric_scatterplot(
+  method_df,
+  metric = "mean_cs_size",
+  gwas_meta_type = "fixed",
+  simulation_type = "matched_to",
+  snp_heritability = 3e-4,
+  n_traits_filter = 1000,
+  matrix_type_filter = "all",
+  average_across_populations = TRUE
+)
+ggsave(file.path(metrics_scatterplot_dir, "mean_cs_size.matched_to.fixed_3e-4.1000_all_traits.png"),
+       p_cs_size_scatter_matched_3e4, width = 12, height = 10, dpi = 300)
+
+# Coverage vs power faceted by GWAS trait type and LD matrix trait types
+cat("  Creating coverage vs power plots faceted by GWAS trait type and LD matrix trait types...\n")
+cat("  - Homogenous Heritability, Fixed-effects, 3e-4, 1000 traits...\n")
+p_cvp_by_trait_types_homo_fixed_3e4_1000 <- plot_coverage_vs_power_by_trait_types(
+  trait_method_df,
+  gwas_meta_type = "fixed",
+  simulation_type = "homo",
+  snp_heritability = 3e-4,
+  n_traits_filter = 1000
+)
+ggsave(file.path(coverage_power_dir, "coverage_vs_power.by_trait_types.homo.fixed_3e-4.1000.png"),
+       p_cvp_by_trait_types_homo_fixed_3e4_1000, width = 14, height = 10, dpi = 300)
+
+# Variant AUPRC
+cat("  - Variant AUPRC - Homogenous Heritability, Fixed-effects, 3e-4, 1000 traits...\n")
+p_auprc_by_trait_types_homo_fixed_3e4_1000 <- plot_metric_scatterplot_by_trait_types(
+  trait_method_df,
+  metric = "variant_auprc",
+  gwas_meta_type = "fixed",
+  simulation_type = "homo",
+  snp_heritability = 3e-4,
+  n_traits_filter = 1000
+)
+ggsave(file.path(metrics_scatterplot_dir, "variant_auprc.by_trait_types.homo.fixed_3e-4.1000.png"),
+       p_auprc_by_trait_types_homo_fixed_3e4_1000, width = 14, height = 10, dpi = 300)
+
+# Mean credible set size
+cat("  - Mean CS Size - Homogenous Heritability, Fixed-effects, 3e-4, 1000 traits...\n")
+p_cs_size_by_trait_types_homo_fixed_3e4_1000 <- plot_metric_scatterplot_by_trait_types(
+  trait_method_df,
+  metric = "mean_cs_size",
+  gwas_meta_type = "fixed",
+  simulation_type = "homo",
+  snp_heritability = 3e-4,
+  n_traits_filter = 1000
+)
+ggsave(file.path(metrics_scatterplot_dir, "mean_cs_size.by_trait_types.homo.fixed_3e-4.1000.png"),
+       p_cs_size_by_trait_types_homo_fixed_3e4_1000, width = 14, height = 10, dpi = 300)
+
+cat("\nCompleted plots for snp_heritability = 3e-4\n")
