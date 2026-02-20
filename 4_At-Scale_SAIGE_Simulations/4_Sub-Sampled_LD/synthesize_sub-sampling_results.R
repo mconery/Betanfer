@@ -518,7 +518,12 @@ run_finemapping_analysis_summary <- function(file_path, output_dir = "finemappin
   return(all_metrics)
 }
 
-# Run the full analysis
-out_dir = "C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/SAIGE_Simulations/fine-mapping/sub-sample_LD.random_homo_3e-4"
-homogeneity_results_file = "C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/SAIGE_Simulations/fine-mapping/sub-sample_LD.random_homo_3e-4.results_file.txt"
+# Run the full analysis for random effects
+out_dir = "C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Figures/SAIGE_Simulations/sub-sample_LD.random_homo_3e-4"
+homogeneity_results_file = "C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/SAIGE_Simulations/sub-sample/sub-sample_LD.random_homo_3e-4.results_file.txt"
+results <- run_finemapping_analysis_summary(homogeneity_results_file, output_dir = out_dir)
+
+# Run the full analysis for fixed effects
+out_dir = "C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Figures/SAIGE_Simulations/sub-sample_LD.fixed_homo_3e-4"
+homogeneity_results_file = "C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/SAIGE_Simulations/sub-sample/sub-sample_LD.fixed_homo_3e-4.results_file.txt"
 results <- run_finemapping_analysis_summary(homogeneity_results_file, output_dir = out_dir)
