@@ -1,0 +1,350 @@
+#!/bin/bash
+
+#SBATCH -A bif154
+#SBATCH -J infer_multi_trait_ld_meta
+#SBATCH -o infer_multi_trait_ld.meta.log
+#SBATCH -N 64
+#SBATCH -p batch
+#SBATCH -t 2:00:00
+
+################################################################################################################
+###################################### Load Modules and Environment ############################################
+################################################################################################################
+
+module load miniforge3
+module load amd/6.3.1
+module load rocm/6.3.1
+module load hwloc/2.11.1-gpu
+module load flux
+
+source activate /lustre/orion/bif154/proj-shared/mconery/tools/environments/infersparsepro
+
+################################################################################################################
+########################## Define directories and other key file/script locations ##############################
+################################################################################################################
+
+# Set script locations
+matrix_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Betanfer/paper_analyses/5_LD_Inference/infer_matrix_from_null_traits.py"
+command_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Betanfer/paper_analyses/5_LD_Inference/create_beta_inference_commands.py"
+python_splitter="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Betanfer/paper_analyses/5_LD_Inference/split_commands_parallel.py"
+
+# Base directories
+base_ld_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices"
+
+# Meta-analysis specific directories
+fixed_scratch_dir="/lustre/orion/bif154/scratch/mconery/indexed_gwama_sumstats_fixed"
+random_scratch_dir="/lustre/orion/bif154/scratch/mconery/indexed_gwama_sumstats_random"
+
+# Variant directory (same for all meta-analyses)
+variant_dir="${base_ld_dir}/raw_in-sample/weighted"
+
+# Set number of nodes
+num_nodes=${SLURM_NNODES}
+
+# Define meta-analysis types, trait types and number of traits
+meta_types=("fixed" "random")
+trait_types=("all" "continuous" "binary")
+#trait_types=("all")
+num_traits_list=(50 100 200 300 400 500 750 1000 1250 1500 1750 2000)
+#num_traits_list=(2500 3000 3500 4000)
+
+# Directory for all command files
+commands_dir="${base_ld_dir}/command_files"
+mkdir -p "$commands_dir"
+
+# Batch configuration
+commands_per_batch=2
+
+# Master commands file
+master_commands_file="${commands_dir}/master_meta_commands.txt"
+> "$master_commands_file" # Clear the file if it exists
+
+# Track total commands generated
+total_commands=0
+total_command_files=0
+
+################################################################################################################
+################################## Generate Commands for All Combinations ####################################
+################################################################################################################
+
+
+# Create a temporary directory for job scripts
+temp_job_dir="${commands_dir}/.temp-job-scripts"
+mkdir -p "${temp_job_dir}"
+
+# Create a temporary manifest file to track all job combinations
+job_manifest="${temp_job_dir}/job-manifest.txt"
+> "${job_manifest}"
+job_count=0
+
+echo "================================================"
+echo "STARTING META-ANALYSIS LD MATRIX INFERENCE PIPELINE"
+echo "================================================"
+echo "Start time: $(date)"
+echo "Meta-analysis types: ${meta_types[@]}"
+echo "Trait types: ${trait_types[@]}"
+echo "Number of traits: ${num_traits_list[@]}"
+echo "Command files will be written to: $commands_dir"
+echo "Master commands file: $master_commands_file"
+echo "Batch size: ${commands_per_batch} commands per batch"
+echo "================================================"
+
+# Loop over meta-analysis types
+for meta_type in "${meta_types[@]}"; do
+    echo ""
+    echo "====================================="
+    echo "Processing meta-analysis type: $meta_type"
+    echo "====================================="
+
+    # Set indexed directory based on meta-analysis type
+    if [[ $meta_type == "fixed" ]]; then
+        indexed_dir="$fixed_scratch_dir"
+    else
+        indexed_dir="$random_scratch_dir"
+    fi
+
+    # Loop over trait types
+    for trait_type in "${trait_types[@]}"; do
+        echo ""
+        echo "Processing trait type: $trait_type"
+
+        # Loop over number of traits
+        for n_traits in "${num_traits_list[@]}"; do
+            echo ""
+            echo "Generating commands for $n_traits traits, meta-type: $meta_type, trait-type: $trait_type"
+
+            # Set output directory
+            output_dir="${base_ld_dir}/beta-inferred_${n_traits}_${meta_type}_${trait_type}/Meta"
+            commands_file="${commands_dir}/${meta_type}_${n_traits}_${trait_type}_meta_commands.txt"
+            rm $commands_file 
+            mkdir -p "$output_dir"
+            
+            # Create a job script for this combination
+            job_script="${temp_job_dir}/gen-job-${meta_type}-${n_traits}-${trait_type}.sh"
+
+            cat > "${job_script}" <<'JOBEOF'
+#!/bin/bash
+set -e
+
+python_cmd="python PLACEHOLDER_command_script --variant_dir PLACEHOLDER_variant_dir --output_dir PLACEHOLDER_output_dir --commands_file PLACEHOLDER_commands_file --matrix_script PLACEHOLDER_matrix_script --indexed_dir PLACEHOLDER_indexed_dir --n_traits PLACEHOLDER_n_traits --trait_type PLACEHOLDER_trait_type --variant_col '#rs_number' --beta_col beta --device cuda"
+
+eval "$python_cmd"
+
+if [ $? -ne 0 ]; then
+    echo "ERROR: Failed to generate commands for PLACEHOLDER_n_traits traits, meta-type PLACEHOLDER_meta_type, trait-type PLACEHOLDER_trait_type" >&2
+    exit 1
+fi
+
+if [ ! -f "PLACEHOLDER_commands_file" ] || [ ! -s "PLACEHOLDER_commands_file" ]; then
+    echo "ERROR: Commands file is missing or empty: PLACEHOLDER_commands_file" >&2
+    exit 1
+fi
+
+num_commands=$(wc -l < "PLACEHOLDER_commands_file")
+echo "Generated ${num_commands} commands for PLACEHOLDER_meta_type-PLACEHOLDER_n_traits-PLACEHOLDER_trait_type"
+JOBEOF
+
+            #Replace placeholder variable names
+            sed -i "s|PLACEHOLDER_command_script|$command_script|g" "$job_script"
+            sed -i "s|PLACEHOLDER_variant_dir|$variant_dir|g" "$job_script"
+            sed -i "s|PLACEHOLDER_output_dir|$output_dir|g" "$job_script"
+            sed -i "s|PLACEHOLDER_commands_file|$commands_file|g" "$job_script"
+            sed -i "s|PLACEHOLDER_matrix_script|$matrix_script|g" "$job_script"
+            sed -i "s|PLACEHOLDER_indexed_dir|$indexed_dir|g" "$job_script"
+            sed -i "s|PLACEHOLDER_n_traits|$n_traits|g" "$job_script"
+            sed -i "s|PLACEHOLDER_trait_type|$trait_type|g" "$job_script"
+            sed -i "s|PLACEHOLDER_indexed_dir|$indexed_dir|g" "$job_script"
+            sed -i "s|PLACEHOLDER_meta_type|$meta_type|g" "$job_script"
+
+            chmod +x "${job_script}"
+
+            # Add to manifest for tracking
+            echo "${job_script}|${commands_file}|${meta_type}|${n_traits}|${trait_type}" >> "${job_manifest}"
+            ((job_count++))
+
+        done
+    done
+done
+
+echo "Prepared ${job_count} command generation jobs"
+echo ""
+
+################################################################################################################
+############################# Execute command generation jobs in parallel via Flux #############################
+################################################################################################################
+
+echo "Starting Flux-based command generation..."
+echo ""
+
+# Create output directory for generation logs
+gen_log_dir="${commands_dir}/.gen-logs"
+mkdir -p "${gen_log_dir}"
+mkdir -p ${base_ld_dir}/jobstate/multi_meta_gen
+rm ${base_ld_dir}/jobstate/multi_meta_gen/*
+
+# Start Flux instance and submit all generation jobs
+echo "Submitting ${job_count} command generation jobs to Flux..."
+
+srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start --broker-opts="-Sstatedir=${base_ld_dir}/jobstate/multi_meta_gen" bash -c "
+    echo 'Flux generation instance started at:' \$(date)
+    echo 'Available resources:'
+    flux resource list
+    echo ''
+    
+    # Submit all generation jobs
+    job_count=0
+    while IFS='|' read -r job_script commands_file meta_type n_traits trait_type; do
+        job_name=\${meta_type}-\${n_traits}-\${trait_type}
+        flux submit -N 1 -n 1 -c 56 --output=${gen_log_dir}/\${job_name}.log bash \"\${job_script}\"
+        ((job_count++))
+        
+        if [ \$((job_count % 20)) -eq 0 ]; then
+            echo \"Submitted \${job_count}/${job_count} generation jobs\"
+        fi
+    done < \"${job_manifest}\"
+    
+    echo \"All ${job_count} generation jobs submitted to Flux queue at: \$(date)\"
+    echo ''
+    
+    # Wait for all generation jobs to complete
+    echo 'Waiting for all command generation jobs to complete...'
+    flux queue drain
+    echo 'All command generation jobs completed at:' \$(date)
+    echo ''
+"
+
+if [ $? -ne 0 ]; then
+    echo "ERROR: Flux command generation instance failed"
+    exit 1
+fi
+
+
+################################################################################################################
+################################## Merge Individual Command Files to Master File ##############################
+################################################################################################################
+
+echo ""
+echo "Merging individual command files into master file..."
+echo "Start time: $(date)"
+
+# Loop through all individual command files and append to master file in sequence
+# This avoids the race condition by processing files sequentially AFTER all parallel jobs complete
+ls $commands_dir/*_*_*_meta_commands.txt | while read command_file; do
+    if [[ -f "$command_file" ]] && [[ -s "$command_file" ]]; then
+        num_lines=$(wc -l < $command_file)
+        grep -v "^#" "$command_file" >> "$master_commands_file"
+        echo "✓ Merged $num_lines commands from $(basename "$command_file")"
+    fi
+done
+
+echo ""
+echo "Total commands merged: $(wc -l $master_commands_file)"
+echo "Merge completed at $(date)"
+echo ""
+
+# Verify master commands file
+if [[ ! -f "$master_commands_file" ]] || [[ ! -s "$master_commands_file" ]]; then
+    echo "ERROR: Master commands file is missing or empty!"
+    exit 1
+fi
+
+echo "Verified: Master commands file contains $(wc -l < "$master_commands_file") commands"
+
+################################################################################################################
+################################## Create batched command files ################################################
+################################################################################################################
+
+echo ""
+echo "Creating batched command files using parallel Python splitter..."
+
+# Clean up any existing meta_infer batch files
+rm -f "${commands_dir}"/meta_infer_batch_*.sh
+
+# Use Python splitter for fast parallel batch creation
+python "${python_splitter}" \
+    -i "${master_commands_file}" \
+    -o "${commands_dir}" \
+    -b ${commands_per_batch} \
+    -p "meta_infer_batch_" \
+    -s ".sh" 
+
+if [ $? -ne 0 ]; then
+    echo "ERROR: Python batch splitter failed"
+    exit 1
+fi
+
+# Verify batch creation
+num_batch_files=$(ls "${commands_dir}" | grep -c "meta_infer_batch")
+echo "Verified: Created ${num_batch_files} batch files in ${commands_dir}"
+
+################################################################################################################
+####################################### Execute Commands in Parallel #########################################
+################################################################################################################
+
+echo ""
+echo "Starting flux-based execution of batched meta-analysis commands at $(date)"
+
+# Create flux output directory
+mkdir -p "${base_ld_dir}/flux_output"
+mkdir -p "${base_ld_dir}/jobstate/multi_meta"
+
+# Start Flux and submit batch jobs
+srun -N ${num_nodes} -n ${num_nodes} -c 56 --gpus-per-node=8 flux start --broker-opts=-Sstatedir=${base_ld_dir}/jobstate/multi_meta bash -c "
+    # Display Flux resource allocation
+    echo \"Flux instance started at \$(date)\"
+    echo \"Available resources:\"
+    flux resource list
+    echo \"\"
+    
+    # Submit all batch files to Flux
+    echo \"Submitting ${num_batch_files} batches to Flux queue...\"
+    batch_count=0
+    for batch in ${commands_dir}/meta_infer_batch_*.sh; do
+        batch_name=\$(basename \${batch} .sh)
+        flux submit -N1 -n1 -c7 --gpus-per-task=1 \
+            --output=${base_ld_dir}/flux_output/\${batch_name}.log \
+            bash \${batch}
+        
+        ((batch_count++))
+        
+        # Print progress every 10 batches
+        if [ \$((batch_count % 10)) -eq 0 ]; then
+            echo \"  Submitted \${batch_count}/${num_batch_files} batches\"
+        fi
+    done
+    
+    echo \"All ${num_batch_files} batches submitted to Flux queue at \$(date)\"
+    echo \"\"
+    
+    # Wait for all jobs to complete
+    echo \"Waiting for all batches to complete...\"
+    flux queue drain
+    
+    echo \"\"
+    echo \"All batches completed at \$(date)\"
+    
+    # Display final resource status
+    echo \"Final Flux resource status:\"
+    flux resource list
+"
+
+################################################################################################################
+################################## Post-processing and cleanup ##################################################
+################################################################################################################
+
+echo ""
+echo "Post-processing results..."
+
+# Count successful batch completions by checking for output files
+successful_batches=$(ls -1 "${base_ld_dir}"/flux_output/meta_infer_batch_*.log 2>/dev/null | wc -l)
+echo "Successfully completed batches: ${successful_batches}/${num_batch_files}"
+
+# Check for any failed batches (optional - you can add error checking logic here)
+if [ ${successful_batches} -ne ${num_batch_files} ]; then
+    echo "WARNING: Some batches may have failed. Check logs in ${base_ld_dir}/flux_output/"
+fi
+
+echo ""
+echo "Meta-analysis LD matrix inference workflow completed at $(date)"
+echo "Batch files retained in: ${commands_dir}"
+echo "Flux logs available in: ${base_ld_dir}/flux_output"

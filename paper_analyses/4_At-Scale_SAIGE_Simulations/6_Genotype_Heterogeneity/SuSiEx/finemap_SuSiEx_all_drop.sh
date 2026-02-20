@@ -1,0 +1,369 @@
+#!/bin/bash
+
+#SBATCH -A bif154
+#SBATCH -J SuSiEx_finemap_drop
+#SBATCH -o finemap_SuSiEx_all_drop.log
+#SBATCH -N 40
+#SBATCH -p batch
+#SBATCH -t 2:00:00
+
+################################################################################################################
+################################################### Load Modules ###############################################
+################################################################################################################
+
+module load miniforge3
+module load amd/6.3.1
+module load rocm/6.3.1
+module load r/4.4.1
+module load hwloc/2.11.1-gpu
+module load flux
+
+################################################################################################################
+########################## Define directories and other key file/script locations ##############################
+################################################################################################################
+
+# Set script locations
+map_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Betanfer/paper_analyses/4_At-Scale_SAIGE_Simulations/3_Fine-Mapping_Scripts/SuSiEx/finemap_SuSiEx.py"
+command_script="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Betanfer/paper_analyses/4_At-Scale_SAIGE_Simulations/5_Effect-Size_Homogeneity/SuSiEx/generate_susiex_commands.py"
+python_splitter="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/Betanfer/paper_analyses/5_LD_Inference/split_commands_parallel.py"
+
+# Set directories
+sumstats_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/step2_results"
+matrix_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/LD_matrices"
+geno_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/simulated_genotypes"
+
+# Base output directory for fine-mapping results
+base_finemap_dir="/lustre/orion/bif154/proj-shared/mconery/infeRSparsePro/SAIGE_simulations/fine-mapping_results"
+
+# Command files directory
+command_files_dir="${base_finemap_dir}/command_files"
+mkdir -p "$command_files_dir"
+
+# Master commands file
+master_commands_file="${command_files_dir}/master_susiex_drop_commands.txt"
+> "$master_commands_file" # Clear the file if it exists
+
+# Populations
+populations="AFR,EUR"
+
+# Set number of nodes
+num_nodes=${SLURM_NNODES}
+
+# Define heritabilities and trait types
+heritabilities=("5e-5" "3e-4")
+heritability_values=(0.00005 0.0003)
+trait_types=("all" "continuous" "binary")
+
+# Analysis type configuration: 'standard' or 'dropped_causal'
+analysis_type="dropped_causal"
+# Drop types for dropped_causal analysis (if analysis_type is 'dropped_causal')
+drop_types=("drop_causal_EUR" "drop_causal_AFR")
+# Central population for each drop type
+declare -A central_pops
+central_pops["drop_causal_EUR"]="EUR"
+central_pops["drop_causal_AFR"]="AFR"
+
+# Total configurations: 2 heritabilities × 3 trait types × 2 drop types = 12
+
+################################################################################################################
+################################## Generate Commands in Parallel Using Flux ##################################
+################################################################################################################
+
+echo "=================================================="
+echo "STARTING SUSIEX FINE-MAPPING PIPELINE (All Configurations)"
+echo "=================================================="
+echo "Start time: $(date)"
+echo "Analysis type: ${analysis_type}"
+echo "Per-SNP heritabilities: ${heritabilities[@]}"
+echo "Trait types: ${trait_types[@]}"
+if [[ ${analysis_type} == "drop_causal" ]]; then
+  echo "Drop types: ${drop_types[@]}"
+fi
+echo "Populations: ${populations}"
+echo "Master commands file: $master_commands_file"
+echo "Batch size: ${commands_per_batch} commands per batch"
+echo "=================================================="
+
+# Create jobs directory for parallel execution
+jobs_dir="${command_files_dir}/command_gen_jobs"
+mkdir -p "$jobs_dir"
+rm -f "$jobs_dir"/susiex_drop_job*.sh
+
+echo ""
+# Create individual job scripts for parallel execution
+total_jobs=0
+for h_idx in "${!heritabilities[@]}"; do
+  h_label=${heritabilities[$h_idx]}
+  h_value=${heritability_values[$h_idx]}
+
+  for trait_type in "${trait_types[@]}"; do
+    for drop_type in "${drop_types[@]}"; do
+      # Define matrix types for this configuration
+      if [[ $trait_type == "all" ]]; then
+        matrix_types="raw_in-sample,PC-corrected,beta-inferred_50_fixed_all,beta-inferred_100_fixed_all,beta-inferred_200_fixed_all,beta-inferred_300_fixed_all,beta-inferred_400_fixed_all,beta-inferred_500_fixed_all,beta-inferred_750_fixed_all,beta-inferred_1000_fixed_all,beta-inferred_1250_fixed_all,beta-inferred_1500_fixed_all,beta-inferred_1750_fixed_all,beta-inferred_2000_fixed_all"
+      elif [[ $trait_type == "continuous" ]]; then
+        matrix_types="raw_in-sample,PC-corrected,beta-inferred_50_fixed_continuous,beta-inferred_100_fixed_continuous,beta-inferred_200_fixed_continuous,beta-inferred_300_fixed_continuous,beta-inferred_400_fixed_continuous,beta-inferred_500_fixed_continuous,beta-inferred_750_fixed_continuous,beta-inferred_1000_fixed_continuous,beta-inferred_1250_fixed_continuous,beta-inferred_1500_fixed_continuous,beta-inferred_1750_fixed_continuous,beta-inferred_2000_fixed_continuous"
+      else # binary
+        matrix_types="raw_in-sample,PC-corrected,beta-inferred_50_fixed_binary,beta-inferred_100_fixed_binary,beta-inferred_200_fixed_binary,beta-inferred_300_fixed_binary,beta-inferred_400_fixed_binary,beta-inferred_500_fixed_binary,beta-inferred_750_fixed_binary,beta-inferred_1000_fixed_binary,beta-inferred_1250_fixed_binary,beta-inferred_1500_fixed_binary,beta-inferred_1750_fixed_binary,beta-inferred_2000_fixed_binary"
+      fi
+
+      # Set central population based on drop type
+      central_pop=${central_pops[$drop_type]}
+      # Define output directory
+      h_dir="fixed_${drop_type}_${h_label}"
+      out_dir="${base_finemap_dir}/${h_dir}/susiex_results"
+      command_file="${command_files_dir}/susiex_${trait_type}_${h_label}_${drop_type}_commands.txt"
+
+      # Create job script
+      job_script="${jobs_dir}/susiex_drop_job_${total_jobs}.sh"
+      cat > "$job_script" << 'JOBEOF'
+#!/bin/bash
+set -e
+
+OUT_DIR="PLACEHOLDER_OUT_DIR"
+CMD_FILE="PLACEHOLDER_CMD_FILE"
+
+mkdir -p "$OUT_DIR"
+
+echo "Generating commands for PLACEHOLDER_ANALYSIS_TYPE_PLACEHOLDER_TRAIT_TYPE_PLACEHOLDER_H_LABEL (PLACEHOLDER_drop_type)..."
+
+python PLACEHOLDER_CMD_SCRIPT \
+  --wrapper-script PLACEHOLDER_MAP_SCRIPT \
+  --gwas-dir PLACEHOLDER_SUMSTATS_DIR \
+  --ld-dir PLACEHOLDER_MATRIX_DIR \
+  --geno-dir PLACEHOLDER_GENO_DIR \
+  --output-dir "$OUT_DIR" \
+  --commands-file "$CMD_FILE" \
+  --matrix-types PLACEHOLDER_MATRIX_TYPES \
+  --populations PLACEHOLDER_POPULATIONS \
+  --analysis-type PLACEHOLDER_ANALYSIS_TYPE \
+  --central-population PLACEHOLDER_CENTRAL_POP \
+  --skip-existing \
+  --heritability PLACEHOLDER_H_VALUE
+
+if [[ ! -f "$CMD_FILE" ]] || [[ ! -s "$CMD_FILE" ]]; then
+  echo "ERROR: Commands file is missing or empty: $CMD_FILE"
+  exit 1
+fi
+
+num_commands=$(wc -l < "$CMD_FILE")
+echo "✓ Generated $num_commands commands for PLACEHOLDER_TRAIT_TYPE_PLACEHOLDER_H_LABEL (PLACEHOLDER_drop_type)"
+JOBEOF
+
+      # Replace placeholders
+      sed -i "s|PLACEHOLDER_OUT_DIR|$out_dir|g" "$job_script"
+      sed -i "s|PLACEHOLDER_CMD_FILE|$command_file|g" "$job_script"
+      sed -i "s|PLACEHOLDER_CMD_SCRIPT|$command_script|g" "$job_script"
+      sed -i "s|PLACEHOLDER_MAP_SCRIPT|$map_script|g" "$job_script"
+      sed -i "s|PLACEHOLDER_SUMSTATS_DIR|$sumstats_dir|g" "$job_script"
+      sed -i "s|PLACEHOLDER_MATRIX_DIR|$matrix_dir|g" "$job_script"
+      sed -i "s|PLACEHOLDER_GENO_DIR|$geno_dir|g" "$job_script"
+      sed -i "s|PLACEHOLDER_MATRIX_TYPES|$matrix_types|g" "$job_script"
+      sed -i "s|PLACEHOLDER_POPULATIONS|$populations|g" "$job_script"
+      sed -i "s|PLACEHOLDER_H_VALUE|$h_value|g" "$job_script"
+      sed -i "s|PLACEHOLDER_ANALYSIS_TYPE|$analysis_type|g" "$job_script"
+      sed -i "s|PLACEHOLDER_CENTRAL_POP|$central_pop|g" "$job_script"
+      sed -i "s|PLACEHOLDER_drop_type|$drop_type|g" "$job_script"
+      sed -i "s|PLACEHOLDER_TRAIT_TYPE|$trait_type|g" "$job_script"
+      sed -i "s|PLACEHOLDER_H_LABEL|$h_label|g" "$job_script"
+
+      chmod +x "$job_script"
+      ((total_jobs++))
+    done
+  done
+done
+
+echo "Created $total_jobs command generation jobs"
+echo ""
+echo "Executing command generation jobs in parallel using Flux..."
+echo "Start time: $(date)"
+echo ""
+
+# Use Flux to parallelize command generation across nodes
+srun -N ${num_nodes} -n ${num_nodes} -c 56 flux start bash -c "
+    echo \"Flux instance started for parallel command generation at \$(date)\"
+    echo \"Available resources:\"
+    flux resource list
+    echo \"\"
+
+    echo \"Submitting ${total_jobs} command generation jobs...\"
+
+    job_count=0
+    for job_script in ${jobs_dir}/susiex_drop_job_*.sh; do
+      job_name=\$(basename \${job_script} .sh)
+      flux submit -N1 -n1 -c56 \
+        bash \${job_script}
+
+      ((job_count++))
+
+      # Print progress every 2 jobs
+      if [ \$((job_count % 2)) -eq 0 ]; then
+        echo \" Submitted \${job_count}/${total_jobs} command generation jobs\"
+      fi
+    done
+
+    echo \"All ${total_jobs} command generation jobs submitted at \$(date)\"
+    echo \"\"
+
+    # Wait for all jobs to complete
+    echo \"Waiting for all command generation jobs to complete...\"
+    flux queue drain
+
+    echo \"All command generation jobs completed at \$(date)\"
+"
+
+if [ $? -ne 0 ]; then
+  echo "ERROR: Command generation failed"
+  exit 1
+fi
+
+echo "Command generation completed at $(date)"
+
+echo ""
+echo "=================================================="
+echo "COMMAND FILE GENERATION COMPLETE"
+echo "=================================================="
+
+################################################################################################################
+################################## Merge Individual Command Files to Master File ##############################
+################################################################################################################
+
+echo ""
+echo "Merging individual command files into master file..."
+echo "Start time: $(date)"
+
+# Initialize line counter
+total_commands=0
+
+# Loop through all individual command files and append to master file in sequence
+# This avoids the race condition by processing files sequentially AFTER all parallel jobs complete
+for command_file in "${command_files_dir}"/susiex_*_*_drop_causal_*_commands.txt; do
+    if [[ -f "$command_file" ]] && [[ -s "$command_file" ]]; then
+        num_lines=$(wc -l < "$command_file")
+        grep -v "^#" "$command_file" >> "$master_commands_file"
+        echo "✓ Merged $num_lines commands from $(basename "$command_file")"
+        ((total_commands += num_lines))
+    fi
+done
+
+echo ""
+echo "Total commands merged: $total_commands"
+echo "Merge completed at $(date)"
+echo ""
+
+# Verify master commands file
+if [[ ! -f "$master_commands_file" ]] || [[ ! -s "$master_commands_file" ]]; then
+    echo "ERROR: Master commands file is missing or empty!"
+    exit 1
+fi
+
+echo "Verified: Master commands file contains $(wc -l < "$master_commands_file") commands"
+
+################################################################################################################
+################################## Create batched command files ################################################
+################################################################################################################
+
+echo ""
+echo "Creating batched command files using parallel Python splitter..."
+
+# Clean up any existing susiex batch files
+rm -f "${command_files_dir}"/susiex_finemap_drop_batch_*.sh
+
+#Calculate number of batches
+num_batches=$(( num_nodes * 28 ))
+# Use Python splitter for fast parallel batch creation
+python "${python_splitter}" \
+  -i "${master_commands_file}" \
+  -o "${command_files_dir}" \
+  -n ${num_batches} \
+  -p "susiex_finemap_drop_batch_" \
+  -s ".sh"
+
+if [ $? -ne 0 ]; then
+  echo "ERROR: Python batch splitter failed"
+  exit 1
+fi
+
+# Verify batch creation
+num_batch_files=$(ls "${command_files_dir}" | grep -c "^susiex_finemap_drop_batch_")
+echo "Verified: Created ${num_batch_files} batch files in ${command_files_dir}"
+if [ ${num_batch_files} -eq 0 ]; then
+  echo "ERROR: No batch files were created"
+  exit 1
+fi
+
+################################################################################################################
+####################################### Execute Commands in Parallel #########################################
+################################################################################################################
+
+echo ""
+echo "Starting flux-based execution of batched SuSiEx fine-mapping commands at $(date)"
+
+# Create flux output directory
+flux_output_dir="${base_finemap_dir}/flux_output"
+mkdir -p "$flux_output_dir"
+
+# Activate environment before launching flux
+source activate $map_enviro
+
+# Start Flux and submit batch jobs
+srun -N ${num_nodes} -n ${num_nodes} -c 56 flux start bash -c "
+    # Display Flux resource allocation
+    echo \"Flux instance started at \$(date)\"
+    echo \"Available resources:\"
+    flux resource list
+    echo \"\"
+    
+    # Submit all batch files to Flux
+    echo \"Submitting ${num_batch_files} batches to Flux queue...\"
+    batch_count=0
+    for batch in ${command_files_dir}/susiex_finemap_drop_batch_*.sh; do
+        batch_name=\$(basename \${batch} .sh)
+        flux submit -N1 -n1 -c2 \
+            --output=${flux_output_dir}/\${batch_name}.log \
+            bash \${batch}
+        
+        ((batch_count++))
+        
+        # Print progress every 20 batches
+        if [ \$((batch_count % 20)) -eq 0 ]; then
+            echo \"  Submitted \${batch_count}/${num_batch_files} batches\"
+        fi
+    done
+    
+    echo \"All ${num_batch_files} batches submitted to Flux queue at \$(date)\"
+    echo \"\"
+    
+    # Wait for all jobs to complete
+    echo \"Waiting for all batches to complete...\"
+    flux queue drain
+    
+    echo \"\"
+    echo \"All batches completed at \$(date)\"
+    
+    # Display final resource status
+    echo \"Final Flux resource status:\"
+    flux resource list
+"
+
+################################################################################################################
+################################## Post-processing and cleanup ##################################################
+################################################################################################################
+
+echo ""
+echo "Post-processing results..."
+
+# Count successful batch completions by checking for output files
+successful_batches=$(ls -1 "${flux_output_dir}"/susiex_finemap_drop_batch_*.log 2>/dev/null | wc -l)
+echo "Successfully completed batches: ${successful_batches}/${num_batch_files}"
+
+# Check for any failed batches
+if [ ${successful_batches} -ne ${num_batch_files} ]; then
+    echo "WARNING: Some batches may have failed. Check logs in ${flux_output_dir}"
+fi
+
+echo ""
+echo "SuSiEx fine-mapping workflow completed at $(date)"
+echo "Batch files retained in: ${command_files_dir}"
+echo "Flux logs available in: ${flux_output_dir}"
+echo "Fine-mapping results in: ${base_finemap_dir}"

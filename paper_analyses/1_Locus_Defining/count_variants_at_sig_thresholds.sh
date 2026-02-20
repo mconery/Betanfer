@@ -1,0 +1,11 @@
+#!/bin/bash -l
+#PBS -N countvarsigthresh
+#PBS -l select=8:ncpus=128:mpiprocs=128
+#PBS -l walltime=1:00:00
+#PBS -q debug-scaling
+#PBS -A GeomicVar
+#PBS -l filesystems=home:flare
+
+source ~/.bashrc
+conda activate finemap_old
+mpiexec -n 1024 python -m mpi4py.futures /flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/Betanfer/paper_analyses/1_Locus_Defining/count_variants_at_sig_thresholds.py -l /flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/mapping_loci/sig_loci.EUR.master.csv -g /flare/GeomicVar/multi-biobank-meta/metaanalysis_for_export/EUR -o /flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/mapping_loci/sig_loci.EUR.plus_var_counts.csv -p 1 -m 0
