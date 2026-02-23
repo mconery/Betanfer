@@ -187,8 +187,8 @@ Betanfer reads the header of the first indexed file and looks for:
 
 When `--pval-threshold` or `--pval-col` is set, traits with any variant at
 `p < threshold` in the target region (optionally extended by `--buffer` bp)
-are excluded before computing the LD matrix.  This avoids confounding from
-pleiotropic associations.
+are excluded before computing the LD matrix.  This avoids inflating the 
+correlation estimates.
 
 The filter is parallelised across CPU cores (see `--num-processes`).
 
