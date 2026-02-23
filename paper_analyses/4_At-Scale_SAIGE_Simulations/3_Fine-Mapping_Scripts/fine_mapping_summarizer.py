@@ -147,6 +147,20 @@ def process_files(input_dir):
         logger.error("No results files found!")
         sys.exit(1)
 
+    # Build a map of filename -> continuation paths found in subdirectories.
+    # Files in subdirectories that share a name with a main-directory file are
+    # treated as continuations (same schema, distinct rows, repeated header).
+    continuation_map = defaultdict(list)
+    for entry in sorted(os.scandir(input_dir), key=lambda e: e.name):
+        if entry.is_dir():
+            for subentry in sorted(os.scandir(entry.path), key=lambda e: e.name):
+                if subentry.is_file() and subentry.name.endswith('.results_file.txt'):
+                    continuation_map[subentry.name].append(subentry.path)
+
+    if continuation_map:
+        for fname, paths in sorted(continuation_map.items()):
+            logger.info(f"Continuation file(s) found for '{fname}': {paths}")
+
     for file_idx, filename in enumerate(files):
         filepath = os.path.join(input_dir, filename)
         logger.info(f"[{file_idx + 1}/{len(files)}] Processing {filename}...")
@@ -154,8 +168,18 @@ def process_files(input_dir):
         # Parse experimental conditions from filename
         meta_type, sim_type, pop, heritability = parse_filename(filename)
 
-        df = pd.read_csv(filepath, sep='\t')
-        logger.info(f"  Loaded {len(df)} rows")
+        # Read main file plus any continuation files from subdirectories
+        all_parts = [pd.read_csv(filepath, sep='\t')]
+        for cont_path in continuation_map.get(filename, []):
+            logger.info(f"  Including continuation: {cont_path}")
+            all_parts.append(pd.read_csv(cont_path, sep='\t'))
+
+        if len(all_parts) > 1:
+            df = pd.concat(all_parts, ignore_index=True)
+            logger.info(f"  Combined {len(all_parts)} parts: {len(df)} total rows")
+        else:
+            df = all_parts[0]
+            logger.info(f"  Loaded {len(df)} rows")
 
         # Add experimental condition columns
         df['meta_analysis_type'] = meta_type
