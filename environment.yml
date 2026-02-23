@@ -1,0 +1,15 @@
+name: betanfer
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pandas
+  - numpy
+  - pysam          # includes htslib for tabix support
+  - pytorch        # CPU-only pytorch by default
+  - pytorch-cuda=12.1  # remove or comment out if no CUDA GPU is available
+  - pip
+  - pip:
+    - -e .         # install betanfer as editable package from repo root

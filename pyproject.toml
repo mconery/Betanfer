@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "betanfer"
+version = "0.1.0"
+description = "Infer LD structure from GWAS summary statistics beta correlations"
+requires-python = ">=3.10"
+dependencies = [
+    "pandas",
+    "numpy",
+    "pysam",
+    "torch",
+]
+
+[project.scripts]
+betanfer = "betanfer.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["betanfer*"]
