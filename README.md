@@ -220,8 +220,8 @@ The filter is parallelised across CPU cores (see `--num-processes`).
 | Format | Description |
 |---|---|
 | TSV (default) | Tab-separated matrix with variant IDs as row and column labels |
-| Binary (`.vcor1`) | Raw float32 matrix; compatible with PLINK `.vcor1` format |
-| `.vcor1.vars` | Newline-delimited variant ID list matching the matrix order |
+| Binary (`.vcor1`) | Raw float32 matrix; compatible with PLINK2 `.vcor1` format |
+| `.vcor1.vars` | Variant ID list matching the matrix order |
 
 ---
 
