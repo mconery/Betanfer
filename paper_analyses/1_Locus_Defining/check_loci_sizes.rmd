@@ -11,13 +11,17 @@ identify a threshold at which we might be able to prune based on significance.
 
 ### 1) Load in Libraries and Set Input Locations
 
-```{r} 
+```{r}
 #Call needed libraries
 library(tidyverse)
 library(pbapply)
 
 #Set input directory
 inp_dir <- "C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/Defining_Loci/"
+#Set output directory
+out_dir <- "C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Figures/Defining_Loci/"
+dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
+
 #Set input files
 ALL_file <- paste0(inp_dir, "sig_loci.ALL.plus_var_counts.csv")
 AFR_file <- paste0(inp_dir, "sig_loci.AFR.plus_var_counts.csv")
@@ -40,17 +44,17 @@ AMR_raw <- read.table(AMR_file, sep = ",", header = TRUE)
 EAS_raw <- read.table(EAS_file, sep = ",", header = TRUE)
 EUR_raw <- read.table(EUR_file, sep = ",", header = TRUE)
 
-make_size_plot <- function(sig_raw){
+make_size_plot <- function(sig_raw, pop_name){
   # Calculate scaling factor and percentiles
   max_length <- max(sig_raw$LENGTH)
   max_pv <- max(sig_raw$PV_1e.00)
   scale_factor <- max_length / max_pv
   percentiles <- quantile(sig_raw$LENGTH, c(0.95, 0.99))  # Calculate percentiles
-  
+
   # Create dual-axis cumulative distribution plot
-  p<-ggplot(sig_raw) +
-    stat_ecdf(aes(x = LENGTH), geom = "step", color = "blue", size = 1.2) +
-    stat_ecdf(aes(x = PV_1e.00 * scale_factor), geom = "step", color = "red", size = 1.2) +
+  p <- ggplot(sig_raw) +
+    stat_ecdf(aes(x = LENGTH), geom = "step", color = "#2166AC", linewidth = 1.2) +
+    stat_ecdf(aes(x = PV_1e.00 * scale_factor), geom = "step", color = "#D6604D", linewidth = 1.2) +
     geom_vline(
       xintercept = percentiles,
       linetype = "dashed",
@@ -58,36 +62,46 @@ make_size_plot <- function(sig_raw){
       linewidth = 0.8
     ) +
     scale_x_continuous(
-      name = "Locus Length",
+      name = "Locus Length (bp)",
       limits = c(0, 6e6),
+      labels = scales::label_number(scale = 1e-6, suffix = " Mb"),
       sec.axis = sec_axis(~./scale_factor, name = "Number of Variants")
     ) +
     ylab("Cumulative Proportion") +
-    theme(
-      panel.background = element_blank(),
-      axis.line = element_line(colour = "black"),
-      axis.text.x = element_text(size = 12),
-      axis.text.x.bottom = element_text(color = "blue"),
-      axis.title.x.bottom = element_text(color = "blue"),
-      axis.text.x.top = element_text(color = "red"),
-      axis.title.x.top = element_text(color = "red"),
-      axis.title = element_text(size = 16),
-      axis.text.y = element_text(size = 12)
-    ) +
     annotate(
       "text",
-      x = percentiles+1.8e5,
-      y = 1.02,
+      x = percentiles + 3.5e5,
+      y = c(0.06, 0.06),
       label = c("95th", "99th"),
       color = "darkgray",
-      size = 4,
-      vjust = 0
+      size = 5.5,
+      vjust = 1,
+      fontface = "italic"
+    ) +
+    theme_classic(base_size = 20) +
+    theme(
+      axis.text.x.bottom = element_text(color = "#2166AC", size = 17),
+      axis.title.x.bottom = element_text(color = "#2166AC", size = 19, face = "bold"),
+      axis.text.x.top = element_text(color = "#D6604D", size = 17),
+      axis.title.x.top = element_text(color = "#D6604D", size = 19, face = "bold"),
+      axis.title.y = element_text(size = 19, face = "bold"),
+      axis.text.y = element_text(size = 17),
+      axis.ticks = element_line(linewidth = 0.5),
+      plot.margin = margin(10, 15, 10, 10)
     )
+
   print(p)
+  ggsave(
+    filename = paste0(out_dir, "locus_size_ecdf.", pop_name, ".png"),
+    plot = p,
+    width = 7,
+    height = 5,
+    dpi = 300
+  )
 }
 
 #Make ALL plot
-make_size_plot(ALL_raw)
+make_size_plot(ALL_raw, "ALL")
 
 ```
 
@@ -96,17 +110,17 @@ I note that there is a single variant in the locus QTL_UA.chr1:145250001-1460000
 ### 3) Make histograms for ancestral populations
 
 ```{r}
-make_size_plot(AFR_raw)
+make_size_plot(AFR_raw, "AFR")
 ```
 
 ```{r}
-make_size_plot(AMR_raw)
+make_size_plot(AMR_raw, "AMR")
 ```
 
 ```{r}
-make_size_plot(EAS_raw)
+make_size_plot(EAS_raw, "EAS")
 ```
 
 ```{r}
-make_size_plot(EUR_raw)
+make_size_plot(EUR_raw, "EUR")
 ```
