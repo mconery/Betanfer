@@ -551,7 +551,9 @@ def compute_beta_correlation_matrix(
     """
     Compute a pairwise correlation matrix from a beta DataFrame.
 
-    Missing (NaN) betas are filled with zero before computation.
+    Uses pairwise deletion for missing (NaN) betas: each pair of variants
+    is correlated only over the traits where both have non-missing values,
+    avoiding the attenuation caused by zero-imputation.
 
     Args:
         betas_df: Variants × traits DataFrame.
@@ -561,17 +563,51 @@ def compute_beta_correlation_matrix(
     Returns:
         Correlation matrix as a float32 numpy array.
     """
-    # Fill missing betas with zero
-    betas_filled = betas_df.fillna(0.0)
+    values = betas_df.values.astype(np.float32)  # (n_variants, n_traits)
 
-    betas = torch.tensor(betas_filled.values, device=device, dtype=torch.float32)
-    betas_centered = betas - betas.mean(dim=1, keepdim=True)
-    norms = torch.norm(betas_centered, dim=1, keepdim=True)
-    # Avoid division by zero for all-zero rows
-    norms = torch.where(norms == 0, torch.ones_like(norms), norms)
-    betas_normed = betas_centered / norms
-    corr = betas_normed @ betas_normed.T
-    corr_np = corr.cpu().numpy().astype(np.float32)
+    # Build mask: 1.0 where non-missing, 0.0 where NaN
+    mask = (~np.isnan(values)).astype(np.float32)
+    values_filled = np.where(mask.astype(bool), values, 0.0).astype(np.float32)
+
+    # Move to device
+    X = torch.tensor(values_filled, device=device, dtype=torch.float32)  # (n_variants, n_traits)
+    M = torch.tensor(mask, device=device, dtype=torch.float32)            # (n_variants, n_traits)
+
+    # Note: variants are in rows and traits are in columns, so the matmul
+    # orientations below are transposed relative to the genotype-matrix case
+    # where variants are in columns and samples are in rows.
+
+    # Pairwise counts: N[i,j] = number of traits with both i and j non-missing
+    N = M @ M.T                         # (n_variants, n_variants)
+
+    # Pairwise sums over jointly non-missing traits.
+    # X_filled[i,k]=0 when missing, so masking with M[j,:] selects only
+    # jointly non-missing positions (0-filled positions contribute nothing).
+    sum_x  = X @ M.T                    # sum of X[i] where X[j] non-missing
+    sum_y  = M @ X.T                    # sum of X[j] where X[i] non-missing
+    sum_x2 = (X * X) @ M.T             # sum of X[i]^2 where X[j] non-missing
+    sum_y2 = M @ (X * X).T             # sum of X[j]^2 where X[i] non-missing
+    sum_xy = X @ X.T                    # sum of X[i]*X[j] (0s cancel missing)
+
+    # Pairwise variances and covariance
+    var_x  = sum_x2 - (sum_x * sum_x) / N
+    var_y  = sum_y2 - (sum_y * sum_y) / N
+    cov_xy = sum_xy - (sum_x * sum_y) / N
+
+    # Pearson r
+    denom = torch.sqrt(var_x * var_y)
+    r = cov_xy / denom
+
+    # Set to NaN where there are too few jointly non-missing traits or
+    # where the denominator is invalid (zero variance in either variant)
+    min_n = 2
+    invalid = (N < min_n) | ~(denom > 0)
+    r = torch.where(invalid, torch.full_like(r, float("nan")), r)
+
+    # Clamp to [-1, 1] to absorb floating-point rounding error
+    r = torch.clamp(r, -1.0, 1.0)
+
+    corr_np = r.cpu().numpy().astype(np.float32)
 
     if save_prefix:
         vcor1_path = f"{save_prefix}.vcor1"
