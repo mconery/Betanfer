@@ -46,9 +46,12 @@ format_method_names <- function(data) {
 # Function to format LD matrix names with camel case and spaces
 format_ld_matrix_names <- function(data) {
   data %>%
-    mutate(ld_matrix = str_replace_all(ld_matrix, "_fixed", "")) %>% 
-    mutate(ld_matrix = str_replace_all(ld_matrix, "_", " ") %>%
-           str_to_title()) %>% mutate(ld_matrix = str_replace_all(ld_matrix, "Pc", "PC")) 
+    mutate(ld_matrix = str_replace_all(ld_matrix, "_fixed", "")) %>%
+    mutate(ld_matrix = str_replace_all(ld_matrix, "external", "(External)")) %>%
+    mutate(ld_matrix = str_replace_all(ld_matrix, "_", " ")) %>%
+    mutate(ld_matrix = str_to_title(ld_matrix)) %>%
+    mutate(ld_matrix = str_replace_all(ld_matrix, "Mvp", "MVP")) %>%
+    mutate(ld_matrix = str_replace_all(ld_matrix, "Pc", "PC"))
 }
 
 # Function to create coverage vs power scatter plot with filtering
@@ -88,7 +91,7 @@ plot_coverage_vs_power_filtered <- function(
     plot_data <- plot_data %>%
       filter(
         # Keep raw_in-sample and PC-corrected
-        ld_matrix %in% c("raw_in-sample", "PC-corrected") |
+        ld_matrix %in% c("raw_in-sample", "PC-corrected", "mvp_external") |
         # Or keep beta-inferred with specified n_traits
         (is_beta_inferred == TRUE & n_traits == n_traits_filter)
       )
@@ -99,7 +102,7 @@ plot_coverage_vs_power_filtered <- function(
   if (!is.null(matrix_type_filter)) {
     plot_data <- plot_data %>%
       filter(
-        ld_matrix %in% c("raw_in-sample", "PC-corrected") |
+        ld_matrix %in% c("raw_in-sample", "PC-corrected", "mvp_external") |
         (is_beta_inferred == TRUE & trait_types == matrix_type_filter)
       )
   }
@@ -113,11 +116,12 @@ plot_coverage_vs_power_filtered <- function(
         is_beta_inferred & matrix_construction == "meta" ~ "Beta-Inferred (Meta)",
         is_beta_inferred & matrix_construction == "weighted" ~ "Beta-Inferred (Weighted)",
         is_beta_inferred & matrix_construction == "population-specific" ~ "Beta-Inferred (Pop-Specific)",
+        ld_matrix == "mvp_external" ~ "MVP (External)",
         TRUE ~ ld_matrix
       ),
       # Factor for consistent ordering
       matrix_type = factor(matrix_type, levels = c(
-        "Raw In-Sample", "PC-Corrected In-Sample",
+        "Raw In-Sample", "PC-Corrected In-Sample", "MVP (External)",
         "Beta-Inferred (Meta)", "Beta-Inferred (Weighted)", "Beta-Inferred (Pop-Specific)"
       ))
     )
@@ -126,6 +130,7 @@ plot_coverage_vs_power_filtered <- function(
   matrix_shapes <- c(
     "Raw In-Sample" = 16,              # filled circle
     "PC-Corrected In-Sample" = 17,                # filled triangle
+    "MVP (External)" = 4,              # X shape
     "Beta-Inferred (Meta)" = 15,        # filled square
     "Beta-Inferred (Weighted)" = 18,    # filled diamond
     "Beta-Inferred (Pop-Specific)" = 8  # asterisk
@@ -172,6 +177,7 @@ create_finemapping_legend <- function() {
   all_matrix_types <- c(
     "Raw In-Sample",
     "PC-Corrected In-Sample",
+    "MVP (External)",
     "1000-Null Beta-Inferred (Meta)",
     "1000-Null Beta-Inferred (Weighted)",
     "1000-Null Beta-Inferred (Pop-Specific)",
@@ -191,6 +197,7 @@ create_finemapping_legend <- function() {
   matrix_shapes <- c(
     "Raw In-Sample" = 16,                          # filled circle
     "PC-Corrected In-Sample" = 17,                 # filled triangle
+    "MVP (External)" = 4,                          # X shape
     "1000-Null Beta-Inferred (Meta)" = 15,                   # filled square
     "1000-Null Beta-Inferred (Weighted)" = 18,               # filled diamond
     "1000-Null Beta-Inferred (Pop-Specific)" = 8,            # asterisk
@@ -266,7 +273,7 @@ plot_coverage_vs_power_faceted <- function(
     plot_data <- plot_data %>%
       filter(
         # Keep raw_in-sample and PC-corrected
-        ld_matrix %in% c("raw_in-sample", "PC-corrected") |
+        ld_matrix %in% c("raw_in-sample", "PC-corrected", "mvp_external") |
         # Or keep beta-inferred with specified n_traits
         (is_beta_inferred == TRUE & n_traits == n_traits_filter)
       )
@@ -277,7 +284,7 @@ plot_coverage_vs_power_faceted <- function(
   if (!is.null(matrix_type_filter)) {
     plot_data <- plot_data %>%
       filter(
-        ld_matrix %in% c("raw_in-sample", "PC-corrected") |
+        ld_matrix %in% c("raw_in-sample", "PC-corrected", "mvp_external") |
         (is_beta_inferred == TRUE & trait_types == matrix_type_filter)
       )
   }
@@ -291,11 +298,12 @@ plot_coverage_vs_power_faceted <- function(
         is_beta_inferred & matrix_construction == "meta" ~ "Beta-Inferred (Meta)",
         is_beta_inferred & matrix_construction == "weighted" ~ "Beta-Inferred (Weighted)",
         is_beta_inferred & matrix_construction == "population-specific" ~ "Beta-Inferred (Pop-Specific)",
+        ld_matrix == "mvp_external" ~ "MVP (External)",
         TRUE ~ ld_matrix
       ),
       # Factor for consistent ordering
       matrix_type = factor(matrix_type, levels = c(
-        "Raw In-Sample", "PC-Corrected In-Sample",
+        "Raw In-Sample", "PC-Corrected In-Sample", "MVP (External)",
         "Beta-Inferred (Meta)", "Beta-Inferred (Weighted)", "Beta-Inferred (Pop-Specific)"
       )),
       # Format trait type labels
@@ -312,6 +320,7 @@ plot_coverage_vs_power_faceted <- function(
   matrix_shapes <- c(
     "Raw In-Sample" = 16,              # filled circle
     "PC-Corrected In-Sample" = 17,                # filled triangle
+    "MVP (External)" = 4,              # X shape
     "Beta-Inferred (Meta)" = 15,        # filled square
     "Beta-Inferred (Weighted)" = 18,    # filled diamond
     "Beta-Inferred (Pop-Specific)" = 8  # asterisk
@@ -325,7 +334,7 @@ plot_coverage_vs_power_faceted <- function(
     scale_shape_manual(
       name = "LD Matrix Type",
       values = matrix_shapes,
-      drop = FALSE
+      drop = TRUE
     ) +
     guides(
       shape = guide_legend(nrow = 2, byrow = TRUE),
@@ -395,7 +404,7 @@ plot_coverage_vs_power_by_heritability <- function(
     plot_data <- plot_data %>%
       filter(
         # Keep raw_in-sample and PC-corrected
-        ld_matrix %in% c("raw_in-sample", "PC-corrected") |
+        ld_matrix %in% c("raw_in-sample", "PC-corrected", "mvp_external") |
         # Or keep beta-inferred with specified n_traits
         (is_beta_inferred == TRUE & n_traits == n_traits_filter)
       )
@@ -406,7 +415,7 @@ plot_coverage_vs_power_by_heritability <- function(
   if (!is.null(matrix_type_filter)) {
     plot_data <- plot_data %>%
       filter(
-        ld_matrix %in% c("raw_in-sample", "PC-corrected") |
+        ld_matrix %in% c("raw_in-sample", "PC-corrected", "mvp_external") |
         (is_beta_inferred == TRUE & trait_types == matrix_type_filter)
       )
   }
@@ -420,11 +429,12 @@ plot_coverage_vs_power_by_heritability <- function(
         is_beta_inferred & matrix_construction == "meta" ~ "Beta-Inferred (Meta)",
         is_beta_inferred & matrix_construction == "weighted" ~ "Beta-Inferred (Weighted)",
         is_beta_inferred & matrix_construction == "population-specific" ~ "Beta-Inferred (Pop-Specific)",
+        ld_matrix == "mvp_external" ~ "MVP (External)",
         TRUE ~ ld_matrix
       ),
       # Factor for consistent ordering
       matrix_type = factor(matrix_type, levels = c(
-        "Raw In-Sample", "PC-Corrected In-Sample",
+        "Raw In-Sample", "PC-Corrected In-Sample", "MVP (External)",
         "Beta-Inferred (Meta)", "Beta-Inferred (Weighted)", "Beta-Inferred (Pop-Specific)"
       )),
       # Format heritability labels
@@ -446,6 +456,7 @@ plot_coverage_vs_power_by_heritability <- function(
   matrix_shapes <- c(
     "Raw In-Sample" = 16,              # filled circle
     "PC-Corrected In-Sample" = 17,                # filled triangle
+    "MVP (External)" = 4,              # X shape
     "Beta-Inferred (Meta)" = 15,        # filled square
     "Beta-Inferred (Weighted)" = 18,    # filled diamond
     "Beta-Inferred (Pop-Specific)" = 8  # asterisk
@@ -540,7 +551,7 @@ plot_coverage_vs_power_by_meta_type <- function(
     plot_data <- plot_data %>%
       filter(
         # Keep raw_in-sample and PC-corrected
-        ld_matrix %in% c("raw_in-sample", "PC-corrected") |
+        ld_matrix %in% c("raw_in-sample", "PC-corrected", "mvp_external") |
         # Or keep beta-inferred with specified n_traits
         (is_beta_inferred == TRUE & n_traits == n_traits_filter)
       )
@@ -551,7 +562,7 @@ plot_coverage_vs_power_by_meta_type <- function(
   if (!is.null(matrix_type_filter)) {
     plot_data <- plot_data %>%
       filter(
-        ld_matrix %in% c("raw_in-sample", "PC-corrected") |
+        ld_matrix %in% c("raw_in-sample", "PC-corrected", "mvp_external") |
         (is_beta_inferred == TRUE & trait_types == matrix_type_filter)
       )
   }
@@ -565,11 +576,12 @@ plot_coverage_vs_power_by_meta_type <- function(
         is_beta_inferred & matrix_construction == "meta" ~ "Beta-Inferred (Meta)",
         is_beta_inferred & matrix_construction == "weighted" ~ "Beta-Inferred (Weighted)",
         is_beta_inferred & matrix_construction == "population-specific" ~ "Beta-Inferred (Pop-Specific)",
+        ld_matrix == "mvp_external" ~ "MVP (External)",
         TRUE ~ ld_matrix
       ),
       # Factor for consistent ordering
       matrix_type = factor(matrix_type, levels = c(
-        "Raw In-Sample", "PC-Corrected In-Sample",
+        "Raw In-Sample", "PC-Corrected In-Sample", "MVP (External)",
         "Beta-Inferred (Meta)", "Beta-Inferred (Weighted)", "Beta-Inferred (Pop-Specific)"
       )),
       # Format meta-analysis type labels
@@ -595,6 +607,7 @@ plot_coverage_vs_power_by_meta_type <- function(
   matrix_shapes <- c(
     "Raw In-Sample" = 16,              # filled circle
     "PC-Corrected In-Sample" = 17,                # filled triangle
+    "MVP (External)" = 4,              # X shape
     "Beta-Inferred (Meta)" = 15,        # filled square
     "Beta-Inferred (Weighted)" = 18,    # filled diamond
     "Beta-Inferred (Pop-Specific)" = 8  # asterisk
@@ -1063,18 +1076,19 @@ plot_performance_vs_ntraits <- function(
     plot_data <- plot_data %>% filter(method %in% methods)
   }
 
-  # Filter for beta-inferred matrices, raw_in-sample, and PC-corrected
+  # Filter for beta-inferred matrices, raw_in-sample, PC-corrected, and MVP (External)
   plot_data <- plot_data %>%
-    filter(is_beta_inferred == TRUE | ld_matrix %in% c("raw_in-sample", "PC-corrected"))
+    filter(is_beta_inferred == TRUE | ld_matrix %in% c("raw_in-sample", "PC-corrected", "mvp_external"))
 
   # Separate in-sample and beta-inferred data
-  insample_data <- plot_data %>% filter(ld_matrix %in% c("raw_in-sample", "PC-corrected"))
+  insample_data <- plot_data %>% filter(ld_matrix %in% c("raw_in-sample", "PC-corrected", "mvp_external"))
   beta_data <- plot_data %>% filter(is_beta_inferred == TRUE)
 
   # Get max n_traits to position in-sample on the far right
   max_traits <- max(beta_data$n_traits, na.rm = TRUE)
   raw_position <- max_traits * 1.10  # Position raw_in-sample 10% beyond max
   pc_position <- max_traits * 1.20   # Position PC-corrected 20% beyond max
+  mvp_position <- max_traits * 1.30  # Position MVP (External) 30% beyond max
 
   # Prepare beta-inferred data with matrix construction labels
   # Population-specific methods (SuSiEx, MESuSiE, MultiSuSiE) should appear in both Weighted and Meta facets
@@ -1143,11 +1157,13 @@ plot_performance_vs_ntraits <- function(
       n_traits = case_when(
         ld_matrix == "raw_in-sample" ~ raw_position,
         ld_matrix == "PC-corrected" ~ pc_position,
+        ld_matrix == "mvp_external" ~ mvp_position,
         TRUE ~ NA_real_
       ),
       matrix_shape = case_when(
         ld_matrix == "raw_in-sample" ~ "Raw In-Sample",
         ld_matrix == "PC-corrected" ~ "PC-Corrected In-Sample",
+        ld_matrix == "mvp_external" ~ "MVP (External)",
         TRUE ~ "Other"
       )
     ) %>%
@@ -1179,13 +1195,14 @@ plot_performance_vs_ntraits <- function(
   # Create x-axis breaks at every 500 traits
   beta_breaks <- seq(0, max_traits, by = 500)
   beta_breaks <- beta_breaks[beta_breaks > 0]  # Remove 0 if present
-  all_breaks <- c(beta_breaks, raw_position, pc_position)
-  all_labels <- c(as.character(beta_breaks), "Raw\nIn-Sample", "PC-\nCorrected")
+  all_breaks <- c(beta_breaks, raw_position, pc_position, mvp_position)
+  all_labels <- c(as.character(beta_breaks), "Raw\nIn-Sample", "PC-\nCorrected", "MVP\n(External)")
 
   # Define matrix shapes (consistent with other plots)
   matrix_shapes <- c(
     "Raw In-Sample" = 16,              # filled circle
     "PC-Corrected In-Sample" = 17,                # filled triangle
+    "MVP (External)" = 4,              # X shape
     "Beta-Inferred (Meta)" = 15,        # filled square
     "Beta-Inferred (Weighted)" = 18,    # filled diamond
     "Beta-Inferred (Pop-Specific)" = 8  # asterisk
@@ -1382,6 +1399,7 @@ plot_performance_vs_ntraits_by_trait_type <- function(
   matrix_shapes <- c(
     "Raw In-Sample" = 16,              # filled circle
     "PC-Corrected In-Sample" = 17,                # filled triangle
+    "MVP (External)" = 4,              # X shape
     "Beta-Inferred (Meta)" = 15,        # filled square
     "Beta-Inferred (Weighted)" = 18,    # filled diamond
     "Beta-Inferred (Pop-Specific)" = 8  # asterisk
@@ -1549,6 +1567,7 @@ plot_failure_rate_vs_ntraits_by_trait_type <- function(
   matrix_shapes <- c(
     "Raw In-Sample" = 16,              # filled circle
     "PC-Corrected In-Sample" = 17,     # filled triangle
+    "MVP (External)" = 4,              # X shape
     "Beta-Inferred (Meta)" = 15,       # filled square
     "Beta-Inferred (Weighted)" = 18,   # filled diamond
     "Beta-Inferred (Pop-Specific)" = 8 # asterisk
@@ -1657,7 +1676,7 @@ plot_metric_barplot <- function(
     plot_data <- plot_data %>%
       filter(
         # Keep raw_in-sample and PC-corrected
-        ld_matrix %in% c("raw_in-sample", "PC-corrected") |
+        ld_matrix %in% c("raw_in-sample", "PC-corrected", "mvp_external") |
         # Or keep beta-inferred with specified n_traits
         (is_beta_inferred == TRUE & n_traits == n_traits_filter)
       )
@@ -1668,7 +1687,7 @@ plot_metric_barplot <- function(
   if (!is.null(matrix_type_filter)) {
     plot_data <- plot_data %>%
       filter(
-        ld_matrix %in% c("raw_in-sample", "PC-corrected") |
+        ld_matrix %in% c("raw_in-sample", "PC-corrected", "mvp_external") |
         (is_beta_inferred == TRUE & trait_types == matrix_type_filter)
       )
   }
@@ -1717,11 +1736,12 @@ plot_metric_barplot <- function(
         is_beta_inferred & matrix_construction == "meta" ~ "Beta-Inferred (Meta)",
         is_beta_inferred & matrix_construction == "weighted" ~ "Beta-Inferred (Weighted)",
         is_beta_inferred & matrix_construction == "population-specific" ~ "Beta-Inferred (Pop-Specific)",
+        ld_matrix == "mvp_external" ~ "MVP (External)",
         TRUE ~ ld_matrix
       ),
       # Factor for consistent ordering
       matrix_type = factor(matrix_type, levels = c(
-        "Raw In-Sample", "PC-Corrected In-Sample",
+        "Raw In-Sample", "PC-Corrected In-Sample", "MVP (External)",
         "Beta-Inferred (Meta)", "Beta-Inferred (Weighted)", "Beta-Inferred (Pop-Specific)"
       ))
     )
@@ -1863,7 +1883,7 @@ plot_metric_scatterplot <- function(
     plot_data <- plot_data %>%
       filter(
         # Keep raw_in-sample and PC-corrected
-        ld_matrix %in% c("raw_in-sample", "PC-corrected") |
+        ld_matrix %in% c("raw_in-sample", "PC-corrected", "mvp_external") |
         # Or keep beta-inferred with specified n_traits
         (is_beta_inferred == TRUE & n_traits == n_traits_filter)
       )
@@ -1874,7 +1894,7 @@ plot_metric_scatterplot <- function(
   if (!is.null(matrix_type_filter)) {
     plot_data <- plot_data %>%
       filter(
-        ld_matrix %in% c("raw_in-sample", "PC-corrected") |
+        ld_matrix %in% c("raw_in-sample", "PC-corrected", "mvp_external") |
         (is_beta_inferred == TRUE & trait_types == matrix_type_filter)
       )
   }
@@ -1922,11 +1942,12 @@ plot_metric_scatterplot <- function(
         is_beta_inferred & matrix_construction == "meta" ~ "Beta-Inferred (Meta)",
         is_beta_inferred & matrix_construction == "weighted" ~ "Beta-Inferred (Weighted)",
         is_beta_inferred & matrix_construction == "population-specific" ~ "Beta-Inferred (Pop-Specific)",
+        ld_matrix == "mvp_external" ~ "MVP (External)",
         TRUE ~ ld_matrix
       ),
       # Factor for consistent ordering
       matrix_type = factor(matrix_type, levels = c(
-        "Raw In-Sample", "PC-Corrected In-Sample",
+        "Raw In-Sample", "PC-Corrected In-Sample", "MVP (External)",
         "Beta-Inferred (Meta)", "Beta-Inferred (Weighted)", "Beta-Inferred (Pop-Specific)"
       ))
     )
@@ -1951,6 +1972,7 @@ plot_metric_scatterplot <- function(
   matrix_shapes <- c(
     "Raw In-Sample" = 16,              # filled circle
     "PC-Corrected In-Sample" = 17,     # filled triangle
+    "MVP (External)" = 4,              # X shape
     "Beta-Inferred (Meta)" = 15,        # filled square
     "Beta-Inferred (Weighted)" = 18,    # filled diamond
     "Beta-Inferred (Pop-Specific)" = 8  # asterisk
@@ -1982,7 +2004,8 @@ plot_metric_scatterplot <- function(
       panel.grid.major = element_blank(),
       panel.grid.minor = element_blank(),
       panel.border = element_blank(),
-      axis.line = element_line(color = "black")
+      axis.line = element_line(color = "black"),
+      plot.margin = margin(t = 20, r = 5, b = 5, l = 5)
     )
 
   return(p)
@@ -2041,7 +2064,7 @@ plot_metric_scatterplot_by_heritability <- function(
   if (!is.null(n_traits_filter)) {
     plot_data <- plot_data %>%
       filter(
-        ld_matrix %in% c("raw_in-sample", "PC-corrected") |
+        ld_matrix %in% c("raw_in-sample", "PC-corrected", "mvp_external") |
         (is_beta_inferred == TRUE & n_traits == n_traits_filter)
       )
   }
@@ -2050,7 +2073,7 @@ plot_metric_scatterplot_by_heritability <- function(
   if (!is.null(matrix_type_filter)) {
     plot_data <- plot_data %>%
       filter(
-        ld_matrix %in% c("raw_in-sample", "PC-corrected") |
+        ld_matrix %in% c("raw_in-sample", "PC-corrected", "mvp_external") |
         (is_beta_inferred == TRUE & trait_types == matrix_type_filter)
       )
   }
@@ -2064,10 +2087,11 @@ plot_metric_scatterplot_by_heritability <- function(
         is_beta_inferred & matrix_construction == "meta" ~ "Beta-Inferred (Meta)",
         is_beta_inferred & matrix_construction == "weighted" ~ "Beta-Inferred (Weighted)",
         is_beta_inferred & matrix_construction == "population-specific" ~ "Beta-Inferred (Pop-Specific)",
+        ld_matrix == "mvp_external" ~ "MVP (External)",
         TRUE ~ ld_matrix
       ),
       matrix_type = factor(matrix_type, levels = c(
-        "Raw In-Sample", "PC-Corrected In-Sample",
+        "Raw In-Sample", "PC-Corrected In-Sample", "MVP (External)",
         "Beta-Inferred (Meta)", "Beta-Inferred (Weighted)", "Beta-Inferred (Pop-Specific)"
       )),
       heritability_label = paste0("h² = ", snp_heritability),
@@ -2102,6 +2126,7 @@ plot_metric_scatterplot_by_heritability <- function(
   matrix_shapes <- c(
     "Raw In-Sample" = 16,
     "PC-Corrected In-Sample" = 17,
+    "MVP (External)" = 4,
     "Beta-Inferred (Meta)" = 15,
     "Beta-Inferred (Weighted)" = 18,
     "Beta-Inferred (Pop-Specific)" = 8
@@ -2201,7 +2226,7 @@ plot_metric_scatterplot_by_meta_type <- function(
   if (!is.null(n_traits_filter)) {
     plot_data <- plot_data %>%
       filter(
-        ld_matrix %in% c("raw_in-sample", "PC-corrected") |
+        ld_matrix %in% c("raw_in-sample", "PC-corrected", "mvp_external") |
         (is_beta_inferred == TRUE & n_traits == n_traits_filter)
       )
   }
@@ -2210,7 +2235,7 @@ plot_metric_scatterplot_by_meta_type <- function(
   if (!is.null(matrix_type_filter)) {
     plot_data <- plot_data %>%
       filter(
-        ld_matrix %in% c("raw_in-sample", "PC-corrected") |
+        ld_matrix %in% c("raw_in-sample", "PC-corrected", "mvp_external") |
         (is_beta_inferred == TRUE & trait_types == matrix_type_filter)
       )
   }
@@ -2224,10 +2249,11 @@ plot_metric_scatterplot_by_meta_type <- function(
         is_beta_inferred & matrix_construction == "meta" ~ "Beta-Inferred (Meta)",
         is_beta_inferred & matrix_construction == "weighted" ~ "Beta-Inferred (Weighted)",
         is_beta_inferred & matrix_construction == "population-specific" ~ "Beta-Inferred (Pop-Specific)",
+        ld_matrix == "mvp_external" ~ "MVP (External)",
         TRUE ~ ld_matrix
       ),
       matrix_type = factor(matrix_type, levels = c(
-        "Raw In-Sample", "PC-Corrected In-Sample",
+        "Raw In-Sample", "PC-Corrected In-Sample", "MVP (External)",
         "Beta-Inferred (Meta)", "Beta-Inferred (Weighted)", "Beta-Inferred (Pop-Specific)"
       )),
       meta_type_label = case_when(
@@ -2266,6 +2292,7 @@ plot_metric_scatterplot_by_meta_type <- function(
   matrix_shapes <- c(
     "Raw In-Sample" = 16,
     "PC-Corrected In-Sample" = 17,
+    "MVP (External)" = 4,
     "Beta-Inferred (Meta)" = 15,
     "Beta-Inferred (Weighted)" = 18,
     "Beta-Inferred (Pop-Specific)" = 8
@@ -2361,7 +2388,7 @@ plot_metric_scatterplot_faceted <- function(
     plot_data <- plot_data %>%
       filter(
         # Keep raw_in-sample and PC-corrected
-        ld_matrix %in% c("raw_in-sample", "PC-corrected") |
+        ld_matrix %in% c("raw_in-sample", "PC-corrected", "mvp_external") |
         # Or keep beta-inferred with specified n_traits
         (is_beta_inferred == TRUE & n_traits == n_traits_filter)
       )
@@ -2372,7 +2399,7 @@ plot_metric_scatterplot_faceted <- function(
   if (!is.null(matrix_type_filter)) {
     plot_data <- plot_data %>%
       filter(
-        ld_matrix %in% c("raw_in-sample", "PC-corrected") |
+        ld_matrix %in% c("raw_in-sample", "PC-corrected", "mvp_external") |
         (is_beta_inferred == TRUE & trait_types == matrix_type_filter)
       )
   }
@@ -2386,11 +2413,12 @@ plot_metric_scatterplot_faceted <- function(
         is_beta_inferred & matrix_construction == "meta" ~ "Beta-Inferred (Meta)",
         is_beta_inferred & matrix_construction == "weighted" ~ "Beta-Inferred (Weighted)",
         is_beta_inferred & matrix_construction == "population-specific" ~ "Beta-Inferred (Pop-Specific)",
+        ld_matrix == "mvp_external" ~ "MVP (External)",
         TRUE ~ ld_matrix
       ),
       # Factor for consistent ordering
       matrix_type = factor(matrix_type, levels = c(
-        "Raw In-Sample", "PC-Corrected In-Sample",
+        "Raw In-Sample", "PC-Corrected In-Sample", "MVP (External)",
         "Beta-Inferred (Meta)", "Beta-Inferred (Weighted)", "Beta-Inferred (Pop-Specific)"
       )),
       # Format trait type labels
@@ -2423,6 +2451,7 @@ plot_metric_scatterplot_faceted <- function(
   matrix_shapes <- c(
     "Raw In-Sample" = 16,              # filled circle
     "PC-Corrected In-Sample" = 17,     # filled triangle
+    "MVP (External)" = 4,              # X shape
     "Beta-Inferred (Meta)" = 15,       # filled square
     "Beta-Inferred (Weighted)" = 18,   # filled diamond
     "Beta-Inferred (Pop-Specific)" = 8 # asterisk
@@ -2511,11 +2540,12 @@ plot_coverage_vs_power_by_trait_types <- function(
         is_beta_inferred & matrix_construction == "meta" ~ "Beta-Inferred (Meta)",
         is_beta_inferred & matrix_construction == "weighted" ~ "Beta-Inferred (Weighted)",
         is_beta_inferred & matrix_construction == "population-specific" ~ "Beta-Inferred (Pop-Specific)",
+        ld_matrix == "mvp_external" ~ "MVP (External)",
         TRUE ~ ld_matrix
       ),
       # Factor for consistent ordering
       matrix_type = factor(matrix_type, levels = c(
-        "Raw In-Sample", "PC-Corrected In-Sample",
+        "Raw In-Sample", "PC-Corrected In-Sample", "MVP (External)",
         "Beta-Inferred (Meta)", "Beta-Inferred (Weighted)", "Beta-Inferred (Pop-Specific)"
       )),
       # Format GWAS trait type labels
@@ -2541,6 +2571,7 @@ plot_coverage_vs_power_by_trait_types <- function(
   matrix_shapes <- c(
     "Raw In-Sample" = 16,              # filled circle
     "PC-Corrected In-Sample" = 17,     # filled triangle
+    "MVP (External)" = 4,              # X shape
     "Beta-Inferred (Meta)" = 15,       # filled square
     "Beta-Inferred (Weighted)" = 18,   # filled diamond
     "Beta-Inferred (Pop-Specific)" = 8 # asterisk
@@ -2643,11 +2674,12 @@ plot_metric_scatterplot_by_trait_types <- function(
         is_beta_inferred & matrix_construction == "meta" ~ "Beta-Inferred (Meta)",
         is_beta_inferred & matrix_construction == "weighted" ~ "Beta-Inferred (Weighted)",
         is_beta_inferred & matrix_construction == "population-specific" ~ "Beta-Inferred (Pop-Specific)",
+        ld_matrix == "mvp_external" ~ "MVP (External)",
         TRUE ~ ld_matrix
       ),
       # Factor for consistent ordering
       matrix_type = factor(matrix_type, levels = c(
-        "Raw In-Sample", "PC-Corrected In-Sample",
+        "Raw In-Sample", "PC-Corrected In-Sample", "MVP (External)",
         "Beta-Inferred (Meta)", "Beta-Inferred (Weighted)", "Beta-Inferred (Pop-Specific)"
       )),
       # Format GWAS trait type labels
@@ -2685,6 +2717,7 @@ plot_metric_scatterplot_by_trait_types <- function(
   matrix_shapes <- c(
     "Raw In-Sample" = 16,              # filled circle
     "PC-Corrected In-Sample" = 17,     # filled triangle
+    "MVP (External)" = 4,              # X shape
     "Beta-Inferred (Meta)" = 15,       # filled square
     "Beta-Inferred (Weighted)" = 18,   # filled diamond
     "Beta-Inferred (Pop-Specific)" = 8 # asterisk
@@ -3119,7 +3152,7 @@ p_auprc_scatter <- plot_metric_scatterplot(
   matrix_type_filter = "all"
 )
 ggsave(file.path(metrics_scatterplot_dir, "variant_auprc.homo.fixed_5e-5.1000_all_traits.png"),
-       p_auprc_scatter, width = 12, height = 10, dpi = 300)
+       p_auprc_scatter, width = 12, height = 10.1, dpi = 300)
 
 # Plot mean credible set size for homogenous heritability, fixed-effects, 1000 traits
 cat("  - Mean credible set size, homogenous heritability, fixed-effects, 5e-5 heritability, 1000 all traits...\n")
