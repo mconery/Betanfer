@@ -4,16 +4,15 @@
 #
 # PBS submission script for the GWAMA fixed-effects meta-analysis pipeline.
 #
-# This script requests ONE compute node to:
-#   1. Generate the per-job command list via create_gwama_commands.py.
-#   2. Launch the parsl allocator (gwama_parsl_allocator.py), which then
-#      submits its own PBS worker jobs (8 nodes, 4 workers/node = 32 concurrent
-#      GWAMA runs) to Aurora's capacity queue.
+# Requests 128 nodes.  The parsl allocator (gwama_parsl_allocator.py) uses a
+# LocalProvider to distribute work across these pre-allocated nodes directly
+# (4 workers/node = 512 concurrent GWAMA runs) — no secondary PBS jobs are
+# submitted.
 #
 # Temp decompressed files go to TEMP_DIR (separate from the original sumstats
 # files and their .tbi indices, which are never modified).
 #
-# The allocator skips trait/population combinations whose .out output file
+# The allocator skips trait/population combinations whose .done sentinel file
 # already exists, so re-submitting this script is safe and will only run
 # remaining jobs.
 #
@@ -22,11 +21,11 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 #PBS -A GeomicVar
-#PBS -l walltime=48:00:00
+#PBS -l walltime=1:00:00
 #PBS -l filesystems=home:flare
-#PBS -l select=1:ncpus=208:mpiprocs=1
+#PBS -l select=128:ncpus=208:mpiprocs=1
 #PBS -l place=scatter:excl
-#PBS -q capacity
+#PBS -q debug-scaling
 #PBS -M mconery@anl.gov
 #PBS -N gwama_meta_analysis
 #PBS -o /flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/script_logs/gwama_meta_analysis.log
@@ -69,9 +68,9 @@ echo "NOTE: Commands written to ${commands_file}"
 echo "NOTE: Total commands: $(wc -l < ${commands_file})"
 
 # ── Step 2: Run the parsl allocator ──────────────────────────────────────────
-# The allocator submits its own PBS worker jobs (defined in parsl_config.py:
-#   8 nodes/block × 4 workers/node × 1 max block = 32 concurrent GWAMA runs).
-# It skips any trait/population combination whose .out file already exists.
+# The allocator uses LocalProvider (defined in parsl_config.py) to spread
+# 4 workers/node across the 128 pre-allocated nodes = 512 concurrent GWAMA runs.
+# It skips any trait/population combination whose .done sentinel already exists.
 echo "NOTE: Launching parsl allocator..."
 python ${script_dir}/gwama_parsl_allocator.py \
     --command_file ${commands_file} \
