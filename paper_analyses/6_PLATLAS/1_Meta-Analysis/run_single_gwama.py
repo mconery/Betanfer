@@ -6,13 +6,18 @@ for one trait/population combination (e.g. "Phe_008.AFR").
 
 Steps performed:
   1. Read the linker file to identify input summary statistics files.
-  2. Check whether output already exists (skip if so).
+  2. Check whether a .done sentinel file exists (skip if so).
   3. For each input file: decompress with zcat and reformat column headers via
      awk, writing to a temporary plain-text file on flare.  The original bgzip
      files and their .tbi indices are never modified.
   4. Write a GWAMA input file (.in) listing the reformatted temp files.
   5. Run GWAMA with the --quantitative flag.
-  6. Always clean up the per-job temp directory on exit (success or failure).
+  6. Write a .done sentinel file only after GWAMA exits successfully.
+  7. Always clean up the per-job temp directory on exit (success or failure).
+
+Completion is tracked via a .done sentinel file rather than the .out file.
+This prevents false skips when a PBS job is killed mid-run and GWAMA has
+already written a partial (but non-empty) .out file to disk.
 
 Column renames applied so GWAMA recognises the headers:
   #ID    -> MARKER     (GWAMA standard variant-ID column)
@@ -167,10 +172,12 @@ def main():
             print(f"ERROR: {label} not found: {path}")
             sys.exit(1)
 
-    # ── Skip if output already exists ─────────────────────────────────────────
+    # ── Skip if .done sentinel exists (job previously completed successfully) ───
+    # We check .done rather than .out to avoid falsely skipping jobs whose .out
+    # file was partially written when a previous run timed out.
     pop_output_dir = os.path.join(output_dir, pop)
     output_prefix  = os.path.join(pop_output_dir, trait_name)
-    if os.path.exists(output_prefix + ".out"):
+    if os.path.exists(output_prefix + ".done"):
         print(f"NOTE: Output already exists for {trait_pop}, skipping.")
         sys.exit(0)
 
@@ -257,6 +264,12 @@ def main():
             sys.exit(1)
 
         print(f"SUCCESS: GWAMA meta-analysis complete for {trait_pop}")
+
+        # Write .done sentinel — checked on resubmission to skip completed jobs.
+        # Written after GWAMA exits successfully so a mid-run PBS kill never
+        # leaves a false .done alongside a partial .out file.
+        with open(output_prefix + ".done", 'w'):
+            pass
 
     finally:
         # Always remove the per-job temp directory; original files are untouched
