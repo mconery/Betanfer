@@ -13,26 +13,66 @@
 
 ## Installation
 
-### Requirements
+### Step 1 — Set up PyTorch
 
-- Linux or macOS (tabix/htslib does not support native Windows)
-- [Conda](https://docs.conda.io/en/latest/miniconda.html) (recommended) or pip
+Betanfer uses PyTorch for GPU-accelerated correlation computation. How you install it depends on your system:
 
-### With Conda (recommended)
+**HPC systems with a pre-built PyTorch module**
+
+Many HPC clusters provide an optimised, system-compiled PyTorch. Check your system's documentation and load (or activate) that environment first.
+
+| System | Instructions |
+|---|---|
+| ALCF Aurora (Intel XPU) | [PyTorch on Aurora](https://docs.alcf.anl.gov/aurora/data-science/frameworks/pytorch/) — load with `module load frameworks` |
+| OLCF Frontier (AMD ROCm) | [PyTorch on Frontier](https://docs.olcf.ornl.gov/software/analytics/pytorch_frontier.html) |
+
+**Workstations and other clusters**
+
+Install PyTorch yourself using the helper script, which auto-detects your GPU hardware:
+
+```bash
+bash scripts/install_pytorch.sh                   # auto-detect
+bash scripts/install_pytorch.sh --platform nvidia # override
+```
+
+`--platform` accepts: `nvidia` | `amd` | `intel` | `cpu`
+
+| Detected hardware | Action taken |
+|---|---|
+| NVIDIA | Installs CUDA wheel matched to your driver version |
+| AMD | Installs ROCm wheel matched to your ROCm version |
+| Intel | Installs PyTorch + [Intel Extension for PyTorch (IPEX)](https://github.com/intel/intel-extension-for-pytorch) from Intel's pip index |
+| None | Installs CPU-only wheel |
+
+### Step 2 — Install betanfer and remaining dependencies
+
+Once PyTorch is available in your Python environment, install betanfer and its remaining dependencies using `environment.yml` (recommended) or pip.
+
+**With Conda (recommended for workstations and non-HPC clusters)**
 
 ```bash
 git clone https://github.com/your-org/betanfer.git
 cd betanfer
 
-# Create and activate the environment
-# If you do NOT have a CUDA GPU, remove the pytorch-cuda line from environment.yml first
 conda env create -f environment.yml
 conda activate betanfer
 ```
 
-The `environment.yml` installs all dependencies and the `betanfer` command itself (via `pip install -e .`).
+**On HPC systems using a module-provided PyTorch (e.g. ALCF Aurora)**
 
-### With pip (into an existing environment)
+After loading your system PyTorch module, install betanfer directly into that Python environment:
+
+```bash
+# Example for ALCF Aurora
+module load frameworks
+pip install pysam
+pip install -e .
+
+# Add the user bin directory to PATH (adjust version as needed)
+export PATH="$HOME/.local/aurora/frameworks/2025.2.0/bin:$PATH"
+```
+
+**With pip only**
 
 ```bash
 # Ensure pysam and torch are already installed
@@ -44,6 +84,25 @@ pip install -e .
 ```bash
 betanfer --version
 betanfer --help
+```
+
+To confirm PyTorch is available and GPU acceleration is working:
+
+```python
+import torch
+
+# Check basic import
+print(f"PyTorch version: {torch.__version__}")
+
+# NVIDIA (CUDA)
+print(f"CUDA available: {torch.cuda.is_available()}")
+
+# AMD (ROCm) — same interface as CUDA
+# print(f"CUDA/ROCm available: {torch.cuda.is_available()}")
+
+# Intel XPU (Aurora / Intel Data Center GPU)
+# import intel_extension_for_pytorch as ipex
+# print(f"XPU available: {torch.xpu.is_available()}")
 ```
 
 ---
@@ -227,7 +286,7 @@ The filter is parallelised across CPU cores (see `--num-processes`).
 
 ## Notes
 
-- **GPU acceleration**: Correlation computation uses PyTorch. A CUDA GPU is used automatically when available; pass `--cpu` to disable.
+- **GPU acceleration**: Correlation computation uses PyTorch. NVIDIA (CUDA) GPUs are used automatically when available. AMD (ROCm) and Intel (XPU via IPEX) GPUs are supported after running `scripts/install_pytorch.sh` (see Installation). Pass `--cpu` to force CPU execution.
 - **Input format**: Summary statistics files should be sorted by chromosome and position (required by tabix). The indexing step sorts automatically.
 - **Header format**: Files with a `#`-prefixed header line (VCF-style) are handled correctly.
 - **Missing data**: Variants absent from a particular file are treated as beta = 0 for correlation computation.
