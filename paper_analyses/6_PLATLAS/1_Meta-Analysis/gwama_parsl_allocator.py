@@ -7,13 +7,13 @@ manage the multi-node distribution of GWAMA meta-analysis jobs using parsl.
 Each command in the supplied command file corresponds to one trait/population
 meta-analysis.  The allocator:
   1. Reads the command file produced by create_gwama_commands.py.
-  2. Determines which jobs have already produced output (.out file) and skips
+  2. Determines which jobs have already produced a .done sentinel file and skips
      them, allowing safe resubmission of the outer PBS job without duplication.
   3. Submits the remaining commands to parsl workers via @bash_app.
   4. Blocks until all futures are resolved.
 
 The parsl configuration (gwama_meta_analysis_config) is imported from the
-local parsl_config.py, which requests nodes from Aurora's capacity queue.
+local parsl_config.py, which uses a LocalProvider over pre-allocated nodes.
 
 Usage:
   python gwama_parsl_allocator.py --command_file <path> [--log_dir <path>]
@@ -49,7 +49,7 @@ Options:
 ###############################################################################
 
 def get_output_path(command):
-    """Return the expected GWAMA .out file path for a run_single_gwama.py command.
+    """Return the expected .done sentinel path for a run_single_gwama.py command.
 
     Parses --trait_pop and (optionally) --output_dir from the command string.
     Returns None if the command cannot be parsed.
@@ -72,7 +72,7 @@ def get_output_path(command):
     if len(dot_parts) != 2:
         return None
     trait_name, pop = dot_parts
-    return os.path.join(output_dir, pop, trait_name + ".out")
+    return os.path.join(output_dir, pop, trait_name + ".done")
 
 
 ###############################################################################
