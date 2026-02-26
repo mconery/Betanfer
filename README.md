@@ -67,9 +67,23 @@ After loading your system PyTorch module, install betanfer directly into that Py
 module load frameworks
 pip install pysam
 pip install -e .
+```
 
-# Add the user bin directory to PATH (adjust version as needed)
-export PATH="$HOME/.local/aurora/frameworks/2025.2.0/bin:$PATH"
+On HPC systems the pip entry point may land in a directory that is not on
+`$PATH`.  Use the `python -m betanfer` form instead — it works with any Python
+that has betanfer installed and requires no PATH configuration:
+
+```bash
+python -m betanfer --version
+python -m betanfer index --help
+```
+
+If you prefer the short `betanfer` command interactively, add the frameworks
+user bin to `PATH` once in your shell configuration:
+
+```bash
+# Add to ~/.bashrc after any module load frameworks line
+export PATH="$PYTHONUSERBASE/bin:$PATH"
 ```
 
 **With pip only**
@@ -84,6 +98,24 @@ pip install -e .
 ```bash
 betanfer --version
 betanfer --help
+```
+
+### Troubleshooting: `betanfer` uses the wrong Python
+
+If `betanfer --version` fails with an import error, the entry point was
+installed by a different Python interpreter.  Fix it by reinstalling while the
+frameworks module is active:
+
+```bash
+module load frameworks
+pip install --force-reinstall -e .
+```
+
+You can confirm the correct shebang was written with:
+
+```bash
+head -1 $(which betanfer)
+# Should print: #!/opt/aurora/.../frameworks/.../bin/python3.10
 ```
 
 To confirm PyTorch is available and GPU acceleration is working:
