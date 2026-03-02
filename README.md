@@ -1,4 +1,4 @@
-# Betanfer
+![Alt text](logo.png)
 
 **Betanfer** infers linkage disequilibrium (LD) structure from GWAS summary statistics by computing pairwise correlations between variant effect sizes (betas) across many traits — no reference genotype panel required.
 
