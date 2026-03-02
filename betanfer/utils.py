@@ -162,14 +162,25 @@ def validate_column_in_tabix(gz_file_path: str, col_name: str) -> None:
 # ---------------------------------------------------------------------------
 
 def autodetect_device(force_cpu: bool = False) -> str:
-    """Return 'cuda' if a GPU is available and force_cpu is False, else 'cpu'."""
+    """Return 'xpu', 'cuda', or 'cpu' depending on available hardware.
+
+    Checks for Intel XPU (via IPEX) first, then NVIDIA CUDA, then falls
+    back to CPU.  IPEX is provided by the ALCF frameworks module on Aurora.
+    """
     if force_cpu:
         logger.info("CPU mode requested via --cpu flag.")
         return "cpu"
+    try:
+        import intel_extension_for_pytorch as ipex  # noqa: F401
+        if torch.xpu.is_available():
+            logger.info("Intel XPU detected — using XPU for correlation computation.")
+            return "xpu"
+    except ImportError:
+        pass
     if torch.cuda.is_available():
         logger.info("CUDA GPU detected — using GPU for correlation computation.")
         return "cuda"
-    logger.info("No CUDA GPU detected — falling back to CPU.")
+    logger.info("No GPU detected — falling back to CPU.")
     return "cpu"
 
 
@@ -338,6 +349,8 @@ def extract_betas_batch(
         try:
             with pysam.TabixFile(file_path) as tf:
                 header = tf.header[0].strip().split("\t") if tf.header else []
+                if header and header[0].startswith("#"):
+                    header[0] = header[0][1:]
                 vid_idx = header.index(variant_col)
                 beta_idx = header.index(beta_col)
                 for variant in variants_list:
@@ -388,6 +401,8 @@ def extract_betas_batch_region(
         try:
             with pysam.TabixFile(file_path) as tf:
                 header = tf.header[0].strip().split("\t") if tf.header else []
+                if header and header[0].startswith("#"):
+                    header[0] = header[0][1:]
                 if not header:
                     logger.warning(f"No header in {file_path}")
                     return betas
@@ -454,6 +469,8 @@ def extract_betas_from_range(
 
     with pysam.TabixFile(first_file) as tf:
         header = tf.header[0].strip().split("\t") if tf.header else []
+        if header and header[0].startswith("#"):
+            header[0] = header[0][1:]
         if not header:
             raise ValueError(f"No header in {first_file}")
         try:
@@ -491,6 +508,8 @@ def extract_betas_from_range(
         try:
             with pysam.TabixFile(file_path) as tf:
                 header = tf.header[0].strip().split("\t") if tf.header else []
+                if header and header[0].startswith("#"):
+                    header[0] = header[0][1:]
                 if not header:
                     logger.warning(f"No header in {file_path}")
                     return betas
@@ -546,7 +565,6 @@ def extract_betas_from_range(
 def compute_beta_correlation_matrix(
     betas_df: pd.DataFrame,
     device: str = "cuda",
-    save_prefix: Optional[str] = None,
 ) -> np.ndarray:
     """
     Compute a pairwise correlation matrix from a beta DataFrame.
@@ -557,8 +575,7 @@ def compute_beta_correlation_matrix(
 
     Args:
         betas_df: Variants × traits DataFrame.
-        device: 'cuda' or 'cpu'.
-        save_prefix: If provided, save binary .vcor1 and .vcor1.vars files.
+        device: 'cuda', 'xpu', or 'cpu'.
 
     Returns:
         Correlation matrix as a float32 numpy array.
@@ -609,15 +626,6 @@ def compute_beta_correlation_matrix(
 
     corr_np = r.cpu().numpy().astype(np.float32)
 
-    if save_prefix:
-        vcor1_path = f"{save_prefix}.vcor1"
-        corr_np.tofile(vcor1_path)
-        vars_path = f"{save_prefix}.vcor1.vars"
-        with open(vars_path, "w") as vf:
-            for variant in betas_df.index:
-                vf.write(f"{variant}\n")
-        logger.info(f"Saved binary matrix to {vcor1_path} and {vars_path}")
-
     return corr_np
 
 
@@ -632,6 +640,46 @@ def save_beta_matrix(
     else:
         beta_matrix.to_csv(output_path, sep="\t")
     logger.info(f"Saved matrix to {output_path}")
+
+
+def save_plink2_matrix(
+    corr_np: np.ndarray,
+    variants_list: List[str],
+    output_prefix: str,
+) -> None:
+    """Save a correlation matrix in plink2 format.
+
+    Creates two files:
+      {output_prefix}.vcor1       — tab-delimited matrix values, no row/column names
+      {output_prefix}.vcor1.vars  — variant IDs, one per line (same order as matrix rows/cols)
+    """
+    vcor1_path = f"{output_prefix}.vcor1"
+    vars_path  = f"{output_prefix}.vcor1.vars"
+    np.savetxt(vcor1_path, corr_np, delimiter="\t", fmt="%.6g")
+    with open(vars_path, "w") as vf:
+        for variant in variants_list:
+            vf.write(f"{variant}\n")
+    logger.info(f"Saved plink2 matrix to {vcor1_path} and {vars_path}")
+
+
+def save_binary_matrix(
+    corr_np: np.ndarray,
+    variants_list: List[str],
+    output_prefix: str,
+) -> None:
+    """Save a correlation matrix in numpy binary format.
+
+    Creates two files:
+      {output_prefix}.bin   — raw float32 binary (row-major)
+      {output_prefix}.vars  — variant IDs, one per line (same order as matrix rows/cols)
+    """
+    bin_path  = f"{output_prefix}.bin"
+    vars_path = f"{output_prefix}.vars"
+    corr_np.astype(np.float32).tofile(bin_path)
+    with open(vars_path, "w") as vf:
+        for variant in variants_list:
+            vf.write(f"{variant}\n")
+    logger.info(f"Saved binary matrix to {bin_path} and {vars_path}")
 
 
 # ---------------------------------------------------------------------------
