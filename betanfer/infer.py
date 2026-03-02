@@ -37,6 +37,8 @@ from betanfer.utils import (
     # Computation & output
     compute_beta_correlation_matrix,
     save_beta_matrix,
+    save_plink2_matrix,
+    save_binary_matrix,
     autodetect_device,
 )
 
@@ -384,7 +386,6 @@ def run_infer(args) -> None:
     corr_np = compute_beta_correlation_matrix(
         betas_df=beta_df,
         device=device,
-        save_prefix=args.output if args.save_binary else None,
     )
     logger.info(f"LD matrix shape: {corr_np.shape[0]} × {corr_np.shape[1]}")
 
@@ -394,15 +395,24 @@ def run_infer(args) -> None:
     variants_list = list(beta_df.index)
 
     if args.save_binary:
+        save_binary_matrix(corr_np, variants_list, args.output)
         logger.info(
             f"Step 9: Saved binary LD matrix:\n"
+            f"  Matrix  : {args.output}.bin\n"
+            f"  Variants: {args.output}.vars"
+        )
+    elif args.plink2_format:
+        save_plink2_matrix(corr_np, variants_list, args.output)
+        logger.info(
+            f"Step 9: Saved plink2 LD matrix:\n"
             f"  Matrix  : {args.output}.vcor1\n"
             f"  Variants: {args.output}.vcor1.vars"
         )
     else:
-        logger.info(f"Step 9: Saving LD matrix to {args.output}...")
+        output_path = args.output + ".txt"
+        logger.info(f"Step 9: Saving labeled LD matrix to {output_path}...")
         ld_df = pd.DataFrame(corr_np, index=variants_list, columns=variants_list)
-        save_beta_matrix(ld_df, args.output, compress=False)
+        save_beta_matrix(ld_df, output_path, compress=False)
 
     # ------------------------------------------------------------------
     # Step 10: Save filtering statistics (optional)
@@ -426,9 +436,11 @@ def run_infer(args) -> None:
     logger.info(f"  Variants in matrix  : {corr_np.shape[0]}")
     logger.info(f"  Device              : {device}")
     if args.save_binary:
-        logger.info(f"  Output (binary)     : {args.output}.vcor1 / .vcor1.vars")
+        logger.info(f"  Output (binary)     : {args.output}.bin / .vars")
+    elif args.plink2_format:
+        logger.info(f"  Output (plink2)     : {args.output}.vcor1 / .vcor1.vars")
     else:
-        logger.info(f"  Output              : {args.output}")
+        logger.info(f"  Output (labeled)    : {args.output}.txt")
     if args.stats_output and filtering_stats:
         logger.info(f"  Filtering stats     : {args.stats_output}")
     logger.info("=" * 60)
