@@ -10,8 +10,12 @@
 # jobs are submitted.
 #
 # Covers five population inputs:
-#   Meta-analysis results (GWAMA output):   EUR, AFR, ALL
-#   MVP single-cohort sumstats:             EUR, AFR
+#   Meta-analysis results (GWAMA output):   EUR, AFR, ALL  [tile-based discovery]
+#   MVP single-cohort:                      AFR, EUR       [predefined from S11]
+#
+# MVP master locus files are written directly from Supplementary_Table-S11.txt
+# by create_mvp_loci_from_s11.py (Step 0), bypassing per-trait computation.
+# Meta-analysis loci use the tile-based algorithm via define_sig_loci_for_trait.py.
 #
 # The allocator skips any trait/population whose .sig_loci.csv sentinel file
 # already exists, so re-submitting this script is safe and will only process
@@ -25,7 +29,7 @@
 #PBS -A GeomicVar
 #PBS -l walltime=1:00:00
 #PBS -l filesystems=home:flare
-#PBS -l select=32:ncpus=208:mpiprocs=1
+#PBS -l select=1:ncpus=208:mpiprocs=1
 #PBS -l place=scatter:excl
 #PBS -q debug-scaling
 #PBS -M mconery@anl.gov
@@ -40,8 +44,8 @@ module load frameworks
 # ── Key paths ─────────────────────────────────────────────────────────────────
 script_dir=/lus/flare/projects/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/Betanfer/paper_analyses/6_PLATLAS/2_Locus_Defining
 meta_results_dir=/flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/meta-analysis_results
-mvp_sumstats_dir=/flare/GeomicVar/multi-biobank-meta/sumstats/MVP
 output_dir=/flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/mapping_loci
+s11_file=${output_dir}/Supplementary_Table-S11.txt
 log_dir=/flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/script_logs
 commands_file=${script_dir}/locus_defining.commands.txt
 
@@ -51,11 +55,21 @@ mkdir -p ${output_dir}
 # ── Change to log directory so parsl internal logs land there too ─────────────
 cd ${log_dir}
 
-# ── Step 1: Generate the commands file ────────────────────────────────────────
+# ── Step 0: Write MVP master locus files from Supplementary Table S11 ─────────
+echo "NOTE: Creating MVP master locus files from Supplementary Table S11..."
+python ${script_dir}/create_mvp_loci_from_s11.py \
+    --s11_file   ${s11_file} \
+    --output_dir ${output_dir}
+
+if [ $? -ne 0 ]; then
+    echo "ERROR: create_mvp_loci_from_s11.py failed.  Aborting."
+    exit 1
+fi
+
+# ── Step 1: Generate the commands file (meta-analysis populations only) ────────
 echo "NOTE: Generating locus-defining command list..."
 python ${script_dir}/create_locus_commands.py \
     --meta_results_dir ${meta_results_dir} \
-    --mvp_sumstats_dir ${mvp_sumstats_dir} \
     --output_dir       ${output_dir}       \
     --output_file      ${commands_file}
 
