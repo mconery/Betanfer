@@ -216,9 +216,21 @@ Examples:
         metavar="FILE",
         required=True,
         help=(
-            "Output path. Without --save-binary: a TSV file with variants as "
-            "row/column labels. With --save-binary: used as the prefix for "
-            ".vcor1 (binary matrix) and .vcor1.vars (variant list) files."
+            "Output prefix. Default (no format flag): writes {output}.txt, a "
+            "tab-delimited matrix with variant IDs as row and column names. "
+            "With --plink2-format: writes {output}.vcor1 (tab-delimited, no names) "
+            "and {output}.vcor1.vars. With --save-binary: writes {output}.bin "
+            "(raw float32) and {output}.vars."
+        ),
+    )
+    out_group.add_argument(
+        "--plink2-format",
+        action="store_true",
+        default=False,
+        help=(
+            "Save output in plink2 format: {output}.vcor1 (tab-delimited matrix "
+            "with no row/column names) and {output}.vcor1.vars (variant IDs, one "
+            "per line). Mutually exclusive with --save-binary."
         ),
     )
     out_group.add_argument(
@@ -226,8 +238,9 @@ Examples:
         action="store_true",
         default=False,
         help=(
-            "Save output as binary .vcor1 + .vcor1.vars files (using --output as "
-            "the prefix) instead of a labeled TSV."
+            "Save output as numpy binary: {output}.bin (raw float32 matrix) and "
+            "{output}.vars (variant IDs, one per line). Suppresses text output. "
+            "Mutually exclusive with --plink2-format."
         ),
     )
     out_group.add_argument(
