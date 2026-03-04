@@ -311,7 +311,7 @@ def find_all_result_files(results_base_dir: str, methods: List[str] = None) -> L
             logger.info(f"Searching in method directory: {method_dir}")
             
             # Find all .txt files in subdirectories
-            for root, dirs, files in os.walk(method_dir):
+            for root, dirs, files in os.walk(method_dir, followlinks=True):
                 if root.split("/")[-2] == f"{method}_results":
                     for file in files:
                         if file.endswith('.txt') and 'Pheno' in file and '_causal' in file:
