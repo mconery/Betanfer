@@ -74,10 +74,11 @@ read_finemapping_summary <- function(file_path) {
 
 # Function to calculate coverage
 # Coverage = proportion of loci where at least one causal variant is in a credible set
-calculate_coverage <- function(data) {
+calculate_coverage <- function(data, stratify_by_causal = TRUE) {
+  group_cols <- if (stratify_by_causal) c("method", "ld_size", "causal_variant_count")
+                else c("method", "ld_size")
   coverage_stats <- data %>%
-    # Only consider converged cases
-    group_by(method, ld_size, causal_variant_count) %>%
+    group_by(across(all_of(group_cols))) %>%
     summarise(
       # Coverage: proportion of credible sets with at least one causal variant
       total_credible_sets_with_causal = sum(credible_sets_with_causal, na.rm = TRUE),
@@ -91,11 +92,13 @@ calculate_coverage <- function(data) {
 
 # Function to calculate power
 # Power = proportion of all true causal variants that are captured in credible sets
-calculate_power <- function(data) {
+calculate_power <- function(data, stratify_by_causal = TRUE) {
+  group_cols <- if (stratify_by_causal) c("method", "ld_size", "causal_variant_count")
+                else c("method", "ld_size")
   power_stats <- data %>%
     # Only consider converged cases
     filter(converged == TRUE) %>%
-    group_by(method, ld_size, causal_variant_count) %>%
+    group_by(across(all_of(group_cols))) %>%
     summarise(
       # Power: total causal variants in credible sets divided by total causal variants
       total_causal_variants = sum(causal_variant_count, na.rm = TRUE),
@@ -107,11 +110,13 @@ calculate_power <- function(data) {
 }
 
 # Function to calculate credible set sizes
-calculate_credible_set_sizes <- function(data) {
+calculate_credible_set_sizes <- function(data, stratify_by_causal = TRUE) {
+  group_cols <- if (stratify_by_causal) c("method", "ld_size", "causal_variant_count")
+                else c("method", "ld_size")
   size_stats <- data %>%
     # Only consider converged cases with credible sets
     filter(converged == TRUE, avg_variants_per_cs > 0) %>%
-    group_by(method, ld_size, causal_variant_count) %>%
+    group_by(across(all_of(group_cols))) %>%
     summarise(
       total_variants_in_cs = sum(avg_variants_per_cs * num_credible_sets, na.rm = TRUE),
       total_cs = sum(num_credible_sets, na.rm = TRUE),
@@ -124,12 +129,14 @@ calculate_credible_set_sizes <- function(data) {
 
 # Function to calculate true AUPRC using the new non-causal PIP count columns
 # Mirrors the logic in fine_mapping_summarizer.py: compute_stats_from_accum()
-calculate_true_auprc <- function(data) {
+calculate_true_auprc <- function(data, stratify_by_causal = TRUE) {
+  group_cols <- if (stratify_by_causal) c("method", "ld_size", "causal_variant_count")
+                else c("method", "ld_size")
   auprc_stats <- data %>%
     # Only exclude truly failed loci (all causal PIPs are NaN → empty causal_pips_list)
     # Do NOT require avg_variants_per_cs > 0, matching the Python reference implementation
     filter(sapply(causal_pips_list, length) > 0) %>%
-    group_by(method, ld_size, causal_variant_count) %>%
+    group_by(across(all_of(group_cols))) %>%
     do({
       df <- .
       if (nrow(df) == 0) {
@@ -192,9 +199,11 @@ calculate_true_auprc <- function(data) {
 }
 
 # Function to calculate convergence rates
-calculate_convergence_rates <- function(data) {
+calculate_convergence_rates <- function(data, stratify_by_causal = TRUE) {
+  group_cols <- if (stratify_by_causal) c("method", "ld_size", "causal_variant_count")
+                else c("method", "ld_size")
   convergence_stats <- data %>%
-    group_by(method, ld_size, causal_variant_count) %>%
+    group_by(across(all_of(group_cols))) %>%
     summarise(
       total_loci = n(),
       converged_loci = sum(converged, na.rm = TRUE),
@@ -205,15 +214,17 @@ calculate_convergence_rates <- function(data) {
 }
 
 # NEW FUNCTION: Calculate execution time statistics
-calculate_execution_times <- function(data) {
+calculate_execution_times <- function(data, stratify_by_causal = TRUE) {
   # Check if execution time data is available
   if (!"execution_time_seconds" %in% names(data)) {
     cat("Warning: execution_time_seconds column not found. Skipping timing analysis.\n")
     return(NULL)
   }
+  group_cols <- if (stratify_by_causal) c("method", "ld_size", "causal_variant_count")
+                else c("method", "ld_size")
   timing_stats <- data %>%
     filter(!is.na(execution_time_seconds), converged == TRUE) %>%
-    group_by(method, ld_size, causal_variant_count) %>%
+    group_by(across(all_of(group_cols))) %>%
     summarise(
       mean_execution_time = mean(execution_time_seconds, na.rm = TRUE),
       median_execution_time = median(execution_time_seconds, na.rm = TRUE),
@@ -227,35 +238,43 @@ calculate_execution_times <- function(data) {
 }
 
 # Function to create comprehensive performance metrics from summary data
-calculate_all_metrics_summary <- function(data, causal_count_filter = NULL) {
+calculate_all_metrics_summary <- function(data, causal_count_filter = NULL,
+                                          stratify_by_causal = TRUE) {
   # Optional filtering by number of causal variants
   if (!is.null(causal_count_filter)) {
     data <- data %>%
       filter(causal_variant_count %in% causal_count_filter)
   }
+  # Determine join key columns based on stratification setting
+  join_cols <- if (stratify_by_causal) c("method", "ld_size", "causal_variant_count")
+               else c("method", "ld_size")
   # Calculate all metrics
-  coverage <- calculate_coverage(data)
-  power <- calculate_power(data)
-  sizes <- calculate_credible_set_sizes(data)
-  auprc <- calculate_true_auprc(data)  # Use the new true AUPRC calculation
-  convergence <- calculate_convergence_rates(data)
-  timing <- calculate_execution_times(data)  # NEW: Calculate timing statistics
+  coverage   <- calculate_coverage(data, stratify_by_causal)
+  power      <- calculate_power(data, stratify_by_causal)
+  sizes      <- calculate_credible_set_sizes(data, stratify_by_causal)
+  auprc      <- calculate_true_auprc(data, stratify_by_causal)
+  convergence <- calculate_convergence_rates(data, stratify_by_causal)
+  timing     <- calculate_execution_times(data, stratify_by_causal)
   # Combine all metrics
   all_metrics <- coverage %>%
-    full_join(power, by = c("method", "ld_size", "causal_variant_count")) %>%
-    full_join(sizes, by = c("method", "ld_size", "causal_variant_count")) %>%
-    full_join(auprc, by = c("method", "ld_size", "causal_variant_count")) %>%
-    full_join(convergence, by = c("method", "ld_size", "causal_variant_count"))
+    full_join(power,      by = join_cols) %>%
+    full_join(sizes,      by = join_cols) %>%
+    full_join(auprc,      by = join_cols) %>%
+    full_join(convergence, by = join_cols)
   # Add timing metrics if available
   if (!is.null(timing)) {
     all_metrics <- all_metrics %>%
-      full_join(timing, by = c("method", "ld_size", "causal_variant_count"))
+      full_join(timing, by = join_cols)
   }
   # Reorder columns for better readability
-  base_cols <- c("method", "ld_size", "causal_variant_count", "coverage", "power", "auprc",
-                 "mean_credible_set_size", "convergence_rate")
+  base_cols <- if (stratify_by_causal)
+    c("method", "ld_size", "causal_variant_count", "coverage", "power", "auprc",
+      "mean_credible_set_size", "convergence_rate")
+  else
+    c("method", "ld_size", "coverage", "power", "auprc",
+      "mean_credible_set_size", "convergence_rate")
   # Add timing columns if they exist
-  timing_cols <- c("mean_execution_time", "median_execution_time", "min_execution_time", 
+  timing_cols <- c("mean_execution_time", "median_execution_time", "min_execution_time",
                    "max_execution_time", "sd_execution_time", "n_loci_with_timing")
   existing_timing_cols <- intersect(timing_cols, names(all_metrics))
   final_cols <- c(base_cols, existing_timing_cols)
@@ -436,11 +455,11 @@ plot_combined_faceted <- function(metrics_data, title_suffix = "") {
     )
 
   p <- ggplot(plot_data, aes(x = ld_size, y = value)) +
-    geom_point(aes(color = method, size = factor(causal_variant_count)), alpha = 0.8) +
+    geom_point(aes(color = method), size = 5, alpha = 0.8) +
     facet_wrap(~ metric_label, nrow = 2, scales = "free_y") +
     scale_color_viridis_d(name = "Fine-mapping Method") +
-    scale_size_manual(name = "Causal Variants",
-                      values = c("1" = 4, "2" = 6, "3" = 8)) +
+    scale_x_continuous(expand = expansion(mult = c(0.05, 0.15))) +
+    guides(color = guide_legend(override.aes = list(size = 8))) +
     labs(
       y = "Value",
       x = "Sample Size of LD Matrix"
@@ -448,6 +467,7 @@ plot_combined_faceted <- function(metrics_data, title_suffix = "") {
     theme_minimal() +
     theme(
       plot.title       = element_blank(),
+      plot.margin      = margin(t = 10, r = 30, b = 10, l = 10, unit = "pt"),
       axis.title       = element_text(size = 24),
       axis.text        = element_text(size = 22),
       strip.text       = element_text(size = 22, face = "bold"),
@@ -498,12 +518,13 @@ run_finemapping_analysis_summary <- function(file_path, output_dir = "finemappin
   # Calculate metrics for all data
   cat("Calculating performance metrics...\n")
   all_metrics <- calculate_all_metrics_summary(data)
-  # Save metrics
+  # Save stratified metrics CSV
   write_csv(all_metrics, file.path(output_dir, "performance_metrics_summary.csv"))
   # Create plots for all data
   cat("Creating plots for all data...\n")
-  # 2x2 combined faceted plot of all main metrics
-  p_combined <- plot_combined_faceted(all_metrics)
+  # 2x2 combined faceted plot: pool metrics across causal variant counts for a cleaner view
+  all_metrics_pooled <- calculate_all_metrics_summary(data, stratify_by_causal = FALSE)
+  p_combined <- plot_combined_faceted(all_metrics_pooled)
   ggsave(file.path(output_dir, "metrics_combined_all.png"), p_combined,
          width = 14, height = 12, dpi = 300)
   # Execution times plot (separate, not part of the main 2x2 metrics)
