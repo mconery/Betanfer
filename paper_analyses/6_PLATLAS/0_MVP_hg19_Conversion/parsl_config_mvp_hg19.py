@@ -10,13 +10,16 @@ allocated to the outer PBS job — no secondary PBS job submissions.  The outer
 PBS script (run_mvp_hg19_conversion.sh) must therefore request all worker
 nodes upfront (select=32).
 
-Each conversion job loads the full annotation file (~several GB) into memory.
-1 worker per node is therefore used to avoid memory pressure from concurrent
-loads on the same node.
+convert_mvp_to_hg19.py is single-threaded (pandas I/O and merge do not use
+multiple CPUs).  The annotation file is 511 MB gzip (~3–5 GB in-memory) and
+each sumstats file adds ~5–15 GB.  With 1 TB RAM per Aurora node, 4 workers
+per node is well within memory limits (~25 GB × 4 = ~100 GB peak).  Workers
+2–4 on the same node also benefit from the OS page cache for the annotation
+file, which is read by worker 1 first.
 
 Parallelism summary:
-  workers_per_node (1) x num_nodes (read from PBS_NODEFILE at runtime) = concurrent jobs
-  Default: 1 × 32 = 32 concurrent MVP hg19 conversion runs
+  workers_per_node (4) x num_nodes (read from PBS_NODEFILE at runtime) = concurrent jobs
+  Default: 4 × 32 = 128 concurrent MVP hg19 conversion runs
 
 ***Run with ALCF frameworks module: module load frameworks***
 '''
@@ -31,8 +34,9 @@ from parsl.addresses import address_by_hostname
 # Directory where parsl writes worker logs and working files
 execute_dir = "/flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/script_logs"
 
-# 1 worker per node: annotation file is large; avoid memory pressure
-workers_per_node = 1
+# 4 workers per node: script is single-threaded; 1 TB RAM supports ~4 concurrent
+# workers at ~25 GB peak each; page cache benefits workers 2-4 for annotation read
+workers_per_node = 4
 
 # Determine number of allocated nodes from PBS environment at import time.
 # PBS_NODEFILE contains one hostname per line (one entry per node when mpiprocs=1).
@@ -61,11 +65,11 @@ mvp_hg19_config = Config(
                     bind_cmd="--cpu-bind", overrides="--ppn 1"
                 ),
                 # Environment setup run before each worker process launches.
-                # NUMEXPR_MAX_THREADS=208 since only 1 worker uses the whole node.
+                # NUMEXPR_MAX_THREADS=52 (208 CPUs / 4 workers per node).
                 worker_init=(
                     "source $HOME/.bashrc; "
                     "module load frameworks; "
-                    "export NUMEXPR_MAX_THREADS=208; "
+                    "export NUMEXPR_MAX_THREADS=52; "
                     f"cd {execute_dir}"
                 ),
                 # Launch one block immediately; no dynamic scaling
