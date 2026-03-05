@@ -58,7 +58,7 @@ cd ${log_dir}
 # ── Step 0: Write MVP master locus files from Supplementary Table S11 ─────────
 echo "NOTE: Creating MVP master locus files from Supplementary Table S11..."
 python ${script_dir}/create_mvp_loci_from_s11.py \
-    --s11_file   ${s11_file} \
+    --s11_file   ${s11_file}   \
     --output_dir ${output_dir}
 
 if [ $? -ne 0 ]; then
