@@ -27,7 +27,9 @@ import getopt
 import os
 import glob
 import csv
+import multiprocessing
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 
 # ── Default paths ───────────────────────────────────────────────────────────────
 LINKER_FILE   = "/flare/GeomicVar/multi-biobank-meta/meta_sumstats.linker.betanfer.tsv"
@@ -47,6 +49,9 @@ MVP_POPS = {"MVP_EUR": "EUR", "MVP_AFR": "AFR"}  # analysis_pop → mvp_dir_pop
 # betanfer infer options applied to every command
 PVAL_THRESHOLD = "5e-8"
 NUM_PROCESSES  = 8   # matches physical cores per GPU-tile worker (16 logical / 2)
+
+# Parallel workers for filesystem existence checks (Lustre handles many concurrent stats well)
+NUM_WORKERS = multiprocessing.cpu_count()
 
 
 def help(exit_num=0):
@@ -72,6 +77,8 @@ def build_file_lists(linker_file, mvp_sumstats, ld_base):
     groups = defaultdict(set)   # (analysis_pop, cohort, cohort_pop) → set of paths
 
     # ── Linker-based groups (EUR, AFR, ALL meta-analyses) ──────────────────────
+    # Phase 1: parse all entries without any filesystem calls
+    raw_entries = []  # (analysis_pop, cohort, cohort_pop, full_path)
     with open(linker_file, 'r') as fh:
         for line in fh:
             line = line.rstrip('\n')
@@ -99,10 +106,19 @@ def build_file_lists(linker_file, mvp_sumstats, ld_base):
             cohort     = path_parts[0]
             cohort_pop = path_parts[1]
             full_path  = os.path.join(SUMSTATS_BASE, rel_path)
-            if not os.path.exists(full_path):
-                print(f"WARNING: Linker file not found, excluding: {full_path}")
-                continue
+            raw_entries.append((analysis_pop, cohort, cohort_pop, full_path))
+
+    # Phase 2: check all unique paths in parallel, then filter
+    unique_paths = list({e[3] for e in raw_entries})
+    print(f"NOTE: Checking {len(unique_paths)} linker paths in parallel ({NUM_WORKERS} workers)...")
+    with ThreadPoolExecutor(max_workers=NUM_WORKERS) as ex:
+        path_exists = dict(zip(unique_paths, ex.map(os.path.exists, unique_paths)))
+
+    for analysis_pop, cohort, cohort_pop, full_path in raw_entries:
+        if path_exists[full_path]:
             groups[(analysis_pop, cohort, cohort_pop)].add(full_path)
+        else:
+            print(f"WARNING: Linker file not found, excluding: {full_path}")
 
     # ── MVP directory scans for MVP_EUR and MVP_AFR ────────────────────────────
     for analysis_pop, dir_pop in MVP_POPS.items():
@@ -151,13 +167,7 @@ def generate_commands(groups, loci_dir, ld_base):
     Returns a list of (locus_size_bp, command_str) tuples.
     """
     file_lists_dir = os.path.join(ld_base, "file_lists")
-    job_list       = []
-    total          = 0
-    skipped        = 0
     warnings       = 0
-
-    # Determine which analysis populations are present in groups
-    analysis_pops_in_groups = {ap for (ap, _, _) in groups}
 
     # Master CSV files produced by locus_parsl_allocator.py
     master_files = sorted(glob.glob(os.path.join(loci_dir, "sig_loci.*.master.csv")))
@@ -165,9 +175,13 @@ def generate_commands(groups, loci_dir, ld_base):
         print(f"ERROR: No sig_loci.*.master.csv files found in {loci_dir}")
         sys.exit(1)
 
+    # Phase 1: build all (locus_size, sentinel, cmd) work items without any
+    # filesystem calls — just string construction from CSV data.
+    all_work = []   # [(locus_size, sentinel_path, cmd_str), ...]
+
     for master_csv in master_files:
         # Derive analysis_pop from filename: sig_loci.{POP}.master.csv
-        basename    = os.path.basename(master_csv)
+        basename     = os.path.basename(master_csv)
         analysis_pop = basename.split('.')[1]
 
         # Find constituent (cohort, cohort_pop) pairs for this analysis population
@@ -194,7 +208,6 @@ def generate_commands(groups, loci_dir, ld_base):
             locus_size = int(end) - int(start)
 
             for cohort, cohort_pop in pairs:
-                total += 1
                 file_list_name = f"{analysis_pop}.{cohort}.{cohort_pop}.txt"
                 file_list_path = os.path.join(file_lists_dir, file_list_name)
                 output_prefix  = os.path.join(
@@ -203,11 +216,6 @@ def generate_commands(groups, loci_dir, ld_base):
                     f"chr{chrom}_{start}_{end}.{cohort}.{cohort_pop}"
                 )
                 sentinel = output_prefix + ".vcor1"
-
-                if os.path.exists(sentinel):
-                    skipped += 1
-                    continue
-
                 cmd = (
                     f"python -m betanfer infer"
                     f" --file-list {file_list_path}"
@@ -217,10 +225,24 @@ def generate_commands(groups, loci_dir, ld_base):
                     f" --output {output_prefix}"
                     f" --plink2-format"
                 )
-                job_list.append((locus_size, cmd))
+                all_work.append((locus_size, sentinel, cmd))
             loci_count += 1
 
         print(f"NOTE: {analysis_pop}: processed {loci_count} loci × {len(pairs)} cohort(s)")
+
+    # Phase 2: check all sentinel files in parallel, then filter
+    total = len(all_work)
+    print(f"NOTE: Checking {total} sentinel files in parallel ({NUM_WORKERS} workers)...")
+
+    def _check(item):
+        locus_size, sentinel, cmd = item
+        return None if os.path.exists(sentinel) else (locus_size, cmd)
+
+    with ThreadPoolExecutor(max_workers=NUM_WORKERS) as ex:
+        results = list(ex.map(_check, all_work))
+
+    job_list = [r for r in results if r is not None]
+    skipped  = total - len(job_list)
 
     print(f"NOTE: {total} total (locus, cohort+pop) pairs  |  "
           f"{skipped} already complete  |  {len(job_list)} to run  |  "
