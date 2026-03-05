@@ -9,13 +9,17 @@ S11 contains one row per fine-mapping signal within each locus; this script
 deduplicates to one row per unique (phenotype, chr, start, end) combination.
 The same locus set is applied to both MVP populations.
 
+S11 coordinates are in hg19.  They are used as-is because the MVP summary
+statistics used downstream have been converted to hg19 by the pipeline in
+0_MVP_hg19_Conversion/.
+
 Output master file format matches that produced by locus_parsl_allocator.py:
   CHR, START, END, LENGTH, TRAIT, OVERLAP_COUNT
 
 Where:
   CHR          - chromosome number (integer, no "chr" prefix)
-  START        - locus start position (integer)
-  END          - locus end position (integer)
+  START        - locus start position (integer, hg19)
+  END          - locus end position (integer, hg19)
   LENGTH       - end - start + 1 (integer)
   TRAIT        - phenotype name from S11
   OVERLAP_COUNT - number of other loci (from any trait) overlapping this locus
