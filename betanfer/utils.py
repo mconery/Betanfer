@@ -463,44 +463,46 @@ def extract_betas_from_range(
     Used when the user specifies --chrom / --start / --end instead of a
     variant file.
     """
-    # Step 1: discover variants from the first file
-    first_file = file_list[0]
+    # Step 1: discover variants from the first file in the list that has any in the range
     variants_to_extract: Set[str] = set()
-
-    with pysam.TabixFile(first_file) as tf:
-        header = tf.header[0].strip().split("\t") if tf.header else []
-        if header and header[0].startswith("#"):
-            header[0] = header[0][1:]
-        if not header:
-            raise ValueError(f"No header in {first_file}")
-        try:
-            vid_idx = header.index(variant_col)
-        except ValueError:
-            raise ValueError(
-                f"Column '{variant_col}' not found in {first_file}. "
-                f"Available: {', '.join(header)}"
+    for discovery_file in file_list:
+        with pysam.TabixFile(discovery_file) as tf:
+            header = tf.header[0].strip().split("\t") if tf.header else []
+            if header and header[0].startswith("#"):
+                header[0] = header[0][1:]
+            if not header:
+                continue
+            try:
+                vid_idx = header.index(variant_col)
+            except ValueError:
+                continue
+            try:
+                for record in tf.fetch(reference=chrom, start=start - 1, end=end):
+                    fields = record.split("\t")
+                    try:
+                        variants_to_extract.add(fields[vid_idx])
+                    except IndexError:
+                        continue
+            except Exception as e:
+                logger.warning(
+                    f"Error querying range {chrom}:{start}-{end} in {discovery_file}: {e}"
+                )
+                continue
+        if variants_to_extract:
+            logger.info(
+                f"Discovered {len(variants_to_extract)} variants in range "
+                f"{chrom}:{start}-{end} from: {discovery_file}"
             )
-        try:
-            for record in tf.fetch(reference=chrom, start=start - 1, end=end):
-                fields = record.split("\t")
-                try:
-                    variants_to_extract.add(fields[vid_idx])
-                except IndexError:
-                    continue
-        except Exception as e:
-            raise RuntimeError(
-                f"Error querying range {chrom}:{start}-{end} in {first_file}: {e}"
-            )
+            break
 
     if not variants_to_extract:
-        raise ValueError(
-            f"No variants found in range {chrom}:{start}-{end} in {first_file}"
+        logger.warning(
+            f"No variants found in range {chrom}:{start}-{end} in any input file. "
+            "Returning empty beta matrix."
         )
+        return pd.DataFrame()
 
     variants_list = sorted(variants_to_extract)
-    logger.info(
-        f"Discovered {len(variants_list)} variants in range {chrom}:{start}-{end}"
-    )
 
     # Step 2: extract betas from all files for those variants
     def _process(file_path: str) -> pd.Series:

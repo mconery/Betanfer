@@ -169,6 +169,23 @@ def _resolve_columns(args, first_gz: str):
 
 
 # ---------------------------------------------------------------------------
+# Helpers (continued)
+# ---------------------------------------------------------------------------
+
+def _create_empty_outputs(args) -> None:
+    """Create empty sentinel output files when LD inference cannot proceed."""
+    if args.save_binary:
+        paths = [args.output + ".bin", args.output + ".vars"]
+    elif args.plink2_format:
+        paths = [args.output + ".vcor1", args.output + ".vcor1.vars"]
+    else:
+        paths = [args.output + ".txt"]
+    for path in paths:
+        open(path, "w").close()
+        logger.info(f"Created empty output file: {path}")
+
+
+# ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
 
@@ -375,9 +392,41 @@ def run_infer(args) -> None:
     logger.info(
         f"Beta matrix: {beta_df.shape[0]} variants × {beta_df.shape[1]} traits"
     )
-    missing_frac = beta_df.isna().sum().sum() / (beta_df.shape[0] * beta_df.shape[1])
-    if missing_frac > 0:
-        logger.info(f"Missing data fraction: {missing_frac:.3f} (filled with 0)")
+    if beta_df.size > 0:
+        missing_frac = beta_df.isna().sum().sum() / beta_df.size
+        if missing_frac > 0:
+            logger.info(f"Missing data fraction: {missing_frac:.3f} (filled with 0)")
+
+    # ------------------------------------------------------------------
+    # Step 7.5: Filter traits with fewer than 2 variants in the locus
+    # ------------------------------------------------------------------
+    min_traits = args.min_traits
+
+    # Count non-NaN betas per trait (column = one file/trait)
+    trait_variant_counts = beta_df.notna().sum(axis=0)
+
+    # Warn and drop traits with < 2 variants
+    low_variant_traits = trait_variant_counts[trait_variant_counts < 2].index.tolist()
+    if low_variant_traits:
+        logger.warning(
+            f"Dropping {len(low_variant_traits)} trait(s) with fewer than 2 variants "
+            f"in the locus:"
+        )
+        for t in low_variant_traits:
+            logger.warning(f"  {t}")
+        beta_df = beta_df.drop(columns=low_variant_traits)
+
+    n_valid_traits = beta_df.shape[1]
+    logger.info(f"Traits with >= 2 variants: {n_valid_traits}")
+
+    if n_valid_traits < min_traits:
+        logger.warning(
+            f"Insufficient traits for LD inference: {n_valid_traits} trait(s) with "
+            f">= 2 variants in the locus (minimum required: {min_traits}). "
+            "Creating empty output files and skipping inference."
+        )
+        _create_empty_outputs(args)
+        return
 
     # ------------------------------------------------------------------
     # Step 8: Compute correlation matrix
@@ -432,7 +481,7 @@ def run_infer(args) -> None:
     logger.info("=" * 60)
     logger.info("LD INFERENCE COMPLETE")
     logger.info("=" * 60)
-    logger.info(f"  Traits used         : {len(gz_files)}")
+    logger.info(f"  Traits used         : {beta_df.shape[1]}")
     logger.info(f"  Variants in matrix  : {corr_np.shape[0]}")
     logger.info(f"  Device              : {device}")
     if args.save_binary:

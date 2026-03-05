@@ -339,6 +339,18 @@ Examples:
             "variant sets."
         ),
     )
+    comp_group.add_argument(
+        "--min-traits",
+        metavar="N",
+        type=int,
+        default=1000,
+        help=(
+            "Minimum number of traits with at least 2 variants in the locus "
+            "required to proceed with LD inference. If fewer traits meet this "
+            "threshold, empty output files are created and inference is skipped. "
+            "[default: 1000]"
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------
