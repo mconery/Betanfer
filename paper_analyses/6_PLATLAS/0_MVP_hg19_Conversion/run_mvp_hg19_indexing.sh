@@ -24,11 +24,11 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 #PBS -A GeomicVar
-#PBS -l walltime=2:00:00
+#PBS -l walltime=1:00:00
 #PBS -l filesystems=home:flare
 #PBS -l select=32:ncpus=208:mpiprocs=1
 #PBS -l place=scatter:excl
-#PBS -q capacity
+#PBS -q debug-scaling
 #PBS -N mvp_hg19_indexing
 #PBS -o /flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/script_logs/mvp_hg19_indexing.log
 #PBS -e /flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/script_logs/mvp_hg19_indexing.err
