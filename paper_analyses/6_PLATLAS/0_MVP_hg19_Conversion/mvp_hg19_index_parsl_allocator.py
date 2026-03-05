@@ -115,7 +115,7 @@ def main():
             print(f"WARNING: Could not parse --file from command: {cmd[:80]}")
             unparsed += 1
             pending.append(cmd)
-        elif os.path.exists(tbi_path):
+        elif os.path.exists(tbi_path[:-4]) and os.path.exists(tbi_path):
             skipped += 1
         else:
             pending.append(cmd)
