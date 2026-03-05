@@ -123,10 +123,12 @@ calculate_credible_set_sizes <- function(data) {
 }
 
 # Function to calculate true AUPRC using the new non-causal PIP count columns
+# Mirrors the logic in fine_mapping_summarizer.py: compute_stats_from_accum()
 calculate_true_auprc <- function(data) {
   auprc_stats <- data %>%
-    mutate(causal_variant_pips = str_replace_all(causal_variant_pips, "nan", "0")) %>%
-    filter(converged == TRUE) %>%
+    # Only exclude truly failed loci (all causal PIPs are NaN → empty causal_pips_list)
+    # Do NOT require avg_variants_per_cs > 0, matching the Python reference implementation
+    filter(sapply(causal_pips_list, length) > 0) %>%
     group_by(method, ld_size, causal_variant_count) %>%
     do({
       df <- .
@@ -137,8 +139,8 @@ calculate_true_auprc <- function(data) {
         precisions <- numeric()
         recalls <- numeric()
         thresholds <- seq(0.01, 1.00, by = 0.01)
-        # Get total numbers across all loci in this group
-        total_causal_variants <- sum(df$causal_variant_count, na.rm = TRUE)
+        # Use actual count of non-NaN causal PIPs as denominator (matches Python's total_causal_pips)
+        total_causal_variants <- sum(sapply(df$causal_pips_list, length))
         for (thresh in thresholds) {
           # Count causal variants with PIP >= threshold
           causal_above_threshold <- 0
@@ -149,27 +151,32 @@ calculate_true_auprc <- function(data) {
             }
           }
           # Count non-causal variants with PIP >= threshold
-          # Use the appropriate column name based on threshold
           col_name <- paste0("non_causal_pip_ge_", sprintf("%.2f", thresh))
           if (col_name %in% names(df)) {
             non_causal_above_threshold <- sum(df[[col_name]], na.rm = TRUE)
           } else {
             non_causal_above_threshold <- 0
           }
-          # Calculate precision and recall
           tp <- causal_above_threshold
           fp <- non_causal_above_threshold
-          precision <- if (tp + fp > 0) tp / (tp + fp) else 1
+          # Skip points where no variants pass the threshold (matches Python's `if tp + fp == 0: continue`)
+          if (tp + fp == 0) next
+          precision <- tp / (tp + fp)
           recall <- if (total_causal_variants > 0) tp / total_causal_variants else 0
           precisions <- c(precisions, precision)
           recalls <- c(recalls, recall)
         }
-        # Calculate AUPRC using trapezoidal rule
-        # Sort by recall for proper integration
-        order_idx <- order(recalls)
+        # Sort by recall ascending (then by precision ascending for ties), matching Python's points.sort()
+        order_idx <- order(recalls, precisions)
         recall_sorted <- recalls[order_idx]
         precision_sorted <- precisions[order_idx]
-        # Calculate AUC using trapezoidal rule
+        # Prepend (recall=0, precision=1) anchor if curve does not start at recall=0
+        # Matches Python: `if sorted_recalls[0] > 0: insert (0.0, 1.0)`
+        if (length(recall_sorted) == 0 || recall_sorted[1] > 0) {
+          recall_sorted    <- c(0, recall_sorted)
+          precision_sorted <- c(1, precision_sorted)
+        }
+        # Calculate AUPRC using trapezoidal rule (matches numpy.trapz)
         auprc <- 0
         if (length(recall_sorted) > 1) {
           for (k in 2:length(recall_sorted)) {
@@ -407,6 +414,58 @@ plot_execution_times <- function(metrics_data, title_suffix = "") {
   return(p)
 }
 
+# Function to create a 2x2 faceted plot for all four main performance metrics
+plot_combined_faceted <- function(metrics_data, title_suffix = "") {
+  # Pivot the four metrics to long format
+  plot_data <- metrics_data %>%
+    pivot_longer(
+      cols = c(auprc, coverage, power, mean_credible_set_size),
+      names_to  = "metric",
+      values_to = "value"
+    ) %>%
+    mutate(
+      metric_label = case_when(
+        metric == "auprc"                 ~ "AUPRC",
+        metric == "coverage"              ~ "Coverage",
+        metric == "power"                 ~ "Power",
+        metric == "mean_credible_set_size" ~ "Mean Credible Set Size"
+      ),
+      # Control panel order: AUPRC top-left, Coverage top-right, Power bottom-left, CS Size bottom-right
+      metric_label = factor(metric_label,
+                            levels = c("AUPRC", "Coverage", "Power", "Mean Credible Set Size"))
+    )
+
+  p <- ggplot(plot_data, aes(x = ld_size, y = value)) +
+    geom_point(aes(color = method, size = factor(causal_variant_count)), alpha = 0.8) +
+    facet_wrap(~ metric_label, nrow = 2, scales = "free_y") +
+    scale_color_viridis_d(name = "Fine-mapping Method") +
+    scale_size_manual(name = "Causal Variants",
+                      values = c("1" = 4, "2" = 6, "3" = 8)) +
+    labs(
+      y = "Value",
+      x = "Sample Size of LD Matrix"
+    ) +
+    theme_minimal() +
+    theme(
+      plot.title       = element_blank(),
+      axis.title       = element_text(size = 24),
+      axis.text        = element_text(size = 22),
+      strip.text       = element_text(size = 22, face = "bold"),
+      strip.background = element_rect(fill = "white", color = "black", linewidth = 0.5),
+      legend.position  = "bottom",
+      legend.text      = element_text(size = 20),
+      legend.title     = element_text(size = 22, face = "bold"),
+      legend.box       = "vertical",
+      legend.direction = "horizontal",
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.border     = element_rect(color = "black", fill = NA, linewidth = 0.5),
+      axis.line        = element_line(color = "black")
+    )
+
+  return(p)
+}
+
 # Main analysis function for summary data
 run_finemapping_analysis_summary <- function(file_path, output_dir = "finemapping_results") {
   # Create output directory
@@ -443,22 +502,11 @@ run_finemapping_analysis_summary <- function(file_path, output_dir = "finemappin
   write_csv(all_metrics, file.path(output_dir, "performance_metrics_summary.csv"))
   # Create plots for all data
   cat("Creating plots for all data...\n")
-  # Coverage vs Power scatter plot
-  p1 <- plot_coverage_summary(all_metrics)
-  ggsave(file.path(output_dir, "coverage_all.png"), p1,
-         width = 7.5, height = 10, dpi = 300)
-  p2 <- plot_power_summary(all_metrics)
-  ggsave(file.path(output_dir, "power_all.png"), p2,
-         width = 7.5, height = 10, dpi = 300)
-  # AUPRC bar plot
-  p3 <- plot_auprc_summary(all_metrics)
-  ggsave(file.path(output_dir, "auprc_all.png"), p3,
-         width = 14, height = 8, dpi = 300)
-  # Credible set sizes bar plot
-  p4 <- plot_credible_set_sizes_summary(all_metrics)
-  ggsave(file.path(output_dir, "credible_set_sizes_all.png"), p4,
-         width = 14, height = 8, dpi = 300)
-  # NEW: Execution times plot
+  # 2x2 combined faceted plot of all main metrics
+  p_combined <- plot_combined_faceted(all_metrics)
+  ggsave(file.path(output_dir, "metrics_combined_all.png"), p_combined,
+         width = 14, height = 12, dpi = 300)
+  # Execution times plot (separate, not part of the main 2x2 metrics)
   p5 <- plot_execution_times(all_metrics)
   if (!is.null(p5)) {
     ggsave(file.path(output_dir, "execution_times_all.png"), p5,
@@ -474,39 +522,13 @@ run_finemapping_analysis_summary <- function(file_path, output_dir = "finemappin
       # Save stratified metrics
       write_csv(stratified_metrics,
                 file.path(output_dir, paste0("performance_metrics_", causal_count, "_causal.csv")))
-      # Create stratified plots
+      # 2x2 combined faceted plot for this causal count stratum
       suffix <- paste0(" (", causal_count, " causal variant",
                        if(causal_count > 1) "s" else "", ")")
-      p1_strat <- plot_coverage_summary(stratified_metrics, suffix)
-      ggsave(file.path(output_dir, paste0("coverage_", causal_count, "_causal.png")),
-             p1_strat, width = 6, height = 10, dpi = 300)
-      p2_strat <- plot_power_summary(stratified_metrics, suffix)
-      ggsave(file.path(output_dir, paste0("power_", causal_count, "_causal.png")),
-             p2_strat, width = 6, height = 10, dpi = 300)
-      # For individual causal counts, create simpler bar plots without faceting
-      plot_data_simple <- stratified_metrics %>%
-        mutate(method_ld = paste(method, ld_size, sep = " + "))
-      # AUPRC plot
-      p2_simple <- ggplot(plot_data_simple, aes(x = method_ld, y = auprc, fill = method)) +
-        geom_col(alpha = 0.8) +
-        scale_fill_viridis_d(name = "Method") +
-        labs(title = paste0("True AUPRC", suffix), x = "Method + LD Matrix", y = "AUPRC") +
-        theme_minimal() +
-        theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-        ylim(0, 1)
-      ggsave(file.path(output_dir, paste0("auprc_", causal_count, "_causal.png")),
-             p2_simple, width = 12, height = 6, dpi = 300)
-      # Credible set size plot
-      p3_simple <- ggplot(plot_data_simple, aes(x = method_ld, y = mean_credible_set_size, fill = method)) +
-        geom_col(alpha = 0.8) +
-        scale_fill_viridis_d(name = "Method") +
-        labs(title = paste0("Mean Credible Set Size", suffix),
-             x = "Method + LD Matrix", y = "Mean Size") +
-        theme_minimal() +
-        theme(axis.text.x = element_text(angle = 45, hjust = 1))
-      ggsave(file.path(output_dir, paste0("credible_set_sizes_", causal_count, "_causal.png")),
-             p3_simple, width = 12, height = 6, dpi = 300)
-      # NEW: Execution time plot
+      p_combined_strat <- plot_combined_faceted(stratified_metrics)
+      ggsave(file.path(output_dir, paste0("metrics_combined_", causal_count, "_causal.png")),
+             p_combined_strat, width = 14, height = 12, dpi = 300)
+      # Execution time plot (separate)
       p_timing_simple <- plot_execution_times(stratified_metrics, suffix)
       if (!is.null(p_timing_simple)) {
         ggsave(file.path(output_dir, paste0("execution_times_", causal_count, "_causal.png")),
