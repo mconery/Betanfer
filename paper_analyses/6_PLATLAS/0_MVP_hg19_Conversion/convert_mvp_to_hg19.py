@@ -102,7 +102,7 @@ def main():
     print(f"NOTE: Loading annotation file: {annotation_file}")
     annot = pd.read_csv(
         annotation_file,
-        sep='\t',
+        sep=' ',
         usecols=['MVPID', 'RSID', 'CHROM_b38', 'POS_b38'],
         dtype={'MVPID': str, 'RSID': str, 'CHROM_b38': str, 'POS_b38': int}
     )
@@ -164,9 +164,13 @@ def main():
     output_cols = ['#ID', 'RSID', 'CHR', 'POS', 'REF', 'ALT'] + extra_cols
     out = merged[output_cols]
 
-    # ── Write output ───────────────────────────────────────────────────────────
+    # ── Write output (atomic: write to .tmp then rename) ──────────────────────
+    tmp_file = output_file + ".tmp"
+    if os.path.exists(tmp_file):
+        os.remove(tmp_file)
     print(f"NOTE: Writing output: {output_file}")
-    out.to_csv(output_file, sep='\t', index=False)
+    out.to_csv(tmp_file, sep='\t', index=False)
+    os.rename(tmp_file, output_file)
     print(f"SUCCESS: Wrote {len(out):,} variants to {output_file}")
 
 
