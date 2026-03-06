@@ -36,7 +36,7 @@ LINKER_FILE   = "/flare/GeomicVar/multi-biobank-meta/meta_sumstats.linker.betanf
 LOCI_DIR      = "/flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/mapping_loci"
 LD_BASE       = "/flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/LD_matrices"
 SUMSTATS_BASE = "/flare/GeomicVar/multi-biobank-meta/sumstats"
-MVP_SUMSTATS  = os.path.join(SUMSTATS_BASE, "MVP")
+MVP_HG19_SUMSTATS = os.path.join(SUMSTATS_BASE, "MVP_hg19")
 
 SCRIPT_DIR    = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_CMDS  = os.path.join(SCRIPT_DIR, "matrix_making.commands.txt")
@@ -126,7 +126,7 @@ def build_file_lists(linker_file, mvp_sumstats, ld_base):
         if not os.path.isdir(mvp_dir):
             print(f"WARNING: MVP directory not found, skipping: {mvp_dir}")
             continue
-        all_gz = glob.glob(os.path.join(mvp_dir, "MVP_R4.1000G_AGR.*.sumstats.txt.gz"))
+        all_gz = glob.glob(os.path.join(mvp_dir, "MVP_R4.1000G_AGR.*.sumstats.hg19.txt.gz"))
         gz_files = [f for f in all_gz if not f.endswith("hm3_sumstats.txt.gz")]
         if not gz_files:
             print(f"WARNING: No MVP sumstats files found in {mvp_dir}")
@@ -299,7 +299,7 @@ def main():
 
     # ── Build file lists ────────────────────────────────────────────────────────
     print("NOTE: Building constituent file lists...")
-    groups = build_file_lists(LINKER_FILE, MVP_SUMSTATS, LD_BASE)
+    groups = build_file_lists(LINKER_FILE, MVP_HG19_SUMSTATS, LD_BASE)
 
     # ── Generate commands ────────────────────────────────────────────────────────
     print("NOTE: Generating betanfer infer commands...")
