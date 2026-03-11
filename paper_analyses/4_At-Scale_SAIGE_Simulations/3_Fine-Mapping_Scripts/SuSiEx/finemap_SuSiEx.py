@@ -40,6 +40,10 @@ import struct
 
 import time
 
+class InsufficientVariantsError(Exception):
+    """Raised when no variants remain after filtering the GWAS data to the locus."""
+    pass
+
 def parse_arguments():
 
     parser = argparse.ArgumentParser(
@@ -493,7 +497,12 @@ def filter_and_deduplicate_gwas(gwas_file, variant_ids, temp_dir="temp_gwas"):
         df_filtered = df[df[snp_col_name].isin(variant_ids)]
         filtered_count = len(df_filtered)
         print(f"[GWAS FILTER] After locus filtering: {filtered_count} variants")
-        
+
+        if filtered_count == 0:
+            raise InsufficientVariantsError(
+                f"No variants from {os.path.basename(gwas_file)} matched the locus variants after filtering."
+            )
+
         # Remove duplicates based on SNP column
         duplicates_before = df_filtered.duplicated(subset=[snp_col_name], keep=False).sum()
         if duplicates_before > 0:
@@ -520,7 +529,9 @@ def filter_and_deduplicate_gwas(gwas_file, variant_ids, temp_dir="temp_gwas"):
         print(f"[GWAS FILTER] Created temporary file: {temp_file} ({dedup_count} variants)")
         
         return temp_file
-        
+
+    except InsufficientVariantsError:
+        raise  # propagate to main() for graceful failure output
     except Exception as e:
         print(f"[GWAS FILTER] ERROR: Failed to process {gwas_file}: {e}")
         return None
@@ -1579,6 +1590,22 @@ def run_susiex(args, temp_gwas_files, ld_files, n_gwas_list, col_strings, chrom,
             print("STDERR:", e.stderr)
         sys.exit(1)
 
+def write_insufficient_variants_failure(output_file, gwas_files):
+    """Write failure output and timing files when insufficient variants are detected."""
+    print("ERROR: SuSiEx mapping failed due to insufficient variants after filtering.")
+    output_base = output_file.replace('.txt', '').replace('.susiex', '')
+    final_output_file = f"{output_base}.txt"
+    pop_names = extract_population_names(gwas_files)
+    col_names = ['VARIANT_ID'] + [f'Z_{p}' for p in pop_names] + ['PIP', 'converged', 'cs']
+    pd.DataFrame(columns=col_names).to_csv(final_output_file, sep='\t', index=False)
+    output_dir = os.path.dirname(output_file) if os.path.dirname(output_file) else '.'
+    timing_dir = os.path.join(output_dir, 'timing')
+    os.makedirs(timing_dir, exist_ok=True)
+    timing_file = os.path.join(timing_dir, os.path.basename(output_file))
+    with open(timing_file, 'w') as f:
+        f.write("susiex_time_seconds\n")
+        f.write("NA\n")
+
 def cleanup_frequency_files(frq_files):
 
     """Delete frequency files after SuSiEx completion."""
@@ -1648,6 +1675,10 @@ def main():
         if susie_output:
 
             delete_susiex_output_files(args.output_file)
+
+    except InsufficientVariantsError as e:
+        print(str(e))
+        write_insufficient_variants_failure(args.output_file, gwas_files)
 
     finally:
 
