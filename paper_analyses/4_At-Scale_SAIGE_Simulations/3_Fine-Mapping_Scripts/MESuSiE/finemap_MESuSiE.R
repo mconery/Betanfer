@@ -473,6 +473,47 @@ organize_ld_multi <- function(LD_list, organized_gwas) {
   }
 }
 
+# Build NA-filled output data frame from organized_gwas for failure cases
+create_failure_output <- function(organized_gwas, ancestry_labels) {
+  variant_ids <- organized_gwas[[1]]$SNP
+  n_variants <- length(variant_ids)
+  result_df <- data.frame(VARIANT_ID = variant_ids, stringsAsFactors = FALSE)
+  for (ancestry in ancestry_labels) {
+    z_col <- paste0("Z_", ancestry)
+    if ("Z" %in% colnames(organized_gwas[[ancestry]])) {
+      result_df[[z_col]] <- organized_gwas[[ancestry]]$Z
+    } else if ("Beta" %in% colnames(organized_gwas[[ancestry]]) &&
+               "Se"   %in% colnames(organized_gwas[[ancestry]])) {
+      result_df[[z_col]] <- organized_gwas[[ancestry]]$Beta / organized_gwas[[ancestry]]$Se
+    } else {
+      result_df[[z_col]] <- rep(NA, n_variants)
+    }
+  }
+  result_df$PIP       <- rep(0, n_variants)
+  result_df$converged <- rep(NA, n_variants)
+  result_df$cs        <- rep(0,  n_variants)
+  for (ancestry in ancestry_labels) {
+    result_df[[paste0("PIP_", ancestry)]] <- rep(0, n_variants)
+  }
+  if (length(ancestry_labels) >= 2) {
+    result_df[[paste0("PIP_", paste(ancestry_labels, collapse = "_"))]] <- rep(0, n_variants)
+  }
+  return(result_df)
+}
+
+# Write failure output and timing files when insufficient variants are detected
+write_insufficient_variants_failure <- function(organized_gwas, ancestry_labels, output_file) {
+  message("ERROR: MESuSiE mapping failed due to insufficient variants after filtering.")
+  out_data <- create_failure_output(organized_gwas, ancestry_labels)
+  write.table(out_data, file = output_file, col.names = TRUE, row.names = FALSE, quote = FALSE, sep = "\t")
+  timing_dir <- file.path(dirname(output_file), "timing")
+  dir.create(timing_dir, recursive = TRUE, showWarnings = FALSE)
+  timing_file <- file.path(timing_dir, basename(output_file))
+  write.table(data.frame(mesusie_time_seconds = NA), file = timing_file,
+              col.names = TRUE, row.names = FALSE, quote = FALSE, sep = "\t")
+  quit(save = "no")
+}
+
 # Run MESuSiE analysis
 run_mesusie <- function(validated_inputs, args) {
   cat("\n=== Running MESuSiE fine-mapping ===\n")
@@ -538,18 +579,22 @@ run_mesusie <- function(validated_inputs, args) {
     
     # Time the meSuSie_core function specifically
     mesusie_start_time <- Sys.time()
-    mesusie_result <- meSuSie_core(
-      organized_ld,
-      organized_gwas,
-      L = args$L,
-      estimate_residual_variance = args$estimate_residual_variance,
-      cor_method = args$cor_method,
-      cor_threshold = args$cor_threshold,
-      prior_weights = args$prior_weights,
-      ancestry_weight = ancestry_weight
-    )
+    mesusie_result <- tryCatch({
+      meSuSie_core(
+        organized_ld,
+        organized_gwas,
+        L = args$L,
+        estimate_residual_variance = args$estimate_residual_variance,
+        cor_method = args$cor_method,
+        cor_threshold = args$cor_threshold,
+        prior_weights = args$prior_weights,
+        ancestry_weight = ancestry_weight
+      )
+    }, error = function(e) {
+      write_insufficient_variants_failure(organized_gwas, ancestry_labels, args$output_file)
+    })
     mesusie_end_time <- Sys.time()
-    
+
     # Calculate timing in seconds
     mesusie_time_seconds <- as.numeric(difftime(mesusie_end_time, mesusie_start_time, units = "secs"))
   } else {
@@ -585,10 +630,7 @@ run_mesusie <- function(validated_inputs, args) {
       cat("SUCCESS: MESuSiE handled multiple populations directly!\n")
       
     }, error = function(e) {
-      cat(sprintf("MESuSiE failed with %d populations: %s\n", n_pops, e$message))
-      cat("Note: This indicates MESuSiE may indeed be limited to 2 populations.\n")
-      cat("You may want to select 2 populations or use alternative methods.\n")
-      stop(sprintf("MESuSiE analysis failed: %s", e$message))
+      write_insufficient_variants_failure(organized_gwas, ancestry_labels, args$output_file)
     })
   }
   
@@ -791,17 +833,25 @@ main <- function() {
     cat("\n=== Analysis completed successfully! ===\n")
     
   }, error = function(e) {
-    cat(sprintf("ERROR: %s
-", e$message))
-    
-    # Create timing file with NA for failed runs
+    message("ERROR: MESuSiE mapping failed due to insufficient variants after filtering.")
+
+    # Write a header-only output file (no variant data available at this stage)
+    ancestry_labels_local <- strsplit(args$ancestry_labels, ",")[[1]]
+    z_cols <- paste0("Z_", ancestry_labels_local)
+    pip_cols <- paste0("PIP_", ancestry_labels_local)
+    intersection_col <- paste0("PIP_", paste(ancestry_labels_local, collapse = "_"))
+    col_names <- c("VARIANT_ID", z_cols, "PIP", "converged", "cs", pip_cols, intersection_col)
+    empty_df <- setNames(data.frame(matrix(ncol = length(col_names), nrow = 0)), col_names)
+    write.table(empty_df, file = args$output_file, col.names = TRUE, row.names = FALSE, quote = FALSE, sep = "\t")
+
+    # Write timing file with NA
     timing_dir <- file.path(dirname(args$output_file), "timing")
     dir.create(timing_dir, recursive = TRUE, showWarnings = FALSE)
     timing_file <- file.path(timing_dir, basename(args$output_file))
     write.table(data.frame(mesusie_time_seconds = NA), file = timing_file,
-                col.names = TRUE, row.names = FALSE, quote = FALSE, sep = "	")
-    
-    quit(status = 1)
+                col.names = TRUE, row.names = FALSE, quote = FALSE, sep = "\t")
+
+    quit(save = "no")
   })
 }
 
