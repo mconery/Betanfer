@@ -18,6 +18,10 @@ import re
 from typing import List, Dict, Tuple, Any
 import time
 
+class InsufficientVariantsError(Exception):
+    """Raised when no variants remain after filtering across all populations."""
+    pass
+
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description='Multi-population fine-mapping using MultiSuSiE (intersection of variants across all populations)',
@@ -194,7 +198,7 @@ def find_common_variants(ld_files: List[str], gwas_files: List[str], ancestry_la
     print(f"Final common variants (LD ∩ GWAS): {len(final_common_variants)}")
     
     if len(final_common_variants) == 0:
-        raise ValueError("ERROR: No variants are common across all LD matrices and GWAS files")
+        raise InsufficientVariantsError("No variants are common across all LD matrices and GWAS files")
     
     # Sort variants to ensure consistent ordering
     final_common_variants.sort()
@@ -525,6 +529,19 @@ def save_results(multisusie_result, summ_stat_list, ancestry_labels, output_file
     print(f"Results saved to: {output_file}")
     print(f"Output contains {len(df)} variants and {len(df.columns)} columns")
 
+def write_insufficient_variants_failure(output_file, ancestry_labels):
+    """Write failure output and timing files when insufficient variants are detected."""
+    print("ERROR: MultiSuSiE mapping failed due to insufficient variants after filtering.")
+    col_names = ['VARIANT_ID'] + [f'Z_{p}' for p in ancestry_labels] + ['PIP', 'converged', 'cs']
+    pd.DataFrame(columns=col_names).to_csv(output_file, sep='\t', index=False)
+    output_dir = os.path.dirname(output_file) if os.path.dirname(output_file) else '.'
+    timing_dir = os.path.join(output_dir, 'timing')
+    os.makedirs(timing_dir, exist_ok=True)
+    timing_file = os.path.join(timing_dir, os.path.basename(output_file))
+    with open(timing_file, 'w') as f:
+        f.write("multisusie_time_seconds\n")
+        f.write("NA\n")
+
 def main():
     """Main function."""
     print("=== MultiSuSiE Multi-Population Fine-Mapping ===")
@@ -543,7 +560,11 @@ def main():
         save_results(multisusie_result, summ_stat_list, ancestry_labels, args.output_file)
         
         print("\n=== Analysis completed successfully! ===")
-        
+
+    except InsufficientVariantsError as e:
+        print(str(e))
+        write_insufficient_variants_failure(args.output_file, ancestry_labels)
+
     except Exception as e:
         print(f"ERROR: {e}")
         sys.exit(1)
