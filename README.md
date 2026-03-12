@@ -214,17 +214,17 @@ The filter is parallelised across CPU cores (see `--num-processes`).
 | Format | Description |
 |---|---|
 | TSV (default) | Tab-separated matrix with variant IDs as row and column labels |
-| Binary (`.vcor1`) | Raw float32 matrix; compatible with PLINK2 `.vcor1` format |
-| `.vcor1.vars` | Variant ID list matching the matrix order |
+| Plink2 (`.vcor1`) | Raw float32 matrix without row or column labels consistent with PLINK2 `.vcor1` format |
+| `.vcor1.vars` | Variant ID list matching the matrix order corresponding to PLINK2 format |
 
 ---
 
 ## Notes
 
-- **GPU acceleration**: Correlation computation uses PyTorch. NVIDIA (CUDA) GPUs are used automatically when available. AMD (ROCm) and Intel (XPU via IPEX) GPUs are supported after running `scripts/install_pytorch.sh` (see Installation). Pass `--cpu` to force CPU execution.
+- **GPU acceleration**: Correlation computation uses PyTorch. GPUs are used automatically when available. Pass `--cpu` to force CPU execution.
 - **Input format**: Summary statistics files should be sorted by chromosome and position (required by tabix). The indexing step sorts automatically.
 - **Header format**: Files with a `#`-prefixed header line (VCF-style) are handled correctly.
-- **Missing data**: Variants absent from a particular file are treated as beta = 0 for correlation computation.
+- **Missing data**: Variants absent from a particular file are masked for correlation computation.
 
 ---
 
