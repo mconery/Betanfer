@@ -231,22 +231,16 @@ def run_infer(args) -> None:
     logger.info(f"Found {len(indexed_pairs)} indexed file(s)")
 
     # ------------------------------------------------------------------
-    # Step 2: Determine compute device
+    # Step 2: Determine parallelism
     # ------------------------------------------------------------------
-    logger.info("Step 2: Detecting computation device for correlation calculations...")
-    device = autodetect_device(force_cpu=args.cpu)
-
-    # ------------------------------------------------------------------
-    # Step 3: Determine parallelism
-    # ------------------------------------------------------------------
-    logger.info("Step 3: Setting parallel thread count...")
+    logger.info("Step 2: Setting parallel thread count...")
     num_processes = args.num_processes if args.num_processes else os.cpu_count()
 
     # ------------------------------------------------------------------
-    # Step 4: Resolve column names
+    # Step 3: Resolve column names
     # ------------------------------------------------------------------
     first_gz = indexed_pairs[0][0]
-    logger.info("Step 4: Resolving column names...")
+    logger.info("Step 3: Resolving column names...")
     variant_col, beta_col, pval_col = _resolve_columns(args, first_gz)
     logger.info(
         f"Using: variant_col='{variant_col}', beta_col='{beta_col}'"
@@ -254,10 +248,10 @@ def run_infer(args) -> None:
     )
 
     # ------------------------------------------------------------------
-    # Step 5: Load / discover variants
+    # Step 4: Load / discover variants
     # ------------------------------------------------------------------
     if variant_file_mode:
-        logger.info("Step 5: Loading variants from file...")
+        logger.info("Step 4: Loading variants from file...")
         if not os.path.exists(args.variant_file):
             logger.error(f"Error: Variant file not found: {args.variant_file}")
             sys.exit(1)
@@ -289,7 +283,7 @@ def run_infer(args) -> None:
 
     else:
         logger.info(
-            f"Step 5: Using genomic range: {args.chrom}:{args.start}-{args.end}"
+            f"Step 4: Using genomic range: {args.chrom}:{args.start}-{args.end}"
         )
         active_chromosome = args.chrom
         # variant_map / variants_to_extract not needed for range mode
@@ -297,14 +291,14 @@ def run_infer(args) -> None:
         variants_to_extract = None
 
     # ------------------------------------------------------------------
-    # Step 6: P-value filtering (if requested)
+    # Step 5: P-value filtering (if requested)
     # ------------------------------------------------------------------
     # Start with all gz paths
     gz_files = [pair[0] for pair in indexed_pairs]
 
     if pval_filtering:
         logger.info(
-            f"Step 6: Filtering traits by p-value "
+            f"Step 5: Filtering traits by p-value "
             f"(threshold={pval_threshold:.2e}, column='{pval_col}')..."
         )
         if args.buffer:
@@ -361,9 +355,9 @@ def run_infer(args) -> None:
         filtering_stats = None
 
     # ------------------------------------------------------------------
-    # Step 7: Extract betas
+    # Step 6: Extract betas
     # ------------------------------------------------------------------
-    logger.info(f"Step 7: Extracting betas from {len(gz_files)} file(s)...")
+    logger.info(f"Step 6: Extracting betas from {len(gz_files)} file(s)...")
 
     if range_mode:
         beta_df = extract_betas_from_range(
@@ -400,7 +394,7 @@ def run_infer(args) -> None:
             logger.info(f"Missing data fraction: {missing_frac:.3f} (handled via pairwise deletion in correlation)")
 
     # ------------------------------------------------------------------
-    # Step 7.5: Filter traits with fewer than 2 variants in the locus
+    # Step 6.5: Filter traits with fewer than 2 variants in the locus
     # ------------------------------------------------------------------
     min_traits = args.min_traits
 
@@ -429,6 +423,12 @@ def run_infer(args) -> None:
         )
         _create_empty_outputs(args)
         return
+
+    # ------------------------------------------------------------------
+    # Step 7: Detect compute device and compute correlation matrix
+    # ------------------------------------------------------------------
+    logger.info("Step 7: Detecting computation device for correlation calculations...")
+    device = autodetect_device(force_cpu=args.cpu)
 
     # ------------------------------------------------------------------
     # Step 8: Compute correlation matrix
@@ -461,7 +461,7 @@ def run_infer(args) -> None:
         )
     else:
         output_path = args.output + ".txt"
-        logger.info(f"Step 9: Saving labeled LD matrix to {output_path}...")
+        logger.info(f"Step 8: Saving labeled LD matrix to {output_path}...")
         ld_df = pd.DataFrame(corr_np, index=variants_list, columns=variants_list)
         save_beta_matrix(ld_df, output_path, compress=False)
 
