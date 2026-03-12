@@ -29,8 +29,6 @@ conda activate /full/path/to/env/betanfer
 
 ### Step 2 — Install pytorch
 
-**HPC systems with a pre-built PyTorch module**
-
 Many HPC managers provide instructions on how to use pytorch on their systems and we have tested a few systems as well:
 
 | System | Instructions |
@@ -38,105 +36,12 @@ Many HPC managers provide instructions on how to use pytorch on their systems an
 | ALCF Aurora (Intel XPU) | pip install   torch==2.9.1+xpu   torchvision==0.24.1+xpu   torchaudio==2.9.1+xpu   --index-url https://download.pytorch.org/whl/xpu   --extra-index-url https://pypi.org/simple |
 | OLCF Frontier (AMD ROCm) | [PyTorch on OLCF Frontier](https://docs.olcf.ornl.gov/software/analytics/pytorch_frontier.html#installing-pytorch) - Make sure to reactivate environment after loading rocm module |
 
-**Workstations and other clusters**
-
-Install PyTorch yourself using the helper script, which auto-detects your GPU hardware:
-
-```bash
-bash scripts/install_pytorch.sh                   # auto-detect
-bash scripts/install_pytorch.sh --platform nvidia # override
-```
-
-`--platform` accepts: `nvidia` | `amd` | `intel` | `cpu`
-
-| Detected hardware | Action taken |
-|---|---|
-| NVIDIA | Installs CUDA wheel matched to your driver version |
-| AMD | Installs ROCm wheel matched to your ROCm version |
-| Intel | Installs PyTorch + [Intel Extension for PyTorch (IPEX)](https://github.com/intel/intel-extension-for-pytorch) from Intel's pip index |
-| None | Installs CPU-only wheel |
-
-
-
-**On HPC systems using a module-provided PyTorch (e.g. ALCF Aurora)**
-
-After loading your system PyTorch module, install betanfer directly into that Python environment:
-
-```bash
-# Example for ALCF Aurora
-module load frameworks
-pip install pysam
-pip install -e .
-```
-
-On HPC systems the pip entry point may land in a directory that is not on
-`$PATH`.  Use the `python -m betanfer` form instead — it works with any Python
-that has betanfer installed and requires no PATH configuration:
-
-```bash
-python -m betanfer --version
-python -m betanfer index --help
-```
-
-If you prefer the short `betanfer` command interactively, add the frameworks
-user bin to `PATH` once in your shell configuration:
-
-```bash
-# Add to ~/.bashrc after any module load frameworks line
-export PATH="$PYTHONUSERBASE/bin:$PATH"
-```
-
-**With pip only**
-
-```bash
-# Ensure pysam and torch are already installed
-pip install -e .
-```
-
 ### Verify installation
 
 ```bash
 betanfer --version
 betanfer --help
 ```
-
-### Troubleshooting: `betanfer` uses the wrong Python
-
-If `betanfer --version` fails with an import error, the entry point was
-installed by a different Python interpreter.  Fix it by reinstalling while the
-frameworks module is active:
-
-```bash
-module load frameworks
-pip install --force-reinstall -e .
-```
-
-You can confirm the correct shebang was written with:
-
-```bash
-head -1 $(which betanfer)
-# Should print: #!/opt/aurora/.../frameworks/.../bin/python3.10
-```
-
-To confirm PyTorch is available and GPU acceleration is working:
-
-```python
-import torch
-
-# Check basic import
-print(f"PyTorch version: {torch.__version__}")
-
-# NVIDIA (CUDA)
-print(f"CUDA available: {torch.cuda.is_available()}")
-
-# AMD (ROCm) — same interface as CUDA
-# print(f"CUDA/ROCm available: {torch.cuda.is_available()}")
-
-# Intel XPU (Aurora / Intel Data Center GPU)
-# import intel_extension_for_pytorch as ipex
-# print(f"XPU available: {torch.xpu.is_available()}")
-```
-
 ---
 
 ## Usage
