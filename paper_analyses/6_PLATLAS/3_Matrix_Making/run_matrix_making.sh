@@ -19,7 +19,7 @@
 #   At ~5 min/locus:  162,000 / (12 × 64 nodes) × 5 min ≈ 18 hours  ✓
 #
 #PBS -N matrix_making
-#PBS -l select=10:ncpus=208:ngpus=6
+#PBS -l select=2:ncpus=208:ngpus=6
 #PBS -l filesystems=home:flare
 #PBS -l walltime=1:00:00
 #PBS -q debug-scaling
@@ -33,7 +33,8 @@ LOG_DIR="/flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/script_logs"
 CMDS_FILE="${SCRIPT_DIR}/matrix_making.commands.txt"
 
 # ── Environment setup ───────────────────────────────────────────────────────────
-module load frameworks
+source ~/.bashrc
+conda activate /flare/GeomicVar/mconery/tools/parsl_gpu
 
 # ── Step 1: Generate file lists and command file ────────────────────────────────
 echo "NOTE: Generating matrix-making command list..."
