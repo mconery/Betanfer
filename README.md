@@ -13,9 +13,19 @@
 
 ## Installation
 
-### Step 1 — Set up PyTorch
-
 Betanfer uses PyTorch for GPU-accelerated correlation computation. How you install it depends on your system:
+
+### Step 1 — Install betanfer and non-pytorch dependencies
+
+**With Conda (recommended for workstations and non-HPC clusters)**
+
+```bash
+git clone https://github.com/your-org/betanfer.git
+cd betanfer
+
+conda env create -f environment.yml
+conda activate betanfer
+```
 
 **HPC systems with a pre-built PyTorch module**
 
@@ -44,19 +54,7 @@ bash scripts/install_pytorch.sh --platform nvidia # override
 | Intel | Installs PyTorch + [Intel Extension for PyTorch (IPEX)](https://github.com/intel/intel-extension-for-pytorch) from Intel's pip index |
 | None | Installs CPU-only wheel |
 
-### Step 2 — Install betanfer and remaining dependencies
 
-Once PyTorch is available in your Python environment, install betanfer and its remaining dependencies using `environment.yml` (recommended) or pip.
-
-**With Conda (recommended for workstations and non-HPC clusters)**
-
-```bash
-git clone https://github.com/your-org/betanfer.git
-cd betanfer
-
-conda env create -f environment.yml
-conda activate betanfer
-```
 
 **On HPC systems using a module-provided PyTorch (e.g. ALCF Aurora)**
 
