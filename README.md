@@ -17,24 +17,26 @@ Betanfer uses PyTorch for GPU-accelerated correlation computation. How you insta
 
 ### Step 1 — Install betanfer and non-pytorch dependencies
 
-**With Conda (recommended for workstations and non-HPC clusters)**
+**With Conda (recommended approach)**
 
 ```bash
 git clone https://github.com/your-org/betanfer.git
 cd betanfer
 
-conda env create -f environment.yml
-conda activate betanfer
+conda env create -f environment.yml --prefix /full/path/to/env/betanfer
+conda activate /full/path/to/env/betanfer
 ```
+
+### Step 2 — Install pytorch
 
 **HPC systems with a pre-built PyTorch module**
 
-Many HPC clusters provide an optimised, system-compiled PyTorch. Check your system's documentation and load (or activate) that environment first.
+Many HPC managers provide instructions on how to use pytorch on their systems and we have tested a few systems as well:
 
 | System | Instructions |
 |---|---|
-| ALCF Aurora (Intel XPU) | [PyTorch on Aurora](https://docs.alcf.anl.gov/aurora/data-science/frameworks/pytorch/) — load with `module load frameworks` |
-| OLCF Frontier (AMD ROCm) | [PyTorch on Frontier](https://docs.olcf.ornl.gov/software/analytics/pytorch_frontier.html) |
+| ALCF Aurora (Intel XPU) | pip install   torch==2.9.1+xpu   torchvision==0.24.1+xpu   torchaudio==2.9.1+xpu   --index-url https://download.pytorch.org/whl/xpu   --extra-index-url https://pypi.org/simple |
+| OLCF Frontier (AMD ROCm) | [PyTorch on OLCF Frontier](https://docs.olcf.ornl.gov/software/analytics/pytorch_frontier.html#installing-pytorch) |
 
 **Workstations and other clusters**
 
