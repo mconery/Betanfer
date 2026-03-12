@@ -172,11 +172,11 @@ def autodetect_device(force_cpu: bool = False) -> str:
         return "cpu"
     try:
         import intel_extension_for_pytorch as ipex  # noqa: F401
-        if torch.xpu.is_available():
-            logger.info("Intel XPU detected — using XPU for correlation computation.")
-            return "xpu"
     except ImportError:
-        pass
+        pass  # IPEX not required; native torch XPU support may still be available
+    if torch.xpu.is_available():
+        logger.info("Intel XPU detected — using XPU for correlation computation.")
+        return "xpu"
     if torch.cuda.is_available():
         logger.info("CUDA GPU detected — using GPU for correlation computation.")
         return "cuda"
