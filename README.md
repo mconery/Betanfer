@@ -79,11 +79,6 @@ betanfer index --file trait1.txt \
 
 # Re-index (overwrite existing .gz / .tbi files)
 betanfer index --file trait1.txt --chrom-col CHR --pos-col POS --force
-
-# Index many files in parallel with a shell loop
-for f in sumstats/*.txt; do
-    betanfer index --file "$f" --chrom-col CHR --pos-col POS --output-dir indexed/
-done
 ```
 
 **Column name auto-detection**
