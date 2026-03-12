@@ -40,9 +40,12 @@ LOG_DIR = "/flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/script_logs"
 # Root of the betanfer repository (where betanfer is installed)
 BETANFER_DIR = "/lus/flare/projects/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/Betanfer"
 
-# 12 GPU tiles per Aurora node: 6 GPUs × 2 tiles each
-# Tile names follow the ZE_AFFINITY_MASK convention "gpu_id.tile_id"
-tile_names = [f'{gid}.{tid}' for gid in range(6) for tid in range(2)]
+# 12 GPU tiles per Aurora node: 6 GPUs × 2 tiles each.
+# frameworks 2025.2.0 sets ZE_FLAT_DEVICE_HIERARCHY=FLAT, so all 12 tiles appear
+# as independent top-level Level Zero devices with plain integer indices 0–11.
+# ZE_AFFINITY_MASK must use these flat integers; the old "gpu_id.tile_id" (X.Y)
+# format only works in COMPOSITE mode and causes device_count==0 in FLAT mode.
+tile_names = [str(i) for i in range(12)]
 
 # CPU affinity: one group per tile (8 physical + 8 HT siblings = 16 logical CPUs).
 # Source: https://docs.alcf.anl.gov/aurora/workflows/parsl/
