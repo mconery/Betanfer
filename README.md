@@ -41,8 +41,9 @@ Many HPC managers provide instructions on how to use pytorch on their systems an
 
 ```bash
 betanfer --version
-betanfer infer --help
+betanfer --help
 ```
+**If you intend to use GPUs for the correlation calculations we recommend you check the log file the first time you use the infer command to make sure the code hasn't defaulted to the CPU-based implementation.**  
 ---
 
 ## Usage
