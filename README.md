@@ -37,7 +37,7 @@ Many HPC managers provide instructions on how to use pytorch on their systems an
 | AMD ROCm (OLCF Frontier) | [PyTorch on OLCF Frontier](https://docs.olcf.ornl.gov/software/analytics/pytorch_frontier.html#installing-pytorch) - Make sure to reactivate environment after loading rocm module |
 | NVIDIA CUDA (Most Systems) | pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu### - run with Cuda version appropriate to your system |
 
-### Verify installation
+### Step 3 - Verify installation
 
 ```bash
 betanfer --version
