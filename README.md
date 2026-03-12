@@ -29,13 +29,13 @@ conda activate /full/path/to/env/betanfer
 
 ### Step 2 — Install pytorch
 
-Many HPC managers provide instructions on how to use pytorch on their systems and we have tested a few systems as well:
+Many HPC managers provide instructions on how to use pytorch on their systems and we have tested a few systems as well. Here is some guidance for installing pytorch on systems with different types of GPUs:
 
 | System | Instructions |
 |---|---|
-| ALCF Aurora (Intel XPU) | pip install   torch==2.9.1+xpu   torchvision==0.24.1+xpu   torchaudio==2.9.1+xpu   --index-url https://download.pytorch.org/whl/xpu   --extra-index-url https://pypi.org/simple |
-| OLCF Frontier (AMD ROCm) | [PyTorch on OLCF Frontier](https://docs.olcf.ornl.gov/software/analytics/pytorch_frontier.html#installing-pytorch) - Make sure to reactivate environment after loading rocm module |
-| NVIDIA GPUs | pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu### - run with Cuda version appropriate to your system |
+| Intel XPU (ALCF Aurora) | pip install   torch==2.9.1+xpu   torchvision==0.24.1+xpu   torchaudio==2.9.1+xpu   --index-url https://download.pytorch.org/whl/xpu   --extra-index-url https://pypi.org/simple |
+| AMD ROCm (OLCF Frontier) | [PyTorch on OLCF Frontier](https://docs.olcf.ornl.gov/software/analytics/pytorch_frontier.html#installing-pytorch) - Make sure to reactivate environment after loading rocm module |
+| NVIDIA CUDA (Most Systems) | pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu### - run with Cuda version appropriate to your system |
 
 ### Verify installation
 
