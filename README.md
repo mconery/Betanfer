@@ -35,7 +35,9 @@ Many HPC managers provide instructions on how to use pytorch on their systems an
 
 | System | Instructions |
 |---|---|
-| ALCF Aurora (Intel XPU) | ```bash pip install   torch==2.9.1+xpu   torchvision==0.24.1+xpu   torchaudio==2.9.1+xpu   --index-url https://download.pytorch.org/whl/xpu   --extra-index-url https://pypi.org/simple ``` |
+| ALCF Aurora (Intel XPU) | ```bash 
+pip install   torch==2.9.1+xpu   torchvision==0.24.1+xpu   torchaudio==2.9.1+xpu   --index-url https://download.pytorch.org/whl/xpu   --extra-index-url https://pypi.org/simple 
+``` |
 | OLCF Frontier (AMD ROCm) | [PyTorch on OLCF Frontier](https://docs.olcf.ornl.gov/software/analytics/pytorch_frontier.html#installing-pytorch) |
 
 **Workstations and other clusters**
