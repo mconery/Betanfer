@@ -233,11 +233,13 @@ def run_infer(args) -> None:
     # ------------------------------------------------------------------
     # Step 2: Determine compute device
     # ------------------------------------------------------------------
+    logger.info("Step 2: Detecting computation device for correlation calculations...")
     device = autodetect_device(force_cpu=args.cpu)
 
     # ------------------------------------------------------------------
     # Step 3: Determine parallelism
     # ------------------------------------------------------------------
+    logger.info("Step 3: Setting parallel thread count...")
     num_processes = args.num_processes if args.num_processes else os.cpu_count()
 
     # ------------------------------------------------------------------
@@ -395,7 +397,7 @@ def run_infer(args) -> None:
     if beta_df.size > 0:
         missing_frac = beta_df.isna().sum().sum() / beta_df.size
         if missing_frac > 0:
-            logger.info(f"Missing data fraction: {missing_frac:.3f} (filled with 0)")
+            logger.info(f"Missing data fraction: {missing_frac:.3f} (handled via pairwise deletion in correlation)")
 
     # ------------------------------------------------------------------
     # Step 7.5: Filter traits with fewer than 2 variants in the locus
