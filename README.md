@@ -35,12 +35,13 @@ Many HPC managers provide instructions on how to use pytorch on their systems an
 |---|---|
 | ALCF Aurora (Intel XPU) | pip install   torch==2.9.1+xpu   torchvision==0.24.1+xpu   torchaudio==2.9.1+xpu   --index-url https://download.pytorch.org/whl/xpu   --extra-index-url https://pypi.org/simple |
 | OLCF Frontier (AMD ROCm) | [PyTorch on OLCF Frontier](https://docs.olcf.ornl.gov/software/analytics/pytorch_frontier.html#installing-pytorch) - Make sure to reactivate environment after loading rocm module |
+| NVIDIA GPUs | pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu### - run with Cuda version appropriate to your system |
 
 ### Verify installation
 
 ```bash
 betanfer --version
-betanfer --help
+betanfer infer --help
 ```
 ---
 
