@@ -24,7 +24,7 @@ group.
 Parallelism summary:
   12 workers/node × num_nodes (from PBS_NODEFILE) = concurrent betanfer runs
 
-***Run with ALCF frameworks module: module load frameworks***
+***Run with the parsl_gpu conda environment: conda activate /flare/GeomicVar/mconery/tools/parsl_gpu***
 '''
 
 import os
@@ -93,11 +93,12 @@ matrix_making_config = Config(
                     bind_cmd="--cpu-bind", overrides="--ppn 1"
                 ),
                 # Environment setup run before each worker process launches.
-                # frameworks module provides PyTorch with Intel XPU (IPEX) support
-                # and pysam / betanfer must be installed before workers start.
+                # parsl_gpu conda env provides parsl, PyTorch with Intel XPU (IPEX)
+                # support, pysam, and betanfer.
                 worker_init=(
-                    "source $HOME/.bashrc; "
-                    "module load frameworks; "
+                    "source /flare/GeomicVar/mconery/tools/miniconda3/etc/profile.d/conda.sh; "
+                    "conda activate /flare/GeomicVar/mconery/tools/parsl_gpu; "
+                    "export ZE_FLAT_DEVICE_HIERARCHY=FLAT; "
                     f"cd {BETANFER_DIR}"
                 ),
                 # Launch one block immediately; no dynamic scaling
