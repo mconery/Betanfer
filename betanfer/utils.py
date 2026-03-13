@@ -15,7 +15,7 @@ import concurrent.futures
 from pathlib import Path
 from collections import defaultdict
 from functools import partial
-from multiprocessing import Pool, cpu_count
+from multiprocessing import cpu_count
 from typing import Dict, List, Optional, Set, Tuple
 
 import numpy as np
@@ -335,6 +335,7 @@ def extract_betas_batch(
     beta_col: str,
     variants_to_extract: Set[str],
     variant_map: Dict[str, tuple],
+    num_processes: int = 1,
 ) -> pd.DataFrame:
     """
     Extract betas using per-variant tabix queries.
@@ -371,7 +372,7 @@ def extract_betas_batch(
             logger.error(f"Error processing {file_path}: {e}")
         return betas
 
-    num_threads = min(len(file_list), os.cpu_count() or 1)
+    num_threads = min(len(file_list), num_processes)
     with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as ex:
         results = [f.result() for f in
                    concurrent.futures.as_completed(
@@ -385,6 +386,7 @@ def extract_betas_batch_region(
     beta_col: str,
     variants_to_extract: Set[str],
     variant_map: Dict[str, tuple],
+    num_processes: int = 1,
 ) -> pd.DataFrame:
     """
     Extract betas using a single batch region query per file.
@@ -435,7 +437,7 @@ def extract_betas_batch_region(
             logger.error(f"Error processing {file_path}: {e}")
         return betas
 
-    num_threads = min(len(file_list), os.cpu_count() or 1)
+    num_threads = min(len(file_list), num_processes)
     logger.info(f"Using {num_threads} threads to process {len(file_list)} files")
     with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as ex:
         results = [f.result() for f in
@@ -455,6 +457,7 @@ def extract_betas_from_range(
     chrom: str,
     start: int,
     end: int,
+    num_processes: int = 1,
 ) -> pd.DataFrame:
     """
     Discover variants in a genomic range from the first indexed file, then
@@ -548,7 +551,7 @@ def extract_betas_from_range(
             logger.error(f"Error processing {file_path}: {e}")
         return betas
 
-    num_threads = min(len(file_list), os.cpu_count() or 1)
+    num_threads = min(len(file_list), num_processes)
     with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as ex:
         results = [f.result() for f in
                    concurrent.futures.as_completed(
@@ -871,7 +874,7 @@ def filter_traits_by_pvalue(
     """
     if num_processes is None:
         num_processes = cpu_count()
-    logger.info(f"Filtering {len(trait_files)} traits using {num_processes} processes")
+    logger.info(f"Filtering {len(trait_files)} traits using {num_processes} threads")
 
     check_fn = partial(
         _check_trait_wrapper,
@@ -895,11 +898,10 @@ def filter_traits_by_pvalue(
     }
     filtered_files: List[str] = []
 
-    chunksize = max(1, len(trait_files) // (num_processes * 4))
-    with Pool(processes=num_processes) as pool:
-        for i, (trait_file, is_sig, stats) in enumerate(
-            pool.imap_unordered(check_fn, trait_files, chunksize=chunksize)
-        ):
+    with concurrent.futures.ThreadPoolExecutor(max_workers=num_processes) as ex:
+        futures = {ex.submit(check_fn, f): f for f in trait_files}
+        for i, future in enumerate(concurrent.futures.as_completed(futures)):
+            trait_file, is_sig, stats = future.result()
             filtering_stats["traits_checked"] += 1
             if (i + 1) % 100 == 0:
                 logger.info(f"Filtered {i + 1}/{len(trait_files)} traits...")
@@ -984,7 +986,7 @@ def filter_traits_by_pvalue_in_range(
     query_end = end + buffer
     logger.info(
         f"Filtering {len(file_list)} traits for p < {pval_threshold} "
-        f"in {chrom}:{query_start}-{query_end} using {num_processes} processes"
+        f"in {chrom}:{query_start}-{query_end} using {num_processes} threads"
     )
 
     args_list = [
@@ -1000,11 +1002,10 @@ def filter_traits_by_pvalue_in_range(
     }
     filtered_files: List[str] = []
 
-    chunksize = max(1, len(file_list) // (num_processes * 4))
-    with Pool(processes=num_processes) as pool:
-        for i, (trait_file, is_sig, details) in enumerate(
-            pool.imap_unordered(_check_pvalue_in_range, args_list, chunksize=chunksize)
-        ):
+    with concurrent.futures.ThreadPoolExecutor(max_workers=num_processes) as ex:
+        futures = {ex.submit(_check_pvalue_in_range, args): args[0] for args in args_list}
+        for i, future in enumerate(concurrent.futures.as_completed(futures)):
+            trait_file, is_sig, details = future.result()
             if (i + 1) % 100 == 0:
                 logger.info(f"Filtered {i + 1}/{len(file_list)} traits...")
             filtering_stats["trait_details"].append(details)
