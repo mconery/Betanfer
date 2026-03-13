@@ -367,6 +367,7 @@ def run_infer(args) -> None:
             chrom=args.chrom,
             start=args.start,
             end=args.end,
+            num_processes=num_processes,
         )
     elif args.non_contiguous:
         beta_df = extract_betas_batch(
@@ -375,6 +376,7 @@ def run_infer(args) -> None:
             beta_col=beta_col,
             variants_to_extract=variants_to_extract,
             variant_map=variant_map,
+            num_processes=num_processes,
         )
     else:
         beta_df = extract_betas_batch_region(
@@ -383,6 +385,7 @@ def run_infer(args) -> None:
             beta_col=beta_col,
             variants_to_extract=variants_to_extract,
             variant_map=variant_map,
+            num_processes=num_processes,
         )
 
     logger.info(
