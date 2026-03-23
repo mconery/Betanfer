@@ -5,6 +5,7 @@ Utility functions for indexing GWAS summary statistics and computing LD matrices
 from beta correlations. Core logic ported from paper_analyses/5_LD_Inference/.
 """
 
+import io
 import os
 import re
 import glob
@@ -610,26 +611,31 @@ def compute_beta_correlation_matrix(
     sum_x2 = (X * X) @ M.T             # sum of X[i]^2 where X[j] non-missing
     sum_y2 = M @ (X * X).T             # sum of X[j]^2 where X[i] non-missing
     sum_xy = X @ X.T                    # sum of X[i]*X[j] (0s cancel missing)
+    del X, M                            # no longer needed; free cache slots for below
 
     # Pairwise variances and covariance
-    var_x  = sum_x2 - (sum_x * sum_x) / N
-    var_y  = sum_y2 - (sum_y * sum_y) / N
-    cov_xy = sum_xy - (sum_x * sum_y) / N
+    # Each intermediate is deleted as soon as it is consumed so the caching
+    # allocator can reuse that memory rather than growing peak XPU usage.
+    var_x  = sum_x2 - (sum_x * sum_x) / N;   del sum_x2
+    var_y  = sum_y2 - (sum_y * sum_y) / N;   del sum_y2
+    cov_xy = sum_xy - (sum_x * sum_y) / N;   del sum_x, sum_y, sum_xy
 
     # Pearson r
-    denom = torch.sqrt(var_x * var_y)
-    r = cov_xy / denom
+    denom = torch.sqrt(var_x * var_y);        del var_x, var_y
+    r     = cov_xy / denom;                   del cov_xy
 
     # Set to NaN where there are too few jointly non-missing traits or
-    # where the denominator is invalid (zero variance in either variant)
+    # where the denominator is invalid (zero variance in either variant).
+    # Use in-place assignment to avoid allocating a full new n×n tensor.
     min_n = 2
-    invalid = (N < min_n) | ~(denom > 0)
-    r = torch.where(invalid, torch.full_like(r, float("nan")), r)
+    invalid = (N < min_n) | ~(denom > 0);    del N, denom
+    r[invalid] = float("nan");               del invalid
 
-    # Clamp to [-1, 1] to absorb floating-point rounding error
-    r = torch.clamp(r, -1.0, 1.0)
+    # Clamp to [-1, 1] in-place to absorb floating-point rounding error
+    r.clamp_(-1.0, 1.0)
 
     corr_np = r.cpu().numpy().astype(np.float32)
+    del r
 
     return corr_np
 
@@ -660,7 +666,15 @@ def save_plink2_matrix(
     """
     vcor1_path = f"{output_prefix}.vcor1"
     vars_path  = f"{output_prefix}.vcor1.vars"
-    np.savetxt(vcor1_path, corr_np, delimiter="\t", fmt="%.6g")
+    # Write row-by-row in ≤64 KB chunks to avoid E2BIG on Lustre for wide matrices
+    _CHUNK = 65536
+    with open(vcor1_path, "wb") as fh:
+        for i in range(corr_np.shape[0]):
+            buf = io.BytesIO()
+            np.savetxt(buf, corr_np[i:i+1], delimiter="\t", fmt="%.6g")
+            line = buf.getvalue()
+            for k in range(0, len(line), _CHUNK):
+                fh.write(line[k:k+_CHUNK])
     with open(vars_path, "w") as vf:
         for variant in variants_list:
             vf.write(f"{variant}\n")
