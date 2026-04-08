@@ -205,6 +205,7 @@ The filter is parallelised across CPU cores (see `--num-processes`).
 | `--buffer BP` | 0 | Extend p-value check region by this many bp |
 | `--stats-output FILE` | — | Per-trait filtering statistics (TSV) |
 | `--num-processes N` | all CPUs | Parallel processes for p-value filtering |
+| `--chunk-size N` | off | Break GPU correlation into N-variant blocks to limit peak memory (recommended for >20 000 variants) |
 | `--save-binary` | off | Save `.vcor1` + `.vcor1.vars` instead of TSV |
 
 ---
@@ -222,6 +223,7 @@ The filter is parallelised across CPU cores (see `--num-processes`).
 ## Notes
 
 - **GPU acceleration**: Correlation computation uses PyTorch. GPUs are used automatically when available. Pass `--cpu` to force CPU execution.
+- **Large loci**: For loci with >~20 000 variants the GPU correlation step may exceed device memory. Pass `--chunk-size 15000` to compute the matrix in 15 000-variant blocks (~5.7 GB peak on Intel XPU). This flag is a no-op when the locus is smaller than the chunk size.
 - **Input format**: Summary statistics files should be sorted by chromosome and position (required by tabix). The indexing step sorts automatically.
 - **Header format**: Files with a `#`-prefixed header line (VCF-style) are handled correctly.
 - **Missing data**: Variants absent from a particular file are masked for correlation computation.
