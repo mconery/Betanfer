@@ -640,6 +640,87 @@ def compute_beta_correlation_matrix(
     return corr_np
 
 
+def compute_beta_correlation_matrix_chunked(
+    betas_df: pd.DataFrame,
+    device: str = "cuda",
+    chunk_size: int = 15000,
+) -> np.ndarray:
+    """
+    Block-wise chunked pairwise correlation matrix from a beta DataFrame.
+
+    Computes the same pairwise-deletion Pearson correlation as
+    compute_beta_correlation_matrix, but processes the variant dimension in
+    blocks of `chunk_size` rows to keep peak GPU memory at O(chunk_size²)
+    instead of O(n²). Recommended for loci with >~20 000 variants that would
+    otherwise exhaust GPU memory.
+
+    Args:
+        betas_df:   Variants × traits DataFrame.
+        device:     'cuda', 'xpu', or 'cpu'.
+        chunk_size: Maximum number of variants per GPU block.
+
+    Returns:
+        Correlation matrix as a float32 numpy array.
+    """
+    values = betas_df.values.astype(np.float32)
+    mask = (~np.isnan(values)).astype(np.float32)
+    values_filled = np.where(mask.astype(bool), values, 0.0).astype(np.float32)
+
+    n = len(betas_df)
+    corr_np = np.empty((n, n), dtype=np.float32)
+
+    n_chunks = (n + chunk_size - 1) // chunk_size
+    n_blocks = n_chunks * (n_chunks + 1) // 2
+    block_idx = 0
+
+    for i_start in range(0, n, chunk_size):
+        i_end = min(i_start + chunk_size, n)
+        X_r = torch.tensor(values_filled[i_start:i_end, :], device=device, dtype=torch.float32)
+        M_r = torch.tensor(mask[i_start:i_end, :], device=device, dtype=torch.float32)
+
+        for j_start in range(i_start, n, chunk_size):
+            j_end = min(j_start + chunk_size, n)
+            block_idx += 1
+            logger.info(f"  Block {block_idx}/{n_blocks}: rows {i_start}-{i_end} x cols {j_start}-{j_end}")
+
+            if j_start == i_start:
+                X_c, M_c = X_r, M_r
+            else:
+                X_c = torch.tensor(values_filled[j_start:j_end, :], device=device, dtype=torch.float32)
+                M_c = torch.tensor(mask[j_start:j_end, :], device=device, dtype=torch.float32)
+
+            N      = M_r @ M_c.T
+            sum_x  = X_r @ M_c.T
+            sum_y  = M_r @ X_c.T
+            sum_x2 = (X_r * X_r) @ M_c.T
+            sum_y2 = M_r @ (X_c * X_c).T
+            sum_xy = X_r @ X_c.T
+
+            var_x  = sum_x2 - (sum_x * sum_x) / N;  del sum_x2
+            var_y  = sum_y2 - (sum_y * sum_y) / N;  del sum_y2
+            cov_xy = sum_xy - (sum_x * sum_y) / N;  del sum_x, sum_y, sum_xy
+
+            denom  = torch.sqrt(var_x * var_y);      del var_x, var_y
+            r      = cov_xy / denom;                 del cov_xy
+
+            min_n = 2
+            invalid = (N < min_n) | ~(denom > 0);   del N, denom
+            r[invalid] = float("nan");               del invalid
+            r.clamp_(-1.0, 1.0)
+
+            block_np = r.cpu().numpy().astype(np.float32)
+            del r
+
+            corr_np[i_start:i_end, j_start:j_end] = block_np
+            if j_start != i_start:
+                corr_np[j_start:j_end, i_start:i_end] = block_np.T
+                del X_c, M_c
+
+        del X_r, M_r
+
+    return corr_np
+
+
 def save_beta_matrix(
     beta_matrix: pd.DataFrame, output_path: str, compress: bool = False
 ) -> None:
@@ -778,6 +859,8 @@ def check_trait_pvalue_significance_optimized(
     try:
         with pysam.TabixFile(trait_file) as tf:
             header = tf.header[0].strip().split("\t") if tf.header else []
+            if header and header[0].startswith("#"):
+                header[0] = header[0][1:]
             if not header:
                 logger.warning(f"No header in {trait_file}")
                 return False, stats

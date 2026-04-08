@@ -36,6 +36,7 @@ from betanfer.utils import (
     write_filtering_stats,
     # Computation & output
     compute_beta_correlation_matrix,
+    compute_beta_correlation_matrix_chunked,
     save_beta_matrix,
     save_plink2_matrix,
     save_binary_matrix,
@@ -437,10 +438,19 @@ def run_infer(args) -> None:
     # Step 8: Compute correlation matrix
     # ------------------------------------------------------------------
     logger.info(f"Step 8: Computing LD matrix on device='{device}'...")
-    corr_np = compute_beta_correlation_matrix(
-        betas_df=beta_df,
-        device=device,
-    )
+    chunk_size = getattr(args, 'chunk_size', None)
+    if chunk_size is not None:
+        logger.info(f"  Using chunked computation (chunk_size={chunk_size})")
+        corr_np = compute_beta_correlation_matrix_chunked(
+            betas_df=beta_df,
+            device=device,
+            chunk_size=chunk_size,
+        )
+    else:
+        corr_np = compute_beta_correlation_matrix(
+            betas_df=beta_df,
+            device=device,
+        )
     logger.info(f"LD matrix shape: {corr_np.shape[0]} × {corr_np.shape[1]}")
 
     # ------------------------------------------------------------------

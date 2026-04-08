@@ -148,6 +148,10 @@ Examples:
   # Non-contiguous variants; force CPU; explicit column names
   betanfer infer --dir indexed/ --variant-file scattered_variants.txt \\
       --output ld.tsv --variant-col SNP --beta-col BETA --non-contiguous --cpu
+
+  # Large locus (>20 000 variants): chunked GPU computation to stay within memory
+  betanfer infer --dir indexed/ --variant-file large_region.txt --output prefix \\
+      --plink2-format --chunk-size 15000
 """,
     )
 
@@ -317,6 +321,17 @@ Examples:
         action="store_true",
         default=False,
         help="Force CPU computation even if a CUDA GPU is available.",
+    )
+    comp_group.add_argument(
+        "--chunk-size",
+        metavar="N",
+        type=int,
+        default=None,
+        help=(
+            "Split the variant-by-variant GPU correlation computation into blocks "
+            "of N variants to reduce peak GPU memory. Recommended for loci with "
+            ">20 000 variants. [default: no chunking]"
+        ),
     )
     comp_group.add_argument(
         "--num-processes",
