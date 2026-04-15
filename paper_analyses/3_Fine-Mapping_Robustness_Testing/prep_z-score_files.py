@@ -93,9 +93,13 @@ def main(argv):
         print(f"ERROR: Missing columns in GWAS file: {', '.join(missing)}")
         sys.exit(1)
 
-    # Filter and calculate scores
+    # Filter and calculate scores; drop duplicates (some RSIDs appear for multiple
+    # alleles at multiallelic sites — keep lowest SE for best precision)
     filtered = df[df[varcol].isin(target_variants)].copy()
-    
+    if se_col and se_col in filtered.columns:
+        filtered = filtered.sort_values(se_col, ascending=True)
+    filtered = filtered.drop_duplicates(subset=[varcol], keep='first')
+
     if zcol:
         filtered['zscore'] = filtered[zcol]
     else:
