@@ -6,9 +6,8 @@ generate betanfer infer commands for every significant locus in each of the five
 population master CSVs produced by the locus-defining pipeline.
 
 Each command runs betanfer infer for one (locus, cohort+population) pair:
-  - File list:     all sumstats files from that cohort+population that participated
-                   in the analysis (from the linker for EUR/AFR/ALL; from the MVP
-                   sumstats directory for MVP_EUR/MVP_AFR)
+  - File list:     all sumstats files from that cohort+population (full directory
+                   scan for EUR/AFR/ALL and MVP_EUR/MVP_AFR)
   - Region:        the locus CHR/START/END
   - P-val filter:  --pval-threshold 5e-8 (exclude traits with no locus signal)
   - Output:        {LD_BASE}/{TRAIT}.{ANALYSIS_POP}/chr{CHR}_{START}_{END}.{COHORT}.{COHORT_POP}
@@ -48,7 +47,7 @@ MVP_POPS = {"MVP_EUR": "EUR", "MVP_AFR": "AFR"}  # analysis_pop → mvp_dir_pop
 
 # betanfer infer options applied to every command
 PVAL_THRESHOLD = "5e-8"
-NUM_PROCESSES  = 8   # matches physical cores per GPU-tile worker (16 logical / 2)
+NUM_PROCESSES  = 12  # matches physical cores per worker (32 logical / 2; 6 workers/node)
 
 # Parallel workers for filesystem existence checks (Lustre handles many concurrent stats well)
 NUM_WORKERS = multiprocessing.cpu_count()
@@ -77,8 +76,10 @@ def build_file_lists(linker_file, mvp_sumstats, ld_base):
     groups = defaultdict(set)   # (analysis_pop, cohort, cohort_pop) → set of paths
 
     # ── Linker-based groups (EUR, AFR, ALL meta-analyses) ──────────────────────
-    # Phase 1: parse all entries without any filesystem calls
-    raw_entries = []  # (analysis_pop, cohort, cohort_pop, full_path)
+    # Phase 1: parse linker to collect unique (analysis_pop, cohort, cohort_pop)
+    # pairs — individual file paths are not used; the linker only tells us which
+    # cohort+population directories belong to each meta-analysis population.
+    linker_pairs = defaultdict(set)  # analysis_pop → set of (cohort, cohort_pop)
     with open(linker_file, 'r') as fh:
         for line in fh:
             line = line.rstrip('\n')
@@ -103,22 +104,22 @@ def build_file_lists(linker_file, mvp_sumstats, ld_base):
             if len(path_parts) < 3:
                 print(f"WARNING: Cannot parse cohort/pop from path '{rel_path}', skipping")
                 continue
-            cohort     = path_parts[0]
-            cohort_pop = path_parts[1]
-            full_path  = os.path.join(SUMSTATS_BASE, rel_path)
-            raw_entries.append((analysis_pop, cohort, cohort_pop, full_path))
+            linker_pairs[analysis_pop].add((path_parts[0], path_parts[1]))
 
-    # Phase 2: check all unique paths in parallel, then filter
-    unique_paths = list({e[3] for e in raw_entries})
-    print(f"NOTE: Checking {len(unique_paths)} linker paths in parallel ({NUM_WORKERS} workers)...")
-    with ThreadPoolExecutor(max_workers=NUM_WORKERS) as ex:
-        path_exists = dict(zip(unique_paths, ex.map(os.path.exists, unique_paths)))
-
-    for analysis_pop, cohort, cohort_pop, full_path in raw_entries:
-        if path_exists[full_path]:
-            groups[(analysis_pop, cohort, cohort_pop)].add(full_path)
-        else:
-            print(f"WARNING: Linker file not found, excluding: {full_path}")
+    # Phase 2: scan full cohort+population directories for ALL available sumstats
+    for analysis_pop, pairs in sorted(linker_pairs.items()):
+        for cohort, cohort_pop in sorted(pairs):
+            cohort_dir = os.path.join(SUMSTATS_BASE, cohort, cohort_pop)
+            if not os.path.isdir(cohort_dir):
+                print(f"WARNING: Directory not found, skipping: {cohort_dir}")
+                continue
+            all_gz = glob.glob(os.path.join(cohort_dir, "*.sumstats.txt.gz"))
+            if not all_gz:
+                print(f"WARNING: No sumstats files found in {cohort_dir}")
+                continue
+            for f in all_gz:
+                groups[(analysis_pop, cohort, cohort_pop)].add(f)
+            print(f"NOTE: {analysis_pop}.{cohort}.{cohort_pop}: found {len(all_gz)} files")
 
     # ── MVP directory scans for MVP_EUR and MVP_AFR ────────────────────────────
     for analysis_pop, dir_pop in MVP_POPS.items():
@@ -215,7 +216,7 @@ def generate_commands(groups, loci_dir, ld_base):
                     f"{trait}.{analysis_pop}",
                     f"chr{chrom}_{start}_{end}.{cohort}.{cohort_pop}"
                 )
-                sentinel = output_prefix + ".vcor1"
+                sentinel = output_prefix + ".vcor1.vars"
                 cmd = (
                     f"python -m betanfer infer"
                     f" --file-list {file_list_path}"
