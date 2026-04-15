@@ -49,15 +49,15 @@ Options:
 ###############################################################################
 
 def get_sentinel_path(command):
-    """Return the expected .vcor1 sentinel path for a betanfer infer command.
+    """Return the expected .vcor1.vars sentinel path for a betanfer infer command.
 
-    Parses --output {prefix} from the command string and appends '.vcor1'.
+    Parses --output {prefix} from the command string and appends '.vcor1.vars'.
     Returns None if --output cannot be found.
     """
     parts = command.split()
     for i, part in enumerate(parts):
         if part == "--output" and i + 1 < len(parts):
-            return parts[i + 1] + ".vcor1"
+            return parts[i + 1] + ".vcor1.vars"
     return None
 
 
@@ -71,9 +71,9 @@ def get_task_label(command):
     sentinel = get_sentinel_path(command)
     if sentinel is None:
         return None
-    # sentinel = {LD_BASE}/{TRAIT}.{ANALYSIS_POP}/chr...{COHORT}.{COHORT_POP}.vcor1
-    # strip .vcor1 to get output prefix, then take the last two path components
-    prefix   = sentinel[:-len(".vcor1")]
+    # sentinel = {LD_BASE}/{TRAIT}.{ANALYSIS_POP}/chr...{COHORT}.{COHORT_POP}.vcor1.vars
+    # strip .vcor1.vars to get output prefix, then take the last two path components
+    prefix   = sentinel[:-len(".vcor1.vars")]
     analysis = os.path.basename(os.path.dirname(prefix))   # e.g. Phe_008_52.EUR
     locus    = os.path.basename(prefix)                     # e.g. chr1_1000000_1500000.MVP.EUR
     return f"{analysis}.{locus}"

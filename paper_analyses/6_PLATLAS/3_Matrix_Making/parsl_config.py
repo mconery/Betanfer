@@ -9,20 +9,23 @@ PBS script (run_matrix_making.sh) must therefore request all worker nodes
 upfront.
 
 Each Aurora GPU node has 6 GPUs × 2 tiles = 12 GPU tiles.  One parsl worker
-is bound to each tile via:
+is bound to one tile per physical GPU (6 workers/node) via:
   - available_accelerators: sets ZE_AFFINITY_MASK per worker (Intel XPU)
-  - cpu_affinity:           pins each worker to its own 16 logical CPU cores
-                            (8 physical + 8 HT siblings), preventing CPU
+  - cpu_affinity:           pins each worker to its own 32 logical CPU cores
+                            (16 physical + 16 HT siblings), preventing CPU
                             oversubscription across workers on the same node.
+
+Using 6 workers instead of 12 halves the concurrent Lustre file operations per
+node, preventing client-side RPC saturation when processing large cohorts.
 
 betanfer infer is GPU-accelerated and detects its assigned tile automatically
 from the ZE_AFFINITY_MASK environment variable set by parsl.  The --num-processes
 option in the betanfer command controls parallel CPU use for the p-value
-filtering stage; 8 processes matches the 8 physical cores per tile affinity
-group.
+filtering and beta extraction stages; 12 processes uses 12 of the 16 physical
+cores available in each worker's affinity group.
 
 Parallelism summary:
-  12 workers/node × num_nodes (from PBS_NODEFILE) = concurrent betanfer runs
+  6 workers/node × num_nodes (from PBS_NODEFILE) = concurrent betanfer runs
 
 ***Run with the parsl_gpu conda environment: conda activate /flare/GeomicVar/mconery/tools/parsl_gpu***
 '''
@@ -40,31 +43,26 @@ LOG_DIR = "/flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/script_logs"
 # Root of the betanfer repository (where betanfer is installed)
 BETANFER_DIR = "/lus/flare/projects/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/Betanfer"
 
-# 12 GPU tiles per Aurora node: 6 GPUs × 2 tiles each.
-# frameworks 2025.2.0 sets ZE_FLAT_DEVICE_HIERARCHY=FLAT, so all 12 tiles appear
-# as independent top-level Level Zero devices with plain integer indices 0–11.
-# ZE_AFFINITY_MASK must use these flat integers; the old "gpu_id.tile_id" (X.Y)
-# format only works in COMPOSITE mode and causes device_count==0 in FLAT mode.
-tile_names = [str(i) for i in range(12)]
+# 6 workers per Aurora node: one per physical GPU (skipping the second tile of
+# each GPU).  Aurora has 6 GPUs × 2 tiles = 12 tiles total; in FLAT hierarchy
+# tiles appear as independent Level Zero devices 0–11.  Using every other tile
+# (0, 2, 4, 6, 8, 10) halves the number of concurrent workers per node, which
+# reduces Lustre client contention when processing large cohorts like FINNGEN
+# that require thousands of concurrent file reads.
+tile_names = [str(i) for i in range(0, 12, 2)]
 
-# CPU affinity: one group per tile (8 physical + 8 HT siblings = 16 logical CPUs).
-# Source: https://docs.alcf.anl.gov/aurora/workflows/parsl/
-# The 12 groups map 1:1 with tile_names above.  Total CPUs pinned: 12 × 16 = 192
-# (out of 208 on the node; remaining 16 are reserved for OS / management).
+# CPU affinity: one group per worker (16 physical + 16 HT siblings = 32 logical
+# CPUs).  Adjacent 8-core groups from the original 12-worker layout are merged
+# in pairs, maintaining NUMA locality (workers 0–2 → socket 0, 3–5 → socket 1).
+# Total CPUs pinned: 6 × 32 = 192 (out of 208; remaining 16 reserved for OS).
 cpu_affinity = (
     "list:"
-    "1-8,105-112:"
-    "9-16,113-120:"
-    "17-24,121-128:"
-    "25-32,129-136:"
-    "33-40,137-144:"
-    "41-48,145-152:"
-    "53-60,157-164:"
-    "61-68,165-172:"
-    "69-76,173-180:"
-    "77-84,181-188:"
-    "85-92,189-196:"
-    "93-100,197-204"
+    "1-16,105-120:"
+    "17-32,121-136:"
+    "33-48,137-152:"
+    "53-68,157-172:"
+    "69-84,173-188:"
+    "85-100,189-204"
 )
 
 # Determine number of allocated nodes from the PBS environment.
