@@ -374,10 +374,14 @@ def extract_betas_batch(
         return betas
 
     num_threads = min(len(file_list), num_processes)
+    total_files = len(file_list)
     with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as ex:
-        results = [f.result() for f in
-                   concurrent.futures.as_completed(
-                       [ex.submit(_process, f) for f in file_list])]
+        futures = [ex.submit(_process, f) for f in file_list]
+        results = []
+        for i, fut in enumerate(concurrent.futures.as_completed(futures)):
+            results.append(fut.result())
+            if (i + 1) % 100 == 0:
+                logger.info(f"  Extracted betas from {i + 1}/{total_files} files...")
     return pd.concat(results, axis=1)
 
 
@@ -439,11 +443,15 @@ def extract_betas_batch_region(
         return betas
 
     num_threads = min(len(file_list), num_processes)
-    logger.info(f"Using {num_threads} threads to process {len(file_list)} files")
+    total_files = len(file_list)
+    logger.info(f"Using {num_threads} threads to process {total_files} files")
     with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as ex:
-        results = [f.result() for f in
-                   concurrent.futures.as_completed(
-                       [ex.submit(_process, f) for f in file_list])]
+        futures = [ex.submit(_process, f) for f in file_list]
+        results = []
+        for i, fut in enumerate(concurrent.futures.as_completed(futures)):
+            results.append(fut.result())
+            if (i + 1) % 100 == 0:
+                logger.info(f"  Extracted betas from {i + 1}/{total_files} files...")
     beta_df = pd.concat(results, axis=1)
     logger.info(
         f"Extracted betas: {beta_df.shape[0]} variants × {beta_df.shape[1]} files"
@@ -553,10 +561,14 @@ def extract_betas_from_range(
         return betas
 
     num_threads = min(len(file_list), num_processes)
+    total_files = len(file_list)
     with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as ex:
-        results = [f.result() for f in
-                   concurrent.futures.as_completed(
-                       [ex.submit(_process, f) for f in file_list])]
+        futures = [ex.submit(_process, f) for f in file_list]
+        results = []
+        for i, fut in enumerate(concurrent.futures.as_completed(futures)):
+            results.append(fut.result())
+            if (i + 1) % 100 == 0:
+                logger.info(f"  Extracted betas from {i + 1}/{total_files} files...")
     beta_df = pd.concat(results, axis=1)
     logger.info(
         f"Extracted betas: {beta_df.shape[0]} variants × {beta_df.shape[1]} files"
