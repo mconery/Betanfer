@@ -19,10 +19,10 @@
 #   At ~5 min/locus:  162,000 / (12 × 64 nodes) × 5 min ≈ 18 hours  ✓
 #
 #PBS -N matrix_making
-#PBS -l select=10:ncpus=208:ngpus=6
+#PBS -l select=256:ncpus=208:ngpus=6
 #PBS -l filesystems=home:flare
-#PBS -l walltime=1:00:00
-#PBS -q debug-scaling
+#PBS -l walltime=8:00:00
+#PBS -q prod
 #PBS -A GeomicVar
 #PBS -j oe
 #PBS -o /flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/script_logs/matrix_making.log
