@@ -28,9 +28,8 @@ mvp_dir="${base_dir}/LD_matrices/mvp_platlas_loci"
 # Locus list
 locus_csv="${script_dir}/sampled_loci_750kb.csv"
 
-# Plink registry and files
-registry_file="/gpfs/arx2/bif154_mde/proj-shared/RITM0309091/pgen/hg19.chunk_register.csv"
-plink_dir="/gpfs/arx2/bif154_mde/proj-shared/RITM0309091/pgen"
+# rsID position lookup (built on Aurora by build_rsid_lookup.py, then transferred)
+lookup_file="/sw/frontier/mde/bif154_mde/betanfer_project/LD_matrices/rsid_pos_lookup.tsv"
 
 # Output
 output_file="${base_dir}/LD_matrices/mvp_matrix_comparison.tsv.gz"
@@ -41,6 +40,7 @@ populations="AFR,EUR"
 echo "Starting Betanfer vs raw MVP LD matrix comparison"
 echo "Betanfer matrices: ${betanfer_dir}"
 echo "Raw MVP matrices:  ${mvp_dir}"
+echo "rsID lookup:       ${lookup_file}"
 echo "Output:            ${output_file}"
 
 ###########################################################################################################################################################
@@ -49,8 +49,7 @@ python3 "${script_dir}/compare_matrices.py" \
     -b "${betanfer_dir}" \
     -m "${mvp_dir}" \
     -l "${locus_csv}" \
-    -r "${registry_file}" \
-    -p "${plink_dir}" \
+    -k "${lookup_file}" \
     -o "${output_file}" \
     -a "${populations}"
 
