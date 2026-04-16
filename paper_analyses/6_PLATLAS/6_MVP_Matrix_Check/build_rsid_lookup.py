@@ -3,12 +3,11 @@
 build_rsid_lookup.py
 
 The purpose of this script is to build an rsID -> genomic position lookup
-table from the MVP hg19 summary statistics files for the 100 sampled PLATLAS
-loci.
+from the MVP hg19 summary statistics files for the 100 sampled PLATLAS loci.
 
 Betanfer LD matrices store variant IDs as rsIDs (taken from the RSID column of
 the MVP sumstats), while the raw plink-based MVP matrices use chr:pos:a1:a2
-format (from the plink BIM file).  To compare the two, we need a table that
+format (from the plink BIM file).  To compare the two, we need a dict that
 maps each rsID to its genomic position and alleles.
 
 The MVP hg19 sumstats are bgzip-compressed and tabix-indexed, so each locus
@@ -16,11 +15,11 @@ region is queried efficiently via tabix.  To maximise variant coverage, a small
 number of sumstats files per population is scanned (default: 3).  The rsID->
 position mapping is consistent across files for the same variant.
 
-Output TSV columns: RSID, CHR, POS, REF, ALT
+Output: JSON file mapping rsID -> [CHR, POS, REF, ALT]
 
 Usage:
   python build_rsid_lookup.py [-l <locus_csv>] [-s <sumstats_base>]
-                              [-o <output_tsv>] [-n <n_files>]
+                              [-o <output_json>] [-n <n_files>]
 
 ***Run in Conda finemap_old environment on Aurora***
 
@@ -31,8 +30,8 @@ import getopt
 import os
 import gzip
 import glob
+import json
 import subprocess
-import csv
 import pandas as pd
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
@@ -40,7 +39,7 @@ _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 DEFAULT_LOCUS_CSV     = os.path.join(_SCRIPT_DIR, "sampled_loci_750kb.csv")
 DEFAULT_SUMSTATS_BASE = "/flare/GeomicVar/multi-biobank-meta/sumstats/MVP_hg19"
-DEFAULT_OUTPUT        = os.path.join(_SCRIPT_DIR, "rsid_pos_lookup.tsv")
+DEFAULT_OUTPUT        = os.path.join(_SCRIPT_DIR, "rsid_pos_lookup.json")
 DEFAULT_N_FILES       = 3
 
 POPULATIONS = ["EUR", "AFR"]
@@ -53,8 +52,8 @@ ARGUMENTS
       (default: sampled_loci_750kb.csv next to this script)
 -s => MVP hg19 sumstats base directory containing EUR/ and AFR/ subdirs
       (default: /flare/.../sumstats/MVP_hg19)
--o => Output lookup TSV file path
-      (default: rsid_pos_lookup.tsv next to this script)
+-o => Output lookup JSON file path
+      (default: rsid_pos_lookup.json next to this script)
 -n => Number of sumstats files to scan per population (default: 3)
 -h => Print this help message
 -----------------------------------------------------------------""")
@@ -79,7 +78,7 @@ def main(argv):
 
     locus_csv     = options_dict.get('-l', DEFAULT_LOCUS_CSV)
     sumstats_base = options_dict.get('-s', DEFAULT_SUMSTATS_BASE)
-    output_tsv    = options_dict.get('-o', DEFAULT_OUTPUT)
+    output_json   = options_dict.get('-o', DEFAULT_OUTPUT)
     n_files       = int(options_dict.get('-n', DEFAULT_N_FILES))
 
     for path, label in [
@@ -92,7 +91,7 @@ def main(argv):
 
     print("Acceptable Inputs Given")
 
-    driver(locus_csv, sumstats_base, output_tsv, n_files)
+    driver(locus_csv, sumstats_base, output_json, n_files)
 
 
 ###############################################################################
@@ -133,7 +132,7 @@ def tabix_query(sumstats_file, chr_num, start, end):
 ################################# DRIVER #####################################
 ###############################################################################
 
-def driver(locus_csv, sumstats_base, output_tsv, n_files):
+def driver(locus_csv, sumstats_base, output_json, n_files):
 
     # ── Read sampled loci ──────────────────────────────────────────────────
     print(f"NOTE: Reading locus file: {locus_csv}")
@@ -222,18 +221,17 @@ def driver(locus_csv, sumstats_base, output_tsv, n_files):
         print("ERROR: Lookup is empty — check sumstats paths and tabix availability")
         sys.exit(1)
 
-    # ── Write output TSV ───────────────────────────────────────────────────
-    out_dir = os.path.dirname(output_tsv)
+    # ── Write output JSON ──────────────────────────────────────────────────
+    # Format: { rsid: [chr, pos, ref, alt], ... }
+    out_dir = os.path.dirname(output_json)
     if out_dir:
         os.makedirs(out_dir, exist_ok=True)
 
-    with open(output_tsv, 'w', newline='') as fh:
-        writer = csv.writer(fh, delimiter='\t')
-        writer.writerow(['RSID', 'CHR', 'POS', 'REF', 'ALT'])
-        for rsid, (chrom, pos, ref, alt) in sorted(lookup.items()):
-            writer.writerow([rsid, chrom, pos, ref, alt])
+    json_lookup = {rsid: list(vals) for rsid, vals in lookup.items()}
+    with open(output_json, 'w') as fh:
+        json.dump(json_lookup, fh)
 
-    print(f"SUCCESS: Wrote {len(lookup)} rsID entries to {output_tsv}")
+    print(f"SUCCESS: Wrote {len(lookup)} rsID entries to {output_json}")
 
 
 ###############################################################################
