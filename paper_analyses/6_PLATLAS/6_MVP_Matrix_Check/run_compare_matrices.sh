@@ -6,7 +6,7 @@
 #SBATCH -N 1
 #SBATCH -p batch-spi
 #SBATCH -q debug
-#SBATCH -t 4:00:00
+#SBATCH -t 2:00:00
 
 #################################################################### Load Needed Modules #################################################################
 
@@ -29,7 +29,7 @@ mvp_dir="${base_dir}/LD_matrices/mvp_platlas_loci"
 locus_csv="${script_dir}/sampled_loci_750kb.csv"
 
 # rsID position lookup (built on Aurora by build_rsid_lookup.py, then transferred)
-lookup_file="/sw/frontier/mde/bif154_mde/betanfer_project/LD_matrices/rsid_pos_lookup.tsv"
+lookup_file="/sw/frontier/mde/bif154_mde/betanfer_project/LD_matrices/rsid_pos_lookup.json"
 
 # Output
 output_file="${base_dir}/LD_matrices/mvp_matrix_comparison.tsv.gz"
@@ -51,7 +51,8 @@ python3 "${script_dir}/compare_matrices.py" \
     -l "${locus_csv}" \
     -k "${lookup_file}" \
     -o "${output_file}" \
-    -a "${populations}"
+    -a "${populations}" \
+    -n 20
 
 if [ $? -ne 0 ]; then
     echo "ERROR: compare_matrices.py failed"
