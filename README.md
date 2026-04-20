@@ -67,7 +67,7 @@ betanfer index --file trait1.txt --output-dir indexed/
 # Specify column names explicitly
 betanfer index --file trait1.txt --chrom-col CHR --pos-col POS --output-dir indexed/
 
-# Parse positions from variant IDs (e.g. rsid format "CHR:POS:REF:ALT")
+# Parse positions from variant IDs (e.g. variant ID format "CHR:POS:REF:ALT")
 betanfer index --file trait1.txt \
     --variant-col SNP --variant-id-format CHR:POS:REF:ALT \
     --output-dir indexed/
