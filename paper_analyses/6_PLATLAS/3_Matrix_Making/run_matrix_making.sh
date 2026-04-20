@@ -21,7 +21,7 @@
 #PBS -N matrix_making
 #PBS -l select=256:ncpus=208:ngpus=6
 #PBS -l filesystems=home:flare
-#PBS -l walltime=8:00:00
+#PBS -l walltime=12:00:00
 #PBS -q prod
 #PBS -A GeomicVar
 #PBS -j oe
@@ -37,10 +37,10 @@ source ~/.bashrc
 conda activate /flare/GeomicVar/mconery/tools/parsl_gpu
 
 # ── Step 1: Generate file lists and command file ────────────────────────────────
-echo "NOTE: Generating matrix-making command list..."
-python "${SCRIPT_DIR}/create_matrix_commands.py" \
-    --command_file "${CMDS_FILE}" \
-    --log_dir "${LOG_DIR}"
+#echo "NOTE: Generating matrix-making command list..."
+#python "${SCRIPT_DIR}/create_matrix_commands.py" \
+#    --command_file "${CMDS_FILE}" \
+#    --log_dir "${LOG_DIR}"
 
 # ── Step 2: Distribute betanfer infer jobs via parsl ───────────────────────────
 echo "NOTE: Launching parsl allocator..."
