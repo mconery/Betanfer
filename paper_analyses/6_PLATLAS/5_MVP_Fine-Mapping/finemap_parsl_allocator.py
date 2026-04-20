@@ -76,8 +76,12 @@ def get_label(command):
     if output_path is None:
         return "unknown"
     # e.g. ".../rsparsepro/AFR/A1C_Max_INT.chr10_114250001_115250000.rsparsepro.txt"
-    # → "A1C_Max_INT.chr10_114250001_115250000.rsparsepro"
-    return os.path.splitext(os.path.basename(output_path))[0]
+    # Include the population subdirectory (AFR/EUR) to avoid collisions between
+    # the two populations for the same trait+locus, which share the same filename.
+    # → "AFR.A1C_Max_INT.chr10_114250001_115250000.rsparsepro"
+    pop   = os.path.basename(os.path.dirname(output_path))
+    label = os.path.splitext(os.path.basename(output_path))[0]
+    return f"{pop}.{label}"
 
 
 ###############################################################################
