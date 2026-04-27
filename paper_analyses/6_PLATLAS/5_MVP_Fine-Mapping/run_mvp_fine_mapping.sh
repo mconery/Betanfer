@@ -45,10 +45,10 @@
 # Monitor with:  qstat -u mconery
 # ─────────────────────────────────────────────────────────────────────────────
 
-#PBS -A GeomicVar
-#PBS -l walltime=4:00:00
+#PBS -A gpu_hack
+#PBS -l walltime=24:00:00
 #PBS -l filesystems=home:flare
-#PBS -l select=16:ncpus=208:mpiprocs=1
+#PBS -l select=1:ncpus=208:mpiprocs=1
 #PBS -l place=scatter:excl
 #PBS -q capacity
 #PBS -o /flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/script_logs/mvp_fine_mapping.log
@@ -81,20 +81,20 @@ cd ${log_dir}
 # Runs on every submission — skips already-completed outputs so only pending
 # tasks are written to the commands file (fast on re-runs because completed
 # loci are detected with a single os.path.exists() and skipped immediately).
-#echo "NOTE: Generating fine-mapping command list..."
-#python ${script_dir}/create_finemap_commands.py \
-#    --master_afr  ${locus_dir}/sig_loci.MVP_AFR.master.csv \
-#    --master_eur  ${locus_dir}/sig_loci.MVP_EUR.master.csv \
-#    --sumstats_dir ${sumstats_dir} \
-#    --ld_dir      ${ld_dir} \
-#    --output_dir  ${output_dir} \
-#    --script_dir  ${script_dir} \
-#    --output_file ${commands_file}
-#
-#if [ $? -ne 0 ]; then
-#    echo "ERROR: create_finemap_commands.py failed.  Aborting."
-#    exit 1
-#fi
+echo "NOTE: Generating fine-mapping command list..."
+python ${script_dir}/create_finemap_commands.py \
+    --master_afr  ${locus_dir}/sig_loci.MVP_AFR.master.csv \
+    --master_eur  ${locus_dir}/sig_loci.MVP_EUR.master.csv \
+    --sumstats_dir ${sumstats_dir} \
+    --ld_dir      ${ld_dir} \
+    --output_dir  ${output_dir} \
+    --script_dir  ${script_dir} \
+    --output_file ${commands_file}
+
+if [ $? -ne 0 ]; then
+    echo "ERROR: create_finemap_commands.py failed.  Aborting."
+    exit 1
+fi
 
 echo "NOTE: Commands written to ${commands_file}"
 echo "NOTE: Total commands: $(wc -l < ${commands_file})"
