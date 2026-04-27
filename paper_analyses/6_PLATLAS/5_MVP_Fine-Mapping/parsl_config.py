@@ -14,7 +14,6 @@ a large LD matrix).
 
 Parallelism summary:
   workers_per_node (4) x num_nodes (read from PBS_NODEFILE at runtime) = concurrent jobs
-  Default: 4 × 16 = 64 concurrent fine-mapping runs
 
 Both the outer PBS script (run_mvp_fine_mapping.sh) and the worker_init below
 activate the `finemap` conda environment.  This is required: parsl's interchange
@@ -38,7 +37,7 @@ execute_dir = "/flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/script_logs"
 # Concurrent fine-mapping jobs per node.
 # Aurora nodes have 104 CPUs each.  Setting MKL_NUM_THREADS / OMP_NUM_THREADS
 # below to 104 // workers_per_node keeps BLAS from oversubscribing across workers.
-workers_per_node = 8
+workers_per_node = 4
 
 # Determine number of allocated nodes from PBS environment at import time.
 # PBS_NODEFILE contains one hostname per line (one entry per node when mpiprocs=1).
@@ -70,14 +69,14 @@ mvp_finemap_config = Config(
                 # Activate the finemap conda env for RSparsePro (Python) and
                 # SuSiE (Rscript).  Thread limits prevent numpy/MKL and R/OpenBLAS
                 # from oversubscribing CPUs across co-resident workers.
-                # With 8 workers on 104-CPU nodes: 104 // 8 = 13 threads each.
+                # With 4 workers on 104-CPU nodes: 104 // 4 = 26 threads each.
                 worker_init=(
                     "source $HOME/.bashrc; "
                     "conda activate /flare/GeomicVar/mconery/tools/miniconda3/envs/finemap; "
-                    "export NUMEXPR_MAX_THREADS=13; "
-                    "export MKL_NUM_THREADS=13; "
-                    "export OMP_NUM_THREADS=13; "
-                    "export OPENBLAS_NUM_THREADS=13; "
+                    "export NUMEXPR_MAX_THREADS=26; "
+                    "export MKL_NUM_THREADS=26; "
+                    "export OMP_NUM_THREADS=26; "
+                    "export OPENBLAS_NUM_THREADS=26; "
                     f"cd {execute_dir}"
                 ),
                 # Launch one block immediately; no dynamic scaling
