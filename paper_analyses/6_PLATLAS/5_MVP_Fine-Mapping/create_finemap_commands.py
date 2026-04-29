@@ -66,6 +66,7 @@ Options:
                   Subdirectories rsparsepro/{AFR,EUR}/ and susie/{AFR,EUR}/ are created.
   --script_dir    Directory containing run_rsparsepro.sh and run_susie.sh (required)
   --output_file   Path to write the commands file (required)
+  -v, --verbose   Print all warnings (default: show first 20 only)
   -h, --help      Show this help message""")
     sys.exit(exit_num)
 
@@ -191,8 +192,8 @@ def check_work_item(item):
 def main():
     try:
         opts, _ = getopt.getopt(
-            sys.argv[1:], "h",
-            ["help", "master_afr=", "master_eur=", "sumstats_dir=",
+            sys.argv[1:], "hv",
+            ["help", "verbose", "master_afr=", "master_eur=", "sumstats_dir=",
              "ld_dir=", "output_dir=", "script_dir=", "output_file="]
         )
     except getopt.GetoptError as err:
@@ -206,10 +207,13 @@ def main():
     output_dir   = None
     script_dir   = None
     output_file  = None
+    verbose      = False
 
     for o, a in opts:
         if o in ("-h", "--help"):
             help()
+        elif o in ("-v", "--verbose"):
+            verbose = True
         elif o == "--master_afr":
             master_afr = a
         elif o == "--master_eur":
@@ -294,10 +298,11 @@ def main():
     # ── Print warnings ─────────────────────────────────────────────────────────
     if all_warnings:
         print(f"\nWARNINGS ({len(all_warnings)}):")
-        for w in all_warnings[:20]:
+        warnings_to_show = all_warnings if verbose else all_warnings[:20]
+        for w in warnings_to_show:
             print(f"  {w}")
-        if len(all_warnings) > 20:
-            print(f"  ... and {len(all_warnings) - 20} more")
+        if not verbose and len(all_warnings) > 20:
+            print(f"  ... and {len(all_warnings) - 20} more (use --verbose to show all)")
 
     # ── Summary ────────────────────────────────────────────────────────────────
     rsp_count   = sum(1 for c in commands_only if "run_rsparsepro.sh" in c)
