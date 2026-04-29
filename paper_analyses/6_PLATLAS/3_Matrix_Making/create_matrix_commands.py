@@ -48,6 +48,7 @@ MVP_POPS = {"MVP_EUR": "EUR", "MVP_AFR": "AFR"}  # analysis_pop → mvp_dir_pop
 # betanfer infer options applied to every command
 PVAL_THRESHOLD = "5e-8"
 NUM_PROCESSES  = 12  # matches physical cores per worker (32 logical / 2; 6 workers/node)
+CHUNK_SIZE     = 15000  # cap peak XPU memory at O(chunk_size²) per block
 
 # Parallel workers for filesystem existence checks (Lustre handles many concurrent stats well)
 NUM_WORKERS = multiprocessing.cpu_count()
@@ -225,6 +226,7 @@ def generate_commands(groups, loci_dir, ld_base):
                     f" --num-processes {NUM_PROCESSES}"
                     f" --output {output_prefix}"
                     f" --plink2-format"
+                    f" --chunk-size {CHUNK_SIZE}"
                 )
                 all_work.append((locus_size, sentinel, cmd))
             loci_count += 1
