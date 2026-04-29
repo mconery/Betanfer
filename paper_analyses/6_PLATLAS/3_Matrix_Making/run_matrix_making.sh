@@ -19,11 +19,11 @@
 #   At ~5 min/locus:  162,000 / (12 × 64 nodes) × 5 min ≈ 18 hours  ✓
 #
 #PBS -N matrix_making
-#PBS -l select=256:ncpus=208:ngpus=6
+#PBS -l select=1:ncpus=208:ngpus=6
 #PBS -l filesystems=home:flare
-#PBS -l walltime=12:00:00
-#PBS -q prod
-#PBS -A GeomicVar
+#PBS -l walltime=4:00:00
+#PBS -q capacity
+#PBS -A gpu_hack
 #PBS -j oe
 #PBS -o /flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/script_logs/matrix_making.log
 
@@ -37,10 +37,10 @@ source ~/.bashrc
 conda activate /flare/GeomicVar/mconery/tools/parsl_gpu
 
 # ── Step 1: Generate file lists and command file ────────────────────────────────
-#echo "NOTE: Generating matrix-making command list..."
-#python "${SCRIPT_DIR}/create_matrix_commands.py" \
-#    --command_file "${CMDS_FILE}" \
-#    --log_dir "${LOG_DIR}"
+echo "NOTE: Generating matrix-making command list..."
+python "${SCRIPT_DIR}/create_matrix_commands.py" \
+    --command_file "${CMDS_FILE}" \
+    --log_dir "${LOG_DIR}"
 
 # ── Step 2: Distribute betanfer infer jobs via parsl ───────────────────────────
 echo "NOTE: Launching parsl allocator..."
