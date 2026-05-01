@@ -27,9 +27,9 @@
 #PBS -N ld_merge
 #PBS -l select=16:ncpus=208
 #PBS -l filesystems=home:flare
-#PBS -l walltime=1:00:00
-#PBS -q debug-scaling
-#PBS -A GeomicVar
+#PBS -l walltime=3:00:00
+#PBS -q capacity
+#PBS -A gpu_hack
 #PBS -j oe
 #PBS -o /flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/script_logs/ld_merge.log
 
