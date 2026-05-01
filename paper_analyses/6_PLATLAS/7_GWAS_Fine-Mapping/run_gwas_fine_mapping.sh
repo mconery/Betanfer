@@ -51,11 +51,11 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 #PBS -A gpu_hack
-#PBS -l walltime=1:00:00
+#PBS -l walltime=6:00:00
 #PBS -l filesystems=home:flare
-#PBS -l select=64:ncpus=208:mpiprocs=1
+#PBS -l select=16:ncpus=208:mpiprocs=1
 #PBS -l place=scatter:excl
-#PBS -q debug-scaling
+#PBS -q capacity
 #PBS -o /flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/script_logs/gwas_fine_mapping.log
 #PBS -e /flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/script_logs/gwas_fine_mapping.err
 
