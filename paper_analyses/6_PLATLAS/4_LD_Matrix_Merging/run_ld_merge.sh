@@ -27,7 +27,7 @@
 #PBS -N ld_merge
 #PBS -l select=16:ncpus=208
 #PBS -l filesystems=home:flare
-#PBS -l walltime=3:00:00
+#PBS -l walltime=12:00:00
 #PBS -q capacity
 #PBS -A gpu_hack
 #PBS -j oe
