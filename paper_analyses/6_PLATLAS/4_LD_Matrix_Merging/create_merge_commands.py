@@ -5,16 +5,20 @@ Generates per-(trait, analysis_pop, locus) merge commands for the LD matrix
 merging pipeline.
 
 For each locus in each population's master CSV, the script:
-  1. Determines the full set of (cohort, cohort_pop) pairs expected for that
-     analysis population (the union across all traits, matching what
-     create_matrix_commands.py generated in the matrix-making step).
-  2. Checks that ALL expected constituent .vcor1 files exist for this
+  1. Builds two cohort-pair sets from the linker:
+       - all_pairs[analysis_pop]: union across all traits — matches what
+         create_matrix_commands.py created, used for the completeness check.
+       - trait_pairs[(trait, analysis_pop)]: only cohorts that contributed to
+         that specific trait's meta-analysis — used for the merge command so
+         that cohorts without sumstats for a given trait are excluded.
+  2. Checks that ALL all_pairs constituent .vcor1 files exist for this
      (trait, locus) combination.  If any are missing, the locus is flagged as
      "incomplete" and skipped — the merge should not proceed until all
      matrix-making jobs have finished.
   3. Skips loci whose merged output (.merged.vcor1) already exists (checkpoint).
-  4. Filters out empty constituent files (0-byte .vcor1 = betanfer found no
-     variants for that cohort) and looks up sample sizes for the remainder.
+  4. From the trait-specific pairs, filters out empty constituent files
+     (0-byte .vcor1 = betanfer found no variants for that cohort) and looks up
+     sample sizes for the remainder.
   5. Generates a merge_ld_matrices.py command for every locus with at least
      one valid non-empty input.
 
@@ -67,13 +71,19 @@ Options:
 def parse_linker(linker_file):
     """Parse linker and return two structures:
 
-    expected_pairs[analysis_pop] = set of (cohort, cohort_pop) that were used
-        when generating matrices for this analysis_pop (union across all traits).
-        This is the completeness check set.
+    all_pairs[analysis_pop] = union of (cohort, cohort_pop) across all traits
+        for that analysis_pop.  Matches the scope of create_matrix_commands.py
+        and is used for the per-locus completeness check.
 
-    Returns expected_pairs dict.
+    trait_pairs[(trait, analysis_pop)] = (cohort, cohort_pop) pairs that
+        contributed to that specific trait's meta-analysis.  Used to build
+        merge commands so that cohorts absent from a trait's linker entry are
+        not included even if their .vcor1 file happens to be non-empty.
+
+    Returns (all_pairs, trait_pairs).
     """
-    expected_pairs = defaultdict(set)   # analysis_pop -> {(cohort, cohort_pop), ...}
+    all_pairs   = defaultdict(set)   # analysis_pop -> {(cohort, cohort_pop), ...}
+    trait_pairs = defaultdict(set)   # (trait, analysis_pop) -> {(cohort, cohort_pop), ...}
 
     with open(linker_file, 'r') as fh:
         for line in fh:
@@ -87,7 +97,7 @@ def parse_linker(linker_file):
             dot_parts = trait_pop.rsplit('.', 1)
             if len(dot_parts) != 2:
                 continue
-            _, analysis_pop = dot_parts
+            trait, analysis_pop = dot_parts
             if analysis_pop not in MERGE_POPS:
                 continue
             path_parts = rel_path.split('/')
@@ -95,13 +105,14 @@ def parse_linker(linker_file):
                 continue
             cohort     = path_parts[0]
             cohort_pop = path_parts[1]
-            expected_pairs[analysis_pop].add((cohort, cohort_pop))
+            all_pairs[analysis_pop].add((cohort, cohort_pop))
+            trait_pairs[(trait, analysis_pop)].add((cohort, cohort_pop))
 
-    for pop, pairs in expected_pairs.items():
+    for pop, pairs in sorted(all_pairs.items()):
         print(f"NOTE: {pop}: {len(pairs)} expected (cohort, cohort_pop) pairs: "
               f"{sorted(pairs)}")
 
-    return expected_pairs
+    return all_pairs, trait_pairs
 
 
 ###############################################################################
@@ -128,15 +139,16 @@ def load_sample_sizes(sample_sizes_file):
 ################  COMMAND GENERATION  #########################################
 ###############################################################################
 
-def generate_commands(expected_pairs, sample_sizes, loci_dir, ld_base):
+def generate_commands(all_pairs, trait_pairs, sample_sizes, loci_dir, ld_base):
     """Scan master loci CSVs and produce merge commands.
+
+    all_pairs[(analysis_pop)]        – union cohort set; used for completeness check.
+    trait_pairs[(trait,analysis_pop)] – per-trait cohort set; used for merge command.
 
     Returns a list of (sort_key, command_str) tuples.
     """
     merge_script = os.path.join(SCRIPT_DIR, "merge_ld_matrices.py")
 
-    # Collect all work items (before any filesystem checks)
-    # Each item: (analysis_pop, trait, chrom, start, end, expected_file_list)
     all_work = []
 
     master_files = sorted(glob.glob(os.path.join(loci_dir, "sig_loci.*.master.csv")))
@@ -151,8 +163,8 @@ def generate_commands(expected_pairs, sample_sizes, loci_dir, ld_base):
         if analysis_pop not in MERGE_POPS:
             continue
 
-        pairs = sorted(expected_pairs.get(analysis_pop, set()))
-        if not pairs:
+        completeness_pairs = sorted(all_pairs.get(analysis_pop, set()))
+        if not completeness_pairs:
             print(f"WARNING: No expected cohort pairs for '{analysis_pop}', skipping {basename}")
             continue
 
@@ -167,14 +179,27 @@ def generate_commands(expected_pairs, sample_sizes, loci_dir, ld_base):
             end   = row['END']
             trait = row['TRAIT']
 
-            constituent_files = [
+            # All files the matrix-making step should have created (completeness check)
+            completeness_files = [
                 os.path.join(
                     ld_base,
                     f"{trait}.{analysis_pop}",
                     f"chr{chrom}_{start}_{end}.{cohort}.{cohort_pop}.vcor1"
                 )
-                for cohort, cohort_pop in pairs
+                for cohort, cohort_pop in completeness_pairs
             ]
+
+            # Only cohorts that contributed to this trait's meta-analysis
+            merge_pairs = sorted(trait_pairs.get((trait, analysis_pop), set()))
+            merge_files = [
+                os.path.join(
+                    ld_base,
+                    f"{trait}.{analysis_pop}",
+                    f"chr{chrom}_{start}_{end}.{cohort}.{cohort_pop}.vcor1"
+                )
+                for cohort, cohort_pop in merge_pairs
+            ]
+
             merged_output = os.path.join(
                 ld_base,
                 f"{trait}.{analysis_pop}",
@@ -182,27 +207,29 @@ def generate_commands(expected_pairs, sample_sizes, loci_dir, ld_base):
             )
             locus_size = int(end) - int(start)
             all_work.append((analysis_pop, trait, chrom, start, end,
-                             pairs, constituent_files, merged_output, locus_size))
+                             completeness_pairs, completeness_files,
+                             merge_pairs, merge_files,
+                             merged_output, locus_size))
             loci_count += 1
 
-        print(f"NOTE: {analysis_pop}: {loci_count} loci × {len(pairs)} cohort(s) = "
-              f"{loci_count * len(pairs)} constituent files to check")
+        print(f"NOTE: {analysis_pop}: {loci_count} loci × {len(completeness_pairs)} cohort(s) = "
+              f"{loci_count * len(completeness_pairs)} constituent files to check")
 
     if not all_work:
         print("NOTE: No loci found to process.")
         return []
 
     # ── Parallel filesystem checks ────────────────────────────────────────────
-    # Check both constituent files and merged sentinel in one pass
+    # Check completeness files and merged sentinels in one pass.
+    # merge_files are a subset of completeness_files so no need to add separately.
     total_files_to_check = sum(len(item[6]) for item in all_work)
     print(f"NOTE: Checking {total_files_to_check} constituent files + "
           f"{len(all_work)} merged sentinels in parallel ({NUM_WORKERS} workers)...")
 
-    # Collect all unique paths to check
     unique_paths = set()
     for item in all_work:
-        unique_paths.update(item[6])               # constituent .vcor1 files
-        unique_paths.add(item[7] + ".merged.vcor1") # merged sentinel
+        unique_paths.update(item[6])                # completeness_files
+        unique_paths.add(item[9] + ".merged.vcor1") # merged sentinel
 
     def _check_exists(path):
         return path, os.path.exists(path)
@@ -216,7 +243,6 @@ def generate_commands(expected_pairs, sample_sizes, loci_dir, ld_base):
     with ThreadPoolExecutor(max_workers=NUM_WORKERS) as ex:
         exists_map = dict(ex.map(_check_exists, unique_paths))
 
-    # For existing files, also get sizes (to detect empty .vcor1)
     existing_paths = [p for p in unique_paths if exists_map.get(p, False)]
     with ThreadPoolExecutor(max_workers=NUM_WORKERS) as ex:
         size_map = dict(ex.map(_get_size, existing_paths))
@@ -228,7 +254,9 @@ def generate_commands(expected_pairs, sample_sizes, loci_dir, ld_base):
     n_no_valid   = 0
 
     for (analysis_pop, trait, chrom, start, end,
-         pairs, constituent_files, merged_output, locus_size) in all_work:
+         completeness_pairs, completeness_files,
+         merge_pairs, merge_files,
+         merged_output, locus_size) in all_work:
 
         merged_sentinel = merged_output + ".merged.vcor1"
 
@@ -237,23 +265,23 @@ def generate_commands(expected_pairs, sample_sizes, loci_dir, ld_base):
             n_complete += 1
             continue
 
-        # Completeness check: all expected constituent files must exist
-        missing = [f for f in constituent_files if not exists_map.get(f, False)]
+        # Completeness check: all matrix-making files must exist
+        missing = [f for f in completeness_files if not exists_map.get(f, False)]
         if missing:
             n_incomplete += 1
             continue
 
-        # Separate non-empty from empty
+        # Filter trait-specific files to non-empty only
         nonempty_files = [(f, cohort, cohort_pop)
                          for f, (cohort, cohort_pop)
-                         in zip(constituent_files, pairs)
+                         in zip(merge_files, merge_pairs)
                          if size_map.get(f, 0) > 0]
 
         if not nonempty_files:
             n_no_valid += 1
             continue
 
-        # Look up sample sizes for non-empty files
+        # Look up sample sizes (merge_pairs are linker-derived so should always resolve)
         ld_files_arg     = []
         sample_sizes_arg = []
         for f, cohort, cohort_pop in nonempty_files:
@@ -280,7 +308,6 @@ def generate_commands(expected_pairs, sample_sizes, loci_dir, ld_base):
             f" --output-prefix {merged_output}"
         )
 
-        # Sort key: total input size (locus_size × n_non_empty)
         sort_key = locus_size * len(ld_files_arg)
         job_list.append((sort_key, cmd))
 
@@ -338,7 +365,7 @@ def main():
 
     # ── Parse linker ──────────────────────────────────────────────────────────
     print("NOTE: Parsing linker file for expected cohort pairs...")
-    expected_pairs = parse_linker(LINKER_FILE)
+    all_pairs, trait_pairs = parse_linker(LINKER_FILE)
 
     # ── Load sample sizes ─────────────────────────────────────────────────────
     print("NOTE: Loading sample sizes...")
@@ -346,7 +373,7 @@ def main():
 
     # ── Generate commands ─────────────────────────────────────────────────────
     print("NOTE: Generating merge commands with completeness + checkpoint checks...")
-    job_list = generate_commands(expected_pairs, sample_sizes, LOCI_DIR, LD_BASE)
+    job_list = generate_commands(all_pairs, trait_pairs, sample_sizes, LOCI_DIR, LD_BASE)
 
     # Sort ascending by sort_key (smallest jobs first)
     job_list.sort(key=lambda x: x[0])
