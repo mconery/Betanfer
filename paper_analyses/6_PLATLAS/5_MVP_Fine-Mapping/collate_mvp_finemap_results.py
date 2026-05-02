@@ -41,7 +41,8 @@ def load_finemap_file(path):
         return None
     try:
         df = pd.read_csv(path, sep='\t')
-        return dict(zip(df['VARIANT_ID'].astype(str), zip(df['PIP'], df['cs'])))
+        id_col = 'VARIANT_ID' if 'VARIANT_ID' in df.columns else 'RSID'
+        return dict(zip(df[id_col].astype(str), zip(df['PIP'], df['cs'])))
     except Exception as e:
         print(f'Warning: could not read {path}: {e}', file=sys.stderr)
         return None
