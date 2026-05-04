@@ -235,4 +235,26 @@ ggsave(
   dpi    = 300
 )
 
+# 5) SuSiE convergence failure summary ====
+
+convergence_df <- pip_df %>%
+  group_by(Trait, Population, Locus) %>%
+  summarize(
+    mapped       = any(!is.na(rsparsepro_pip)),
+    no_susie_pip = all(is.na(susie_pip)),
+    has_cs_zero  = any(!is.na(susie_cs) & susie_cs == 0),
+    .groups      = "drop"
+  ) %>%
+  filter(mapped) %>%
+  mutate(failed = no_susie_pip & has_cs_zero)
+
+n_total  <- nrow(convergence_df)
+n_failed <- sum(convergence_df$failed)
+pct      <- round(n_failed / n_total * 100, 1)
+
+message(sprintf(
+  "SuSiE convergence failures: %d / %d mapped loci (%.1f%%)",
+  n_failed, n_total, pct
+))
+
 message("Done. Figures written to: ", out_dir)
