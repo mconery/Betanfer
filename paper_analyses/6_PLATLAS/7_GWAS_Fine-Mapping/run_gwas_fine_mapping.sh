@@ -51,7 +51,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 #PBS -A gpu_hack
-#PBS -l walltime=6:00:00
+#PBS -l walltime=72:00:00
 #PBS -l filesystems=home:flare
 #PBS -l select=16:ncpus=208:mpiprocs=1
 #PBS -l place=scatter:excl
