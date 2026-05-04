@@ -102,6 +102,8 @@ def main():
             ['Trait', 'Population', 'Locus', 'Merged Signal'], sort=False):
         stem = grp['locus_stem'].iloc[0]
         rsids = set(grp['RSID'].astype(str))
+        mafs = pd.to_numeric(grp['EAF Population'], errors='coerce').apply(
+            lambda e: min(e, 1 - e) if pd.notna(e) else float('nan'))
         susie_data = results_cache.get((trait, pop, stem, 'susie'))
         rsp_data = results_cache.get((trait, pop, stem, 'rsparsepro'))
         any_susie = (susie_data is not None and
@@ -114,6 +116,8 @@ def main():
             'Locus': locus,
             'Merged_Signal': signal,
             'n_original_variants': len(rsids),
+            'mean_maf': mafs.mean(),
+            'median_maf': mafs.median(),
             'susie_file_exists': susie_data is not None,
             'rsparsepro_file_exists': rsp_data is not None,
             'any_variant_in_susie_cs': any_susie,
@@ -143,6 +147,8 @@ def main():
         else:
             rsp_pip, rsp_cs = float('nan'), float('nan')
 
+        eaf = pd.to_numeric(row['EAF Population'], errors='coerce')
+        maf = min(eaf, 1 - eaf) if pd.notna(eaf) else float('nan')
         pip_rows.append({
             'Trait': trait,
             'Population': pop,
@@ -150,6 +156,7 @@ def main():
             'Merged_Signal': row['Merged Signal'],
             'RSID': rsid,
             'MVP_ID': row['MVP ID'],
+            'maf': maf,
             'original_pip': row['Overall PIP'],
             'susie_pip': susie_pip,
             'susie_cs': susie_cs,
