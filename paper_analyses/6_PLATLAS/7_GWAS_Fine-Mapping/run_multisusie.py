@@ -421,11 +421,11 @@ def main():
     t_ms = time.time()
     try:
         result = MultiSuSiE.multisusie_rss(
-            Bhat=Bhat_list,
-            Shat=Shat_list,
-            R=R_list,
-            n=n_list,
-            var_y=1.0,
+            R_list=R_list,
+            population_sizes=n_list,
+            b_list=Bhat_list,
+            s_list=Shat_list,
+            varY_list=[1.0] * n_pops,
             rho=rho_mat,
             L=L,
             coverage=coverage,
@@ -456,14 +456,16 @@ def main():
         converged = bool(result.converged) if hasattr(result, 'converged') else False
 
         # Credible set membership
+        # result.sets is a list: [cs_index_arrays, purity, claimed_coverage, include_mask]
+        # include_mask[i] is True if CS i passes the purity filter.
         cs_assignments = np.zeros(n_vars, dtype=int)
-        if hasattr(result, 'sets') and hasattr(result.sets, 'cs'):
-            cs_dict = result.sets.cs
-            if isinstance(cs_dict, dict):
-                for cs_name, cs_indices in cs_dict.items():
-                    # cs_name is like 'L1', 'L2', ...
-                    m = re.search(r'(\d+)', str(cs_name))
-                    cs_num = int(m.group(1)) if m else 1
+        if hasattr(result, 'sets') and result.sets is not None and len(result.sets) >= 4:
+            cs_list = result.sets[0]       # list of index arrays, one per L component
+            include_mask = result.sets[3]  # bool array; True = CS passes purity
+            cs_num = 0
+            for i, cs_indices in enumerate(cs_list):
+                if include_mask[i] and len(cs_indices) > 0:
+                    cs_num += 1
                     for idx in cs_indices:
                         if 0 <= idx < n_vars:
                             cs_assignments[idx] = cs_num
