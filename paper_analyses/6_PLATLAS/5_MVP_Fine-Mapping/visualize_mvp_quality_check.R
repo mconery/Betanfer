@@ -21,13 +21,22 @@ out_dir <- "C:/Users/mitch/Documents/Argonne/Meta-Analysis_Fine-Mapping/Figures/
 
 dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
-signal_file <- file.path(inp_dir, "mvp_collation.signal_recovery.tsv")
-pip_file    <- file.path(inp_dir, "mvp_collation.pip_comparison.tsv")
+signal_file_betanfer <- file.path(inp_dir, "mvp_collation.signal_recovery.tsv")
+pip_file_betanfer    <- file.path(inp_dir, "mvp_collation.pip_comparison.tsv")
+signal_file_1000g    <- file.path(inp_dir, "mvp_1000g_collation.signal_recovery.tsv")
+pip_file_1000g       <- file.path(inp_dir, "mvp_1000g_collation.pip_comparison.tsv")
 
 # 2) Read data ====
 
-signal_df <- read_tsv(signal_file, show_col_types = FALSE)
-pip_df    <- read_tsv(pip_file,    show_col_types = FALSE, na = "NA")
+signal_df <- bind_rows(
+  read_tsv(signal_file_betanfer, show_col_types = FALSE) %>% mutate(ld_source = "Betanfer"),
+  read_tsv(signal_file_1000g,    show_col_types = FALSE) %>% mutate(ld_source = "1000G")
+) %>% mutate(ld_source = factor(ld_source, levels = c("Betanfer", "1000G")))
+
+pip_df <- bind_rows(
+  read_tsv(pip_file_betanfer, show_col_types = FALSE, na = "NA") %>% mutate(ld_source = "Betanfer"),
+  read_tsv(pip_file_1000g,    show_col_types = FALSE, na = "NA") %>% mutate(ld_source = "1000G")
+) %>% mutate(ld_source = factor(ld_source, levels = c("Betanfer", "1000G")))
 
 # 3) Figure 1 — Pie chart of credible-set signal recovery ====
 
@@ -41,11 +50,13 @@ pie_df <- signal_df %>%
     ),
     category = factor(category, levels = c("Both", "SuSiE Only", "RSparsePro Only", "Neither"))
   ) %>%
-  count(category) %>%
+  count(ld_source, category) %>%
+  group_by(ld_source) %>%
   mutate(
     pct   = n / sum(n),
     label = paste0(category, "\n", n, " (", round(pct * 100, 1), "%)")
-  )
+  ) %>%
+  ungroup()
 
 # x = 2 sets the pie ring at radius 1.5–2.5; labels at x = 3.5 sit outside it.
 # xlim lower bound of -1 prevents label clipping on the left.
@@ -58,6 +69,7 @@ p_pie <- ggplot(pie_df, aes(x = 1, y = pct, fill = category)) +
     color    = "black"
   ) +
   xlim(c(0, 5)) +
+  facet_wrap(~ ld_source) +
   scale_fill_manual(
     values = c(
       "Both"            = "darkgreen",
@@ -67,12 +79,15 @@ p_pie <- ggplot(pie_df, aes(x = 1, y = pct, fill = category)) +
     )
   ) +
   theme_void() +
-  theme(legend.position = "none")
+  theme(
+    legend.position = "none",
+    strip.text      = element_text(size = 14, face = "bold")
+  )
 
 ggsave(
   file.path(out_dir, "mvp_cs_overlap_pie.tiff"),
   plot   = p_pie,
-  width  = 7,
+  width  = 14,
   height = 7,
   dpi    = 300
 )
@@ -102,8 +117,8 @@ pie_df_maf <- signal_df %>%
       levels = c("Both", "SuSiE Only", "RSparsePro Only", "Neither")
     )
   ) %>%
-  count(maf_group, category) %>%
-  group_by(maf_group) %>%
+  count(ld_source, maf_group, category) %>%
+  group_by(ld_source, maf_group) %>%
   mutate(
     pct   = n / sum(n),
     label = paste0(category, "\n", n, " (", round(pct * 100, 1), "%)")
@@ -120,7 +135,7 @@ p_pie_maf <- ggplot(pie_df_maf, aes(x = 1, y = pct, fill = category)) +
     color    = "black"
   ) +
   xlim(c(0, 5)) +
-  facet_wrap(~ maf_group) +
+  facet_grid(maf_group ~ ld_source) +
   scale_fill_manual(
     values = c(
       "Both"            = "darkgreen",
@@ -138,8 +153,8 @@ p_pie_maf <- ggplot(pie_df_maf, aes(x = 1, y = pct, fill = category)) +
 ggsave(
   file.path(out_dir, "mvp_cs_overlap_pie_by_maf.tiff"),
   plot   = p_pie_maf,
-  width  = 14,
-  height = 7,
+  width  = 28,
+  height = 14,
   dpi    = 300
 )
 
@@ -158,7 +173,7 @@ pip_long <- pip_df %>%
   filter(!is.na(original_pip), !is.na(new_pip))
 
 cor_stats <- pip_long %>%
-  group_by(method) %>%
+  group_by(ld_source, method) %>%
   summarize(
     r  = cor(original_pip, new_pip, use = "complete.obs"),
     r2 = cor(original_pip, new_pip, use = "complete.obs")^2,
@@ -192,7 +207,7 @@ pip_base <- list(
     size        = 5,
     inherit.aes = FALSE
   ),
-  facet_wrap(~ method),
+  facet_grid(ld_source ~ method),
   scale_x_continuous(limits = c(0, 1), expand = c(0.01, 0.01)),
   scale_y_continuous(limits = c(0, 1), expand = c(0.01, 0.01)),
   labs(x = "Original PIP", y = "New PIP",
@@ -211,8 +226,8 @@ p_pip <- ggplot(pip_plot, aes(x = original_pip, y = new_pip)) +
 ggsave(
   file.path(out_dir, "mvp_pip_correlation.tiff"),
   plot   = p_pip,
-  width  = 10,
-  height = 5,
+  width  = 20,
+  height = 10,
   dpi    = 300
 )
 
@@ -230,15 +245,15 @@ p_pip_maf <- ggplot(pip_plot, aes(x = original_pip, y = new_pip)) +
 ggsave(
   file.path(out_dir, "mvp_pip_correlation_maf.tiff"),
   plot   = p_pip_maf,
-  width  = 10,
-  height = 5,
+  width  = 20,
+  height = 10,
   dpi    = 300
 )
 
 # 5) SuSiE convergence failure summary ====
 
 convergence_df <- pip_df %>%
-  group_by(Trait, Population, Locus) %>%
+  group_by(ld_source, Trait, Population, Locus) %>%
   summarize(
     mapped       = any(!is.na(rsparsepro_pip)),
     no_susie_pip = all(is.na(susie_pip)),
@@ -248,13 +263,18 @@ convergence_df <- pip_df %>%
   filter(mapped) %>%
   mutate(failed = no_susie_pip & has_cs_zero)
 
-n_total  <- nrow(convergence_df)
-n_failed <- sum(convergence_df$failed)
-pct      <- round(n_failed / n_total * 100, 1)
-
-message(sprintf(
-  "SuSiE convergence failures: %d / %d mapped loci (%.1f%%)",
-  n_failed, n_total, pct
-))
+convergence_df %>%
+  group_by(ld_source) %>%
+  summarize(
+    n_total  = n(),
+    n_failed = sum(failed),
+    pct      = round(n_failed / n_total * 100, 1),
+    .groups  = "drop"
+  ) %>%
+  rowwise() %>%
+  group_walk(~ message(sprintf(
+    "[%s] SuSiE convergence failures: %d / %d mapped loci (%.1f%%)",
+    .y$ld_source, .x$n_failed, .x$n_total, .x$pct
+  )))
 
 message("Done. Figures written to: ", out_dir)
