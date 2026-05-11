@@ -21,8 +21,8 @@
 #PBS -N matrix_making
 #PBS -l select=1:ncpus=208:ngpus=6
 #PBS -l filesystems=home:flare
-#PBS -l walltime=4:00:00
-#PBS -q capacity
+#PBS -l walltime=1:00:00
+#PBS -q debug
 #PBS -A gpu_hack
 #PBS -j oe
 #PBS -o /flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/script_logs/matrix_making.log
