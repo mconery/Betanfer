@@ -33,7 +33,7 @@ from parsl.config import Config
 from parsl.providers import LocalProvider
 from parsl.executors import HighThroughputExecutor
 from parsl.launchers import MpiExecLauncher
-from parsl.addresses import address_by_hostname
+from parsl.addresses import address_by_interface
 
 # Directory where parsl writes worker logs and working files
 execute_dir = "/flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/script_logs"
@@ -55,9 +55,11 @@ else:
 gwas_finemap_config = Config(
     executors=[
         HighThroughputExecutor(
-            # Address of the interchange on the head node; remote workers use
-            # this to connect back.  Required when workers run on other nodes.
-            address=address_by_hostname(),
+            # Address of the interchange on the head compute node; remote workers
+            # use this to connect back.  Must be the Slingshot HSN interface
+            # (hsn0, 10.112.x.x/15) — address_by_hostname() resolves to the
+            # management IP (10.115.x.x) which is not routable between compute nodes.
+            address=address_by_interface('hsn0'),
             # Number of tasks that can run simultaneously on each node
             max_workers_per_node=workers_per_node,
             # Buffer extra tasks so workers don't go idle between completions
