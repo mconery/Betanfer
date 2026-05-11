@@ -25,11 +25,11 @@
 #   Resubmit the job after walltime to continue; completed merges are skipped.
 #
 #PBS -N ld_merge
-#PBS -l select=16:ncpus=208
+#PBS -l select=1:ncpus=208
 #PBS -l filesystems=home:flare
-#PBS -l walltime=12:00:00
+#PBS -l walltime=24:00:00
 #PBS -q capacity
-#PBS -A gpu_hack
+#PBS -A GeomicVar
 #PBS -j oe
 #PBS -o /flare/GeomicVar/mconery/Meta-Analysis_Fine-Mapping/script_logs/ld_merge.log
 
