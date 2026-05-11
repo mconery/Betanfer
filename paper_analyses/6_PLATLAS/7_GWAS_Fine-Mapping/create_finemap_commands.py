@@ -185,7 +185,7 @@ def build_work_item(row, analysis_pop, linker, sample_sizes, ld_dir, output_dir,
         gz_list.append(abs_sumstats)
         ld_list.append(ld_path)
         n_list.append(n_val)
-        label_list.append(cohort_pop)
+        label_list.append(f"{cohort}_{cohort_pop}")
 
     return {
         'locus_size':   locus_size,
