@@ -132,7 +132,7 @@ def main():
             print(f"WARNING: Could not parse --output-prefix from command: {cmd[:80]}")
             unparsed += 1
             pending.append(cmd)  # run it anyway; merge script handles gracefully
-        elif os.path.exists(sentinel):
+        elif os.path.exists(sentinel) and os.path.exists(sentinel + ".vars"):
             skipped += 1
         else:
             # Ensure output directory exists before the worker tries to write
