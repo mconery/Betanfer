@@ -229,7 +229,8 @@ def generate_commands(all_pairs, trait_pairs, sample_sizes, loci_dir, ld_base):
     unique_paths = set()
     for item in all_work:
         unique_paths.update(item[6])                # completeness_files
-        unique_paths.add(item[9] + ".merged.vcor1") # merged sentinel
+        unique_paths.add(item[9] + ".merged.vcor1")       # merged sentinel
+        unique_paths.add(item[9] + ".merged.vcor1.vars")  # vars sentinel
 
     def _check_exists(path):
         return path, os.path.exists(path)
@@ -259,9 +260,10 @@ def generate_commands(all_pairs, trait_pairs, sample_sizes, loci_dir, ld_base):
          merged_output, locus_size) in all_work:
 
         merged_sentinel = merged_output + ".merged.vcor1"
+        vars_sentinel   = merged_output + ".merged.vcor1.vars"
 
-        # Checkpoint: already merged
-        if exists_map.get(merged_sentinel, False):
+        # Checkpoint: already merged (both matrix and variant list must exist)
+        if exists_map.get(merged_sentinel, False) and exists_map.get(vars_sentinel, False):
             n_complete += 1
             continue
 
