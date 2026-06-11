@@ -146,6 +146,13 @@ def merge_matrices(ld_files, sample_sizes):
         # Ensure 2-D (single-variant locus loads as scalar or 1-D)
         if matrix.ndim == 1:
             matrix = matrix.reshape(1, -1)
+        if matrix.shape[0] != len(variants):
+            print(f"WARNING: {vcor1_file}: {matrix.shape[0]} matrix rows ≠ "
+                  f"{len(variants)} vars-file entries — skipping this cohort")
+            continue
+        if matrix.shape[0] != matrix.shape[1]:
+            print(f"WARNING: {vcor1_file}: non-square matrix {matrix.shape} — skipping")
+            continue
         loaded.append((matrix, variants, n))
 
     if not loaded:
@@ -171,7 +178,8 @@ def merge_matrices(ld_files, sample_sizes):
         weighted_sum += np.where(mask, expanded * float(sample_size), 0.0).astype(np.float32)
         total_weight += w
 
-    combined = np.where(total_weight > 0, weighted_sum / total_weight, 0.0).astype(np.float32)
+    with np.errstate(invalid='ignore', divide='ignore'):
+        combined = np.where(total_weight > 0, weighted_sum / total_weight, 0.0).astype(np.float32)
     return combined, union_variants
 
 
@@ -248,10 +256,29 @@ def main():
 
     matrix_out = output_prefix + ".merged.vcor1"
     vars_out   = matrix_out + ".vars"
+    matrix_tmp = matrix_out + ".tmp"
+    vars_tmp   = vars_out + ".tmp"
 
-    np.savetxt(matrix_out, combined, fmt='%.6f', delimiter='\t')
-    with open(vars_out, 'w') as fh:
-        fh.write('\n'.join(union_variants) + '\n')
+    # Remove any stale .tmp files left by a prior killed run
+    for stale in (matrix_tmp, vars_tmp):
+        try:
+            os.remove(stale)
+        except FileNotFoundError:
+            pass
+
+    try:
+        np.savetxt(matrix_tmp, combined, fmt='%.6f', delimiter='\t')
+        with open(vars_tmp, 'w') as fh:
+            fh.write('\n'.join(union_variants) + '\n')
+        os.rename(matrix_tmp, matrix_out)
+        os.rename(vars_tmp, vars_out)
+    except Exception:
+        for stale in (matrix_tmp, vars_tmp):
+            try:
+                os.remove(stale)
+            except FileNotFoundError:
+                pass
+        raise
 
     print(f"SUCCESS: Wrote {len(union_variants)}-variant merged matrix to {matrix_out}")
 
