@@ -27,7 +27,7 @@
 #PBS -N ld_merge
 #PBS -l select=1:ncpus=208
 #PBS -l filesystems=home:flare
-#PBS -l walltime=24:00:00
+#PBS -l walltime=96:00:00
 #PBS -q capacity
 #PBS -A GeomicVar
 #PBS -j oe
