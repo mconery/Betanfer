@@ -171,7 +171,7 @@ plot_coverage_vs_power_filtered <- function(
 create_finemapping_legend <- function() {
 
   # Define all fine-mapping methods
-  all_methods <- c("CARMA", "SuSiE", "RSparsePro", "MESuSiE", "MultiSuSiE", "SuSiEx")
+  all_methods <- c("CARMA", "MESuSiE",  "MultiSuSiE", "RSparsePro", "SuSiE", "SuSiEx")
 
   # Define all matrix types
   all_matrix_types <- c(
