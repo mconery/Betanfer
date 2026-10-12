@@ -13,9 +13,9 @@ library(dplyr)
 library(ggpubr)
 
 #Set results file
-results_file="C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/1000G_Simulations/genotype_beta_correlation_deviation_metrics.csv"
+results_file="C:/Users/mitch/Documents/Argonne/Meta-Analysis_Fine-Mapping/Data/1000G_Simulations/genotype_beta_correlation_deviation_metrics.csv"
 #Output directory
-out_dir<- "C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Figures/Correlation_Structure"
+out_dir<- "C:/Users/mitch/Documents/Argonne/Meta-Analysis_Fine-Mapping/Figures/Correlation_Structure"
 #Read in the results file
 input_df <- read.csv(results_file)
 #Set factors for buckets
@@ -125,7 +125,7 @@ plot_simulation_results(input_df, x_var="bucket_range", y_var="mae", color_var="
 # 6) Make Table of Continuous Trait Standard Errors ====
 ```{r}
 #Set output file location
-out_file <- "C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/1000G_Simulations/correlation_error_standard_deviations.csv"
+out_file <- "C:/Users/mitch/Documents/Argonne/Meta-Analysis_Fine-Mapping/Data/1000G_Simulations/correlation_error_standard_deviations.csv"
 #Filter and write file
 input_df %>% filter(trait_type == "continuous" & bucket_type == "geno_corr") %>% group_by(n_traits, bucket_range) %>% summarize(stddev_error=mean(stddev_error, na.rm=TRUE)) %>% write.csv(file=out_file, col.names = TRUE, row.names = FALSE, quote = FALSE, sep = ",")
 ```
@@ -183,7 +183,7 @@ p <- p + scale_x_continuous(labels = scales::comma) +
                 panel.grid.major = element_blank(),
                 panel.grid.minor = element_blank())
 
-ggsave("C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Figures/Correlation_Structure/MAE.high-res.ALL_pop_only.jpeg", plot = p, width = 2.25, height = 3, units = "in",dpi = 300)
+ggsave("C:/Users/mitch/Documents/Argonne/Meta-Analysis_Fine-Mapping/Figures/Correlation_Structure/MAE.high-res.ALL_pop_only.jpeg", plot = p, width = 2.25, height = 3, units = "in",dpi = 300)
 
 ```
 # 12) Make High-Quality Figure by Genotype Correlation Bucket for Grant Application ====
@@ -217,7 +217,7 @@ p <- ggplot(df %>% filter(population=="ALL"), aes_string(x = x_var, y = y_var, c
   theme_minimal() +
   labs(
     title = plot_title,
-    x = "Genotype Correlation",
+    x = "|Genotype Correlation|",
     y = "Mean Absolute Error (MAE)", 
     color = "# Traits"
   )
@@ -240,6 +240,6 @@ p <- p + #scale_x_discrete(labels = scales::comma) +
                 panel.grid.major = element_blank(),
                 panel.grid.minor = element_blank())
 
-ggsave("C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Figures/Correlation_Structure/MAE.high-res.ALL_pop_only.by_genotype_bucket.jpeg", plot = p, width = 2.25, height = 3, units = "in",dpi = 300)
+ggsave("C:/Users/mitch/Documents/Argonne/Meta-Analysis_Fine-Mapping/Figures/Correlation_Structure/MAE.high-res.ALL_pop_only.by_genotype_bucket.jpeg", plot = p, width = 2.25, height = 3, units = "in",dpi = 300)
 
 ```

@@ -13,13 +13,13 @@ library(dplyr)
 library(ggpubr)
 
 #Set results file
-basic_results_file="C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/1000G_Simulations/master.results.csv.gz"
-causal_results_file="C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/1000G_Simulations/master.causal.results.csv.gz"
-causal_v2_results_file="C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/1000G_Simulations/master.causal_v2.results.csv.gz"
-causal_v3_results_file="C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/1000G_Simulations/master.causal_v3.results.csv.gz"
-causal_v4_results_file="C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Data/1000G_Simulations/master.causal_v4.results.csv.gz"
+basic_results_file="C:/Users/mitch/Documents/Argonne/Meta-Analysis_Fine-Mapping/Data/1000G_Simulations/master.results.csv.gz"
+causal_results_file="C:/Users/mitch/Documents/Argonne/Meta-Analysis_Fine-Mapping/Data/1000G_Simulations/master.causal.results.csv.gz"
+causal_v2_results_file="C:/Users/mitch/Documents/Argonne/Meta-Analysis_Fine-Mapping/Data/1000G_Simulations/master.causal_v2.results.csv.gz"
+causal_v3_results_file="C:/Users/mitch/Documents/Argonne/Meta-Analysis_Fine-Mapping/Data/1000G_Simulations/master.causal_v3.results.csv.gz"
+causal_v4_results_file="C:/Users/mitch/Documents/Argonne/Meta-Analysis_Fine-Mapping/Data/1000G_Simulations/master.causal_v4.results.csv.gz"
 #Output directory
-out_dir<- "C:/Users/mconery/Box/Mitchell_Work_Files/Meta-Analysis_Fine-Mapping/Figures/Correlation_Structure"
+out_dir<- "C:/Users/mitch/Documents/Argonne/Meta-Analysis_Fine-Mapping/Figures/Correlation_Structure"
 #Read in the results file
 basic_df <- read.csv(basic_results_file)
 causal_df <- read.csv(causal_results_file)
