@@ -478,3 +478,25 @@ ggsave(
 )
 
 ```
+
+# 16) Summarize the results for supplemental tables
+```{r} 
+#Create grouping function for raw results
+summarize_raw <- function(input_df){
+  group_df <- input_df %>% group_by(population, n_traits, trait_type, n_causal, effect_size) %>% 
+    summarize(count_maf_0_10=sum(pmin(maf1,maf2)<0.1), count_maf_10_20=sum(pmin(maf1,maf2)>=0.1 & pmin(maf1,maf2)<0.2),
+              count_maf_20_30=sum(pmin(maf1,maf2)>=0.2 & pmin(maf1,maf2)<0.3), count_maf_30_40=sum(pmin(maf1,maf2)>=0.3 & pmin(maf1,maf2)<0.4),
+              count_maf_40_50=sum(pmin(maf1,maf2)>=0.4), 
+              count_geno_corr_0_20=sum(geno_corr<0.2), count_geno_corr_20_40=sum(geno_corr>=0.2 & geno_corr<0.4),
+              count_geno_corr_40_60=sum(geno_corr>=0.4 & geno_corr<0.6), count_geno_corr_60_80=sum(geno_corr>=0.6 & geno_corr<0.8),
+              count_geno_corr_80_100=sum(geno_corr>=0.8),
+              mean_absolute_error=mean(abs(geno_corr-beta_corr)), median_absolute_error=median(abs(geno_corr-beta_corr))
+              ) 
+  return(group_df)
+  
+}
+
+#Write to file
+basic_df %>% summarize_raw %>% write.table(file.path(dirname(basic_results_file), "master.results.summarized.csv"), quote = FALSE, row.names = FALSE, sep = ",", col.names = TRUE)
+
+```
