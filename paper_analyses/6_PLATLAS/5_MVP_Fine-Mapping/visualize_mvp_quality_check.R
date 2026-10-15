@@ -278,3 +278,35 @@ convergence_df %>%
   )))
 
 message("Done. Figures written to: ", out_dir)
+
+# 6) Write supplemental tables ====
+
+#Compress Betanfer and 1000G results onto the same row
+pip_supplement <- pip_df %>% 
+  group_by(Trait, Population, Locus, Merged_Signal, MVP_ID) %>% 
+  summarize(maf=first(maf), original_pip=first(original_pip), 
+            Betanfer_SuSiE_PIP=max(ifelse(ld_source=="Betanfer", susie_pip, -1)), 
+            Betanfer_SuSiE_CS=max(ifelse(ld_source=="Betanfer", susie_cs, -1)), 
+            Betanfer_RSparsePro_PIP=max(ifelse(ld_source=="Betanfer", rsparsepro_pip, -1)), 
+            Betanfer_RSparsePro_CS=max(ifelse(ld_source=="Betanfer", rsparsepro_cs, -1)),
+            ThousandG_SuSiE_PIP=max(ifelse(ld_source=="1000G", susie_pip, -1)), 
+            ThousandG_SuSiE_CS=max(ifelse(ld_source=="1000G", susie_cs, -1)),
+            ThousandG_RSparsePro_PIP=max(ifelse(ld_source=="1000G", rsparsepro_pip, -1)), 
+            ThousandG_RSparsePro_CS=max(ifelse(ld_source=="1000G", rsparsepro_cs, -1)))
+
+signal_supplement <- signal_df %>% 
+  group_by(Trait, Population, Locus, Merged_Signal) %>% 
+  summarize(n_original_variants=first(n_original_variants), mean_maf=first(mean_maf), median_maf=first(median_maf),
+            Betanfer_susie_file_exists=susie_file_exists[ld_source=="Betanfer"], 
+            Betanfer_rsparsepro_file_exists=rsparsepro_file_exists[ld_source=="Betanfer"],
+            Betanfer_any_variant_in_susie_cs=any_variant_in_susie_cs[ld_source=="Betanfer"], 
+            Betanfer_any_variant_in_rsparsepro_cs=any_variant_in_rsparsepro_cs[ld_source=="Betanfer"],
+            ThousandG_susie_file_exists=susie_file_exists[ld_source=="1000G"], 
+            ThousandG_rsparsepro_file_exists=rsparsepro_file_exists[ld_source=="1000G"],
+            ThousandG_any_variant_in_susie_cs=any_variant_in_susie_cs[ld_source=="1000G"], 
+            ThousandG_any_variant_in_rsparsepro_cs=any_variant_in_rsparsepro_cs[ld_source=="1000G"]
+            )
+
+#Write to file
+pip_supplement %>% write.csv(file = file.path(inp_dir, "pip_supplement.csv"), quote = FALSE, row.names = FALSE, col.names = TRUE)
+signal_supplement %>% write.csv(file = file.path(inp_dir, "signal_supplement.csv"), quote = FALSE, row.names = FALSE, col.names = TRUE)
