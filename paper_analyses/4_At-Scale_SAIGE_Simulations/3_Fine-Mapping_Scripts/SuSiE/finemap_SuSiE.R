@@ -25,6 +25,7 @@ library(stringr)
 # 7) column name for sample size in summary stats [OPTIONAL; default is "n_samples"]
 # 8) flag indicating whether in-sample fine-mapping is being used [OPTIONAL; default is FALSE]
 # 9) random seed [OPTIONAL; default is 5]
+# 10) minimum absolute correlation (purity) for credible sets [OPTIONAL; default is 0.5, the susieR default]
 
 args <- commandArgs(trailingOnly = TRUE);
 
@@ -40,11 +41,12 @@ if (length(args) >= 3) {
   n_col <- if (length(args) >= 7) args[7] else "n_samples"
   in_sample_flag <- if (length(args) >= 8) as.logical(args[8]) else FALSE
   random_seed <- if (length(args) >= 9) as.integer(args[9]) else 5
+  min_abs_corr <- if (length(args) >= 10) as.numeric(args[10]) else 0.5
   
   print("Necessary Parameters Input.")
   
 } else {
-  print("Usage: Rscript finemap_SuSiE.R summary_stats_file ld_file out_file [markerid_col] [beta_col] [se_col] [n_col] [in_sample_flag] [random_seed]");
+  print("Usage: Rscript finemap_SuSiE.R summary_stats_file ld_file out_file [markerid_col] [beta_col] [se_col] [n_col] [in_sample_flag] [random_seed] [min_abs_corr]");
   print("Example: Rscript finemap_SuSiE.R sumstats.txt matrix.vcor1 output.txt");
   quit(save="no");
 }
@@ -145,6 +147,15 @@ check <- function(expression){
                         write.table(data.frame(susie_time_seconds = NA), file = timing_file, 
                                     col.names = TRUE, row.names = FALSE, quote = FALSE, sep="\t")
                         
+                        # Write empty credible set purity file for failed runs
+                        cs_dir <- file.path(dirname(out_file), "cs")
+                        dir.create(cs_dir, recursive = TRUE, showWarnings = FALSE)
+                        write.table(data.frame(cs = integer(0), size = integer(0), min_abs_corr = numeric(0),
+                                               mean_abs_corr = numeric(0), median_abs_corr = numeric(0),
+                                               coverage = numeric(0), rows = character(0)),
+                                    file = file.path(cs_dir, basename(out_file)),
+                                    col.names = TRUE, row.names = FALSE, quote = FALSE, sep="\t")
+                        
                         quit(save="no");
                       },
                       finally = {
@@ -163,7 +174,8 @@ print("Running SuSiE fine-mapping...")
 # Time the susie_rss function specifically
 susie_start_time <- Sys.time()
 fitted_rss1 <- check(susie_rss(bhat = bhat, shat = shat, n = n, R = R, L = 10,
-                               estimate_residual_variance = in_sample_flag))
+                               estimate_residual_variance = in_sample_flag,
+                               min_abs_corr = min_abs_corr))
 susie_end_time <- Sys.time()
 
 # Calculate timing in seconds
@@ -206,5 +218,31 @@ timing_file <- file.path(timing_dir, basename(out_file))
 timing_data <- data.frame(susie_time_seconds = susie_time_seconds)
 write.table(timing_data, file = timing_file, col.names = TRUE, row.names = FALSE, quote = FALSE, sep="\t")
 
+# 7) Write Credible Set Purity File ====
+
+# One row per credible set, so a stricter purity threshold can be applied later
+# without refitting. rows = row numbers (1-based) of the members in out_file.
+cs_dir <- file.path(dirname(out_file), "cs")
+dir.create(cs_dir, recursive = TRUE, showWarnings = FALSE)
+cs_file <- file.path(cs_dir, basename(out_file))
+
+cs_names <- names(fitted_rss1$sets$cs)
+cs_data <- data.frame(cs = integer(0), size = integer(0), min_abs_corr = numeric(0),
+                      mean_abs_corr = numeric(0), median_abs_corr = numeric(0),
+                      coverage = numeric(0), rows = character(0))
+if (length(cs_names) > 0) {
+  cs_data <- data.frame(
+    cs = as.numeric(str_replace(cs_names, pattern = "L", replacement = "")),
+    size = lengths(fitted_rss1$sets$cs),
+    min_abs_corr = fitted_rss1$sets$purity[cs_names, "min.abs.corr"],
+    mean_abs_corr = fitted_rss1$sets$purity[cs_names, "mean.abs.corr"],
+    median_abs_corr = fitted_rss1$sets$purity[cs_names, "median.abs.corr"],
+    coverage = fitted_rss1$sets$coverage,
+    rows = vapply(fitted_rss1$sets$cs, paste, "", collapse = ",")
+  )
+}
+write.table(cs_data, file = cs_file, col.names = TRUE, row.names = FALSE, quote = FALSE, sep="\t")
+
 print(paste0("Analysis complete. Results written to: ", out_file))
 print(paste0("Timing information written to: ", timing_file))
+print(paste0("Credible set purity written to: ", cs_file))

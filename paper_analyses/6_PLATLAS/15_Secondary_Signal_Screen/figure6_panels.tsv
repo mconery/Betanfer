@@ -1,0 +1,4 @@
+panel	gene	trait	title	locus	abf_locus	window_start	window_end	abf_lead_variant	abf_lead_rsid	abf_lead_label	secondary_variant	secondary_rsid	secondary_label	show_genes	gene_rows	extra
+A	BMP2	Phe_365	Glaucoma	chr20_6000001_6900000	20_5656663_7282072	6400000	6870000	20:6489447:G:A	rs2326788	ABF lead	20:6778468:A:T	rs235768 (p.Arg190Ser)	BMP2 missense		1
+B	BAIAP2L2	Phe_389_1	Sensorineural hearing loss	chr22_37300001_38400000	22_37184582_38604119	37630000	38190000	22:37733325:G:A	rs7284476	ABF lead (TRIOBP)	22:38091022:A:G	rs132930	BAIAP2L2	LGALS1,TRIOBP,GCAT,EIF3L,MICALL1,SOX10,PICK1,BAIAP2L2,PLA2G6	2	22:38089533:A:G|rs17856487 (p.Cys252Arg)|-18|-12
+C	TGFB2	Phe_442_11	Abdominal aortic aneurysm	chr1_218200001_218700000	1_217921578_218946857	218280000	218600000	1:218531440:G:A	rs57462720	ABF lead	1:218347501:G:A	rs10482724	TGFB2 promoter region		1
