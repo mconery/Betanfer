@@ -14,6 +14,7 @@
 #
 # SuSiE output columns: VARIANT_ID  Z  PIP  converged  cs
 # Timing file is written by finemap_SuSiE.R to {output_dir}/timing/{basename}.
+# Credible set purity is written by finemap_SuSiE.R to {output_dir}/cs/{basename}.
 #
 # Usage:
 #   bash run_susie.sh <sumstats_gz> <ld_file> <output_file> <CHR> <START> <END>
@@ -109,9 +110,13 @@ fi
 ################################################
 ## Step 2: Run SuSiE
 ## finemap_SuSiE.R args: sumstats ld_file output_file varcol beta_col se_col n_col
+##                         in_sample_flag random_seed min_abs_corr
+## min_abs_corr = 0.1 matches the purity filter of the original MVP fine-mapping
+## (susieR default is 0.5). Purity of every credible set is written to
+## {output_dir}/cs/{basename(output_file)}, so a stricter filter can be applied later.
 ## The R script writes the timing file to {output_dir}/timing/{basename(output_file)}
 ################################################
-echo "NOTE: Running SuSiE (varcol=RSID, beta=BETA, se=SE, n=N)"
+echo "NOTE: Running SuSiE (varcol=RSID, beta=BETA, se=SE, n=N, min_abs_corr=0.1)"
 Rscript "$SUSIE_SCRIPT" \
     "$TEMP_SUMSTATS" \
     "$LD_FILE" \
@@ -119,6 +124,9 @@ Rscript "$SUSIE_SCRIPT" \
     RSID \
     BETA \
     SE \
-    N
+    N \
+    FALSE \
+    5 \
+    0.1
 
 echo "SUCCESS: SuSiE completed → $OUTPUT_FILE"
