@@ -1094,6 +1094,32 @@ def calculate_z_scores(gwas_files, all_detected_cols):
 
     return z_scores_by_pop
 
+def read_native_credible_sets(cs_file):
+
+    """Read SuSiEx's own 95% credible sets from its .cs file.
+
+    Returns {variant_id: [cs_id, ...]} with the CS IDs sorted. SuSiEx writes 'NULL' when the
+
+    model converged without a credible set and 'FAIL' when it did not converge (the .snp file
+
+    then has no PIP(CS) columns either); both give no credible sets. SuSiEx credible sets can
+
+    overlap, so a variant can belong to several of them."""
+
+    with open(cs_file) as f:
+
+        header = f.readline().strip()
+
+    if not header.startswith('CS_ID'):
+
+        print(f"[SUSIE FORMAT] SuSiEx .cs file reports '{header}'; no credible sets assigned")
+
+        return {}
+
+    cs_df = pd.read_csv(cs_file, sep='\t', usecols=['CS_ID', 'SNP'])
+
+    return cs_df.groupby('SNP')['CS_ID'].apply(lambda ids: sorted(ids.astype(int))).to_dict()
+
 def create_susie_format_output(output_file, gwas_files, all_detected_cols):
 
     """Create final output file in SuSiE format combining SuSiEx results with summary statistics."""
@@ -1202,31 +1228,19 @@ def create_susie_format_output(output_file, gwas_files, all_detected_cols):
 
     output_df['converged'] = 'NA'
 
-    # Determine credible set membership
+    # Determine credible set membership from SuSiEx's own 95% credible sets (.cs file)
 
-    cs_col_data = []
+    # cs = lowest-numbered credible set containing the variant (0 = none)
 
-    for idx, row in snp_df.iterrows():
+    # cs_all = all credible sets containing the variant, comma-separated ('0' = none)
 
-        # Check if variant is in any credible set (PIP > some threshold, e.g., 0.01)
+    native_cs = read_native_credible_sets(susiex_cs_file)
 
-        in_cs = 0
+    memberships = output_df['VARIANT_ID'].map(native_cs)
 
-        for pip_col in pip_cols:
+    output_df['cs'] = [m[0] if isinstance(m, list) else 0 for m in memberships]
 
-            if pd.notna(row[pip_col]) and row[pip_col] > 0.01:
-
-                # Extract CS number from column name like 'PIP(CS1)'
-
-                cs_num = int(pip_col.replace('PIP(CS', '').replace(')', ''))
-
-                in_cs = cs_num
-
-                break
-
-        cs_col_data.append(in_cs)
-
-    output_df['cs'] = cs_col_data
+    output_df['cs_all'] = [','.join(map(str, m)) if isinstance(m, list) else '0' for m in memberships]
 
     # Add LogBF columns with population names
 

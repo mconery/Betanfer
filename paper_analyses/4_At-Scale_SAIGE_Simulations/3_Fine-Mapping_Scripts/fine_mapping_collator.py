@@ -143,6 +143,27 @@ def extract_execution_time(result_file_path: str) -> Optional[float]:
         logger.error(f"Error extracting execution time for {result_file_path}: {e}")
         return None
 
+def get_credible_sets(df: pd.DataFrame) -> Dict[float, pd.Index]:
+    """
+    Map each credible set ID to the row labels of its member variants.
+
+    Uses the cs_all column (comma-separated credible set IDs, '0' for none) when it is
+    present, so that overlapping credible sets (SuSiEx native 95% credible sets) are kept
+    whole; otherwise uses the single cs column (cs > 0).
+
+    Args:
+        df: Fine-mapping results with a cs column and optionally a cs_all column
+
+    Returns:
+        Dictionary {cs_id: row labels of the member variants}
+    """
+    if 'cs_all' in df.columns:
+        membership = pd.to_numeric(df['cs_all'].astype(str).str.split(',').explode(), errors='coerce')
+    else:
+        membership = df['cs']
+    membership = membership[membership > 0]
+    return dict(membership.groupby(membership).groups)
+
 def process_single_result_file(args: Tuple[str, str]) -> Optional[Dict]:
     """
     Process a single fine-mapping result file and extract summary statistics.
@@ -193,28 +214,27 @@ def process_single_result_file(args: Tuple[str, str]) -> Optional[Dict]:
             logger.error(f"Available columns: {list(df.columns)}")
             return None
         
-        # Filter for variants in credible sets (cs > 0)
-        cs_variants = df[df['cs'] > 0].copy()
+        # Credible sets as {cs_id: member rows}; a variant can be in several (cs_all)
+        credible_sets = get_credible_sets(df)
+        
+        # Filter for variants in credible sets (union over credible sets)
+        cs_variants = df.loc[sorted(set().union(*credible_sets.values()))]
         
         # Count causal variants in credible sets
         causal_in_cs = sum(1 for variant in cs_variants['VARIANT_ID'] if variant in causal_variants)
         
         # Count number of non-zero credible sets mapped at this locus
-        num_credible_sets = len(cs_variants['cs'].unique()) if len(cs_variants) > 0 else 0
+        num_credible_sets = len(credible_sets)
         
         # Count number of credible sets that contain at least one true causal variant
         credible_sets_with_causal = 0
-        
-        if len(cs_variants) > 0:
-            for cs_id in cs_variants['cs'].unique():
-                cs_variants_in_set = cs_variants[cs_variants['cs'] == cs_id]['VARIANT_ID']
-                if any(variant in causal_variants for variant in cs_variants_in_set):
-                    credible_sets_with_causal += 1
+        for cs_rows in credible_sets.values():
+            if any(variant in causal_variants for variant in df.loc[cs_rows, 'VARIANT_ID']):
+                credible_sets_with_causal += 1
         
         # Calculate average number of variants per credible set
-        if len(cs_variants) > 0:
-            cs_counts = cs_variants['cs'].value_counts()
-            avg_variants_per_cs = cs_counts.mean()
+        if credible_sets:
+            avg_variants_per_cs = np.mean([len(cs_rows) for cs_rows in credible_sets.values()])
         else:
             avg_variants_per_cs = 0
         
