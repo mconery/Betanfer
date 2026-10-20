@@ -24,8 +24,13 @@ Sumstats format (bgzip+tabix, PLATLAS convention):
   Variant IDs in #ID have the form CHR:POS:REF:ALT.
 
 Output columns:
-  VARIANT_ID, Z_{ancestry_label} (one per cohort), PIP, converged, cs,
+  VARIANT_ID, Z_{ancestry_label} (one per cohort), PIP, converged, cs, cs_all,
   LogBF_CS{n}_{ancestry_label} (one per credible set per cohort)
+
+Credible sets are SuSiEx's own 95% credible sets, read from its .cs file.
+SuSiEx credible sets can overlap, so cs holds the lowest-numbered credible set
+containing the variant and cs_all holds all of them, comma-separated
+('0' = not in a credible set).
 
 Usage:
   python run_susiex.py [OPTIONS]
@@ -351,11 +356,31 @@ def intersect_and_filter(cohort_data_list, maf_thresh):
 ##########  OUTPUT PARSING  ###################################################
 ###############################################################################
 
-def parse_susiex_output(snp_file, ancestry_labels, cohort_data_list, output_file):
-    """Parse SuSiEx .snp output and write standard-format output file.
+def read_native_credible_sets(cs_file):
+    """Read SuSiEx's own 95% credible sets from its .cs file.
+
+    Returns {variant_id: [cs_id, ...]} with the CS IDs sorted. SuSiEx writes
+    'NULL' when the model converged without a credible set and 'FAIL' when it
+    did not converge (the .snp file then has no PIP(CS) columns either); both
+    give no credible sets. A variant can belong to several credible sets.
+    """
+    if not os.path.exists(cs_file):
+        print(f"  WARNING: SuSiEx .cs file not found: {cs_file}; no credible sets assigned")
+        return {}
+    with open(cs_file) as fh:
+        header = fh.readline().strip()
+    if not header.startswith('CS_ID'):
+        print(f"  NOTE: SuSiEx .cs file reports '{header}'; no credible sets assigned")
+        return {}
+    cs_df = pd.read_csv(cs_file, sep='\t', usecols=['CS_ID', 'SNP'])
+    return cs_df.groupby('SNP')['CS_ID'].apply(lambda ids: sorted(ids.astype(int))).to_dict()
+
+
+def parse_susiex_output(snp_file, cs_file, ancestry_labels, cohort_data_list, output_file):
+    """Parse SuSiEx .snp and .cs output and write standard-format output file.
 
     Output columns:
-      VARIANT_ID, Z_{label} (one per cohort), PIP, converged, cs,
+      VARIANT_ID, Z_{label} (one per cohort), PIP, converged, cs, cs_all,
       LogBF_CS{n}_{label} (one per CS per cohort)
     """
     try:
@@ -381,18 +406,13 @@ def parse_susiex_output(snp_file, ancestry_labels, cohort_data_list, output_file
     out['PIP']       = snp_df['PIP']
     out['converged'] = 'NA'
 
-    # Credible set membership: use the first CS with PIP > 0.01
-    cs_assignments = []
-    for _, row in snp_df.iterrows():
-        cs_num = 0
-        for pc in pip_cols:
-            if pd.notna(row[pc]) and row[pc] > 0.01:
-                m = re.match(r'PIP\(CS(\d+)\)', pc)
-                if m:
-                    cs_num = int(m.group(1))
-                    break
-        cs_assignments.append(cs_num)
-    out['cs'] = cs_assignments
+    # Credible set membership: SuSiEx's own 95% credible sets (.cs file)
+    #   cs     = lowest-numbered credible set containing the variant (0 = none)
+    #   cs_all = all credible sets containing the variant, comma-separated
+    native_cs   = read_native_credible_sets(cs_file)
+    memberships = out['VARIANT_ID'].map(native_cs)
+    out['cs']     = [m[0] if isinstance(m, list) else 0 for m in memberships]
+    out['cs_all'] = [','.join(map(str, m)) if isinstance(m, list) else '0' for m in memberships]
 
     # LogBF columns renamed by population
     for lc in logbf_cols:
@@ -416,7 +436,7 @@ def write_failure_output(output_file, ancestry_labels, timing_file, elapsed):
     """Write an empty output file with correct headers and timing=NA."""
     cols = (['VARIANT_ID']
             + [f'Z_{lbl}' for lbl in ancestry_labels]
-            + ['PIP', 'converged', 'cs'])
+            + ['PIP', 'converged', 'cs', 'cs_all'])
     pd.DataFrame(columns=cols).to_csv(output_file, sep='\t', index=False)
     os.makedirs(os.path.dirname(timing_file), exist_ok=True)
     with open(timing_file, 'w') as fh:
@@ -629,12 +649,13 @@ def main():
 
     # ── Parse SuSiEx output and write standard format ─────────────────────────
     snp_file = os.path.join(out_dir, f"{out_name}.snp")
+    cs_file  = os.path.join(out_dir, f"{out_name}.cs")
     if not os.path.exists(snp_file):
         print(f"ERROR: SuSiEx .snp file not found: {snp_file}")
         write_failure_output(output_file, ancestry_labels, timing_file,
                              time.time() - t_start)
     else:
-        success = parse_susiex_output(snp_file, ancestry_labels, cohort_data, output_file)
+        success = parse_susiex_output(snp_file, cs_file, ancestry_labels, cohort_data, output_file)
         if not success:
             write_failure_output(output_file, ancestry_labels, timing_file,
                                  time.time() - t_start)
