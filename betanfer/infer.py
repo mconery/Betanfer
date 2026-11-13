@@ -11,6 +11,7 @@ import logging
 from pathlib import Path
 from typing import List, Optional, Set
 
+import numpy as np
 import pandas as pd
 
 from betanfer.utils import (
@@ -213,6 +214,20 @@ def run_infer(args) -> None:
     if args.non_contiguous and range_mode:
         logger.error(
             "Error: --non-contiguous is only valid when using --variant-file."
+        )
+        sys.exit(1)
+
+    # Validate pair-level trait threshold against the locus-level threshold
+    if args.min_pair_traits < 2:
+        logger.error(
+            f"Error: --min-pair-traits must be >= 2 (got {args.min_pair_traits}); "
+            "a correlation requires at least 2 jointly observed traits."
+        )
+        sys.exit(1)
+    elif args.min_pair_traits > args.min_traits:
+        logger.error(
+            f"Error: --min-pair-traits ({args.min_pair_traits}) must be <= "
+            f"--min-traits ({args.min_traits})."
         )
         sys.exit(1)
 
@@ -439,19 +454,41 @@ def run_infer(args) -> None:
     # ------------------------------------------------------------------
     logger.info(f"Step 8: Computing LD matrix on device='{device}'...")
     chunk_size = getattr(args, 'chunk_size', None)
+    min_pair_traits = args.min_pair_traits
+    logger.info(
+        f"  Variant pairs jointly observed in fewer than {min_pair_traits} "
+        "trait(s) will be set to NaN"
+    )
     if chunk_size is not None:
         logger.info(f"  Using chunked computation (chunk_size={chunk_size})")
         corr_np = compute_beta_correlation_matrix_chunked(
             betas_df=beta_df,
             device=device,
             chunk_size=chunk_size,
+            min_n=min_pair_traits,
         )
     else:
         corr_np = compute_beta_correlation_matrix(
             betas_df=beta_df,
             device=device,
+            min_n=min_pair_traits,
         )
     logger.info(f"LD matrix shape: {corr_np.shape[0]} × {corr_np.shape[1]}")
+    n_vars = corr_np.shape[0]
+    n_pairs = n_vars * (n_vars - 1) // 2
+    if n_pairs > 0:
+        # Count NaNs in row blocks to avoid allocating an n×n boolean array.
+        # The matrix is symmetric, so off-diagonal NaNs are halved.
+        n_nan_total = 0
+        for r0 in range(0, n_vars, 2048):
+            n_nan_total += int(np.isnan(corr_np[r0:r0 + 2048]).sum())
+        n_nan_diag = int(np.isnan(np.diagonal(corr_np)).sum())
+        n_nan_pairs = (n_nan_total - n_nan_diag) // 2
+        logger.info(
+            f"Variant pairs set to NaN (insufficient joint trait support or "
+            f"zero variance): {n_nan_pairs} / {n_pairs} "
+            f"({n_nan_pairs / n_pairs:.3%})"
+        )
 
     # ------------------------------------------------------------------
     # Step 9: Save output

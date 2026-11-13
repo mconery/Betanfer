@@ -366,6 +366,20 @@ Examples:
             "[default: 1000]"
         ),
     )
+    comp_group.add_argument(
+        "--min-pair-traits",
+        metavar="N",
+        type=int,
+        default=1000,
+        help=(
+            "Minimum number of traits in which both variants of a pair have a "
+            "non-missing beta for that pair's LD estimate to be reported. "
+            "Pairs supported by fewer traits are set to NaN in the matrix. "
+            "This typically affects rare variants that were tested in only a "
+            "subset of the GWAS. Must be >= 2 and <= --min-traits. "
+            "[default: 1000]"
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------

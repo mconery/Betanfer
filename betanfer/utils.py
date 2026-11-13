@@ -583,6 +583,7 @@ def extract_betas_from_range(
 def compute_beta_correlation_matrix(
     betas_df: pd.DataFrame,
     device: str = "cuda",
+    min_n: int = 2,
 ) -> np.ndarray:
     """
     Compute a pairwise correlation matrix from a beta DataFrame.
@@ -594,6 +595,9 @@ def compute_beta_correlation_matrix(
     Args:
         betas_df: Variants × traits DataFrame.
         device: 'cuda', 'xpu', or 'cpu'.
+        min_n: Minimum number of traits in which both variants are
+            non-missing for a pair's correlation to be reported. Pairs
+            below this are set to NaN. Values below 2 are raised to 2.
 
     Returns:
         Correlation matrix as a float32 numpy array.
@@ -636,10 +640,11 @@ def compute_beta_correlation_matrix(
     denom = torch.sqrt(var_x * var_y);        del var_x, var_y
     r     = cov_xy / denom;                   del cov_xy
 
-    # Set to NaN where there are too few jointly non-missing traits or
+    # Set to NaN where there are too few jointly non-missing traits (fewer
+    # than min_n, e.g. rare variants tested in only a subset of GWAS) or
     # where the denominator is invalid (zero variance in either variant).
     # Use in-place assignment to avoid allocating a full new n×n tensor.
-    min_n = 2
+    min_n = max(int(min_n), 2)
     invalid = (N < min_n) | ~(denom > 0);    del N, denom
     r[invalid] = float("nan");               del invalid
 
@@ -656,6 +661,7 @@ def compute_beta_correlation_matrix_chunked(
     betas_df: pd.DataFrame,
     device: str = "cuda",
     chunk_size: int = 15000,
+    min_n: int = 2,
 ) -> np.ndarray:
     """
     Block-wise chunked pairwise correlation matrix from a beta DataFrame.
@@ -670,6 +676,9 @@ def compute_beta_correlation_matrix_chunked(
         betas_df:   Variants × traits DataFrame.
         device:     'cuda', 'xpu', or 'cpu'.
         chunk_size: Maximum number of variants per GPU block.
+        min_n:      Minimum number of jointly non-missing traits per pair;
+                    pairs below this are set to NaN. Values below 2 are
+                    raised to 2.
 
     Returns:
         Correlation matrix as a float32 numpy array.
@@ -677,6 +686,8 @@ def compute_beta_correlation_matrix_chunked(
     values = betas_df.values.astype(np.float32)
     mask = (~np.isnan(values)).astype(np.float32)
     values_filled = np.where(mask.astype(bool), values, 0.0).astype(np.float32)
+
+    min_n = max(int(min_n), 2)
 
     n = len(betas_df)
     corr_np = np.empty((n, n), dtype=np.float32)
@@ -715,7 +726,6 @@ def compute_beta_correlation_matrix_chunked(
             denom  = torch.sqrt(var_x * var_y);      del var_x, var_y
             r      = cov_xy / denom;                 del cov_xy
 
-            min_n = 2
             invalid = (N < min_n) | ~(denom > 0);   del N, denom
             r[invalid] = float("nan");               del invalid
             r.clamp_(-1.0, 1.0)
