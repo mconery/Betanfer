@@ -45,6 +45,16 @@ betanfer --help
 ```
 If you intend to use GPUs for the correlation calculations we recommend you check the log file the first time you use the infer command to make sure the code hasn't defaulted to the CPU-based implementation.
 
+### Step 4 - Test on the example dataset
+
+The repository includes a small synthetic dataset with a known LD matrix. This runs `index` and `infer` end to end and checks the result:
+
+```bash
+bash example/run_example.sh
+```
+
+It finishes with `SUCCESS: Betanfer is installed and working.` See [example/README.md](example/README.md) for a step-by-step walkthrough.
+
 ---
 
 ## Usage
@@ -206,6 +216,8 @@ The filter is parallelised across CPU cores (see `--num-processes`).
 | `--stats-output FILE` | — | Per-trait filtering statistics (TSV) |
 | `--num-processes N` | all CPUs | Parallel processes for p-value filtering |
 | `--chunk-size N` | off | Break GPU correlation into N-variant blocks to limit peak memory (recommended for >20 000 variants) |
+| `--min-traits N` | 1000 | Skip the locus (write empty outputs) if fewer than N traits have ≥ 2 variants in it |
+| `--min-pair-traits N` | 1000 | Set a variant pair's LD to NaN if the two variants are observed together in fewer than N traits. Must be between 2 and `--min-traits` |
 | `--save-binary` | off | Save `.vcor1` + `.vcor1.vars` instead of TSV |
 
 ---
