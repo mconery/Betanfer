@@ -8,7 +8,7 @@
 #   BETANFER    command used to run betanfer   (default: betanfer)
 #               e.g. BETANFER="python -m betanfer" to test a source checkout
 #   PYTHON      Python used for the helper scripts (default: python)
-#   JOBS        parallel `betanfer index` processes (default: number of CPUs)
+#   JOBS        parallel `betanfer index` processes (default: CPUs, max 8)
 #   INFER_ARGS  extra arguments for `betanfer infer`, e.g. "--cpu"
 #
 # Takes about 1-5 minutes, mostly spent starting Python for 150 index jobs.
@@ -19,7 +19,10 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUT="${1:-betanfer_example}"
 BETANFER="${BETANFER:-betanfer}"
 PYTHON="${PYTHON:-python}"
-JOBS="${JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)}"
+# Each `betanfer index` process imports PyTorch, so cap parallelism to avoid
+# exhausting memory on many-core HPC nodes.
+NCPU="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)"
+JOBS="${JOBS:-$(( NCPU < 8 ? NCPU : 8 ))}"
 INFER_ARGS="${INFER_ARGS:-}"
 
 mkdir -p "$OUT"
@@ -33,7 +36,7 @@ echo
 echo "[2/4] Indexing 150 trait files with 'betanfer index' ($JOBS in parallel)..."
 mkdir -p "$OUT/indexed"
 if ! find "$OUT/sumstats" -name '*.txt' -print0 \
-    | xargs -0 -P "$JOBS" -I{} $BETANFER index --file {} --output-dir "$OUT/indexed" \
+    | xargs -0 -P "$JOBS" -I{} $BETANFER index --file {} --output-dir "$OUT/indexed" --force \
     > "$OUT/index.log" 2>&1; then
     echo "ERROR: indexing failed. See $OUT/index.log"
     exit 1

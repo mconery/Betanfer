@@ -28,7 +28,7 @@ Useful options:
 |---|---|---|
 | `BETANFER` | `betanfer` | Set to `"python -m betanfer"` to test a source checkout without installing |
 | `PYTHON` | `python` | Python used for the helper scripts |
-| `JOBS` | number of CPUs | Number of `betanfer index` jobs run in parallel |
+| `JOBS` | number of CPUs, at most 8 | Number of `betanfer index` jobs run in parallel |
 | `INFER_ARGS` | (none) | Extra arguments for `betanfer infer`, e.g. `"--cpu"` |
 
 Example: `INFER_ARGS="--cpu" bash example/run_example.sh my_test`
