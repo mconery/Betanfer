@@ -45,15 +45,45 @@ betanfer --help
 ```
 If you intend to use GPUs for the correlation calculations we recommend you check the log file the first time you use the infer command to make sure the code hasn't defaulted to the CPU-based implementation.
 
-### Step 4 - Test on the example dataset
+### Step 4 - Run the installation test
 
-The repository includes a small synthetic dataset with a known LD matrix. This runs `index` and `infer` end to end and checks the result:
+The repository includes an end-to-end test on a small synthetic dataset (150 traits, 100 variants) whose true LD matrix is known. It generates the data, indexes it with `betanfer index`, runs `betanfer infer`, and checks the inferred LD against the truth. It takes a few minutes and needs no real GWAS data.
+
+From the repository root, with your Betanfer environment active:
 
 ```bash
 bash example/run_example.sh
 ```
 
-It finishes with `SUCCESS: Betanfer is installed and working.` See [example/README.md](example/README.md) for a step-by-step walkthrough.
+On an HPC system, run it on a compute node with a GPU so the GPU code path is tested too. A successful run ends like this:
+
+```
+[4/4] 'betanfer infer' with --min-pair-traits 100 (rare-variant pairs set to NaN)...
+  Retained 140 traits; filtered out 10 traits
+  Variant pairs set to NaN (insufficient joint trait support or zero variance): 764 / 4950 (15.434%)
+  Device              : xpu
+  ...
+RESULT: PASS
+
+SUCCESS: Betanfer is installed and working.
+```
+
+`Device` shows the hardware used for the correlation step (`cuda`, `xpu` or `cpu`). If it says `cpu` on a GPU node, PyTorch can't see your GPU; the test still passes, but check your PyTorch install from Step 2.
+
+Outputs and logs go to `betanfer_example/`; pass a different directory as the first argument if you prefer, e.g. `bash example/run_example.sh /scratch/me/betanfer_test`. Delete the directory when you're done.
+
+Options are set as environment variables in front of the command:
+
+| Variable | Default | Use |
+|---|---|---|
+| `BETANFER` | `betanfer` | Command used to run Betanfer. Set to `"python -m betanfer"` to test a source checkout without installing it |
+| `JOBS` | number of CPUs, at most 8 | Number of `betanfer index` jobs run in parallel |
+| `INFER_ARGS` | (none) | Extra arguments for `betanfer infer`, e.g. `"--cpu"` |
+| `PYTHON` | `python` | Python used for the helper scripts |
+
+For example: `BETANFER="python -m betanfer" JOBS=4 bash example/run_example.sh`
+
+If the test prints `FAILED`, the check lines above it show which check failed, and the logs in the output directory (`index.log`, `ld_minpair2.log`, `ld_minpair100.log`) show the details. See [example/README.md](example/README.md) for a step-by-step walkthrough of each command, how the dataset is simulated, and troubleshooting.
 
 ---
 
